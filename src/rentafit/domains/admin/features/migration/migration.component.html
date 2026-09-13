@@ -1,87 +1,179 @@
 <div class="migration-container">
-    <div class="actions">
-        <button class="btn btn-update" (click)="startSession()" [disabled]="loading()">Nova Sessão</button>
-        <button class="btn btn-validate" (click)="validate()" [disabled]="!session() || loading()">Validar</button>
-        <button class="btn btn-clone" (click)="clone()" [disabled]="!session() || loading()">Clonar Banco</button>
-        <button class="btn btn-run" (click)="run()" [disabled]="!session() || loading()">Executar Migração</button>
-        <button class="btn btn-backup" (click)="backup()" [disabled]="loading()">Backup</button>
-        <button class="btn btn-promote" (click)="promote()" [disabled]="loading()">Promover</button>
+    <div class="stepper-header">
+        <div class="stepper">
+            @for (step of steps; track step.index) {
+                <div class="step"
+                     [class.active]="currentStep() >= step.index"
+                     [class.done]="completedSteps() > step.index"
+                     [class.failed]="failed() && currentStep() === step.index">
+                    <div class="step-circle">
+                        @if (completedSteps() > step.index) {
+                            ✓
+                        } @else {
+                            {{ step.index + 1 }}
+                        }
+                    </div>
+                    <span>{{ step.label }}</span>
+                </div>
+                @if (step.index < steps.length - 1) {
+                    <div class="step-line" [class.done]="completedSteps() > step.index"></div>
+                }
+            }
+        </div>
+        <button class="btn btn-reset" (click)="reset()" [disabled]="running() || loading()">Nova migração</button>
     </div>
 
-    <div *ngIf="loading()" class="spinner">
-        <span>Processando...</span>
-    </div>
+    <p class="status-line" [class.status-failed]="failed()">
+        @if (running()) {
+            <span class="spinner-dot"></span>
+        }
+        {{ statusLabel() }}
+    </p>
 
-    <div class="drop-zone" (drop)="onDrop($event)" (dragover)="onDragOver($event)">
-        <p>Arraste arquivos .bson aqui ou clique para selecionar</p>
-        <input type="file" multiple (change)="onFileSelected($event)" accept=".bson" />
-    </div>
+    @if (loading() && !running()) {
+        <div class="spinner"><span>Processando...</span></div>
+    }
 
-    <div *ngIf="session()" class="session-card">
-        <h2>Sessão {{ session()!.id }}</h2>
-        <p>Status: {{ session()!.status }}</p>
-        <table *ngIf="session()!.files.length">
-            <thead>
-                <tr>
-                    <th>Nome</th>
-                    <th>Tamanho</th>
-                    <th>Tipo</th>
-                    <th>Status</th>
-                    <th>Erro</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let file of session()!.files">
-                    <td>{{ file.name }}</td>
-                    <td>{{ file.size }}</td>
-                    <td>{{ file.type }}</td>
-                    <td>{{ file.status }}</td>
-                    <td>{{ file.error || '-' }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+    @if (failed()) {
+        <div class="session-card failed-card">
+            <h2>Falha na migração</h2>
+            @let failedSession = session();
+            @if (failedSession) {
+                <p>Sessão: {{ failedSession.id }} — status: {{ failedSession.status }}</p>
+                @if (failedSession.report?.errors?.length) {
+                    <ul>
+                        @for (error of failedSession.report!.errors; track error) {
+                            <li class="error">{{ error }}</li>
+                        }
+                    </ul>
+                }
+            }
+            <button class="btn btn-reset" (click)="reset()">Iniciar nova migração</button>
+        </div>
+    }
 
-    <div *ngIf="report()" class="report-card">
-        <h2>Relatório</h2>
-        <p>Status: {{ report()!.status }}</p>
-        <p>Clientes: {{ report()!.customersMigrated }}</p>
-        <p>Funcionários: {{ report()!.employeesMigrated }}</p>
-        <p>Categorias: {{ report()!.categoriesMigrated }}</p>
-        <p>Roupas: {{ report()!.rentalItemsMigrated }}</p>
-        <p>Contratos: {{ report()!.contractsMigrated }}</p>
-        <ul *ngIf="report()!.errors.length">
-            <li *ngFor="let error of report()!.errors" class="error">{{ error }}</li>
-        </ul>
-        <ul *ngIf="report()!.warnings.length">
-            <li *ngFor="let warning of report()!.warnings" class="warning">{{ warning }}</li>
-        </ul>
-    </div>
+    @if (!failed()) {
+        @if (currentStep() === 0) {
+            <div class="drop-zone" (drop)="onDrop($event)" (dragover)="onDragOver($event)">
+                <p>Arraste o arquivo <strong>.bson</strong> do dump aqui ou clique para selecionar</p>
+                <p class="hint">Um único arquivo BSON com o dump completo do MongoDB</p>
+                <input type="file" (change)="onFileSelected($event)" accept=".bson" />
+            </div>
+        }
 
-    <div *ngIf="comparison()" class="comparison-card">
-        <h2>Comparação</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Tabela</th>
-                    <th>Original</th>
-                    <th>Dump</th>
-                    <th>Diferença</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr *ngFor="let t of comparison()!.tables">
-                    <td>{{ t.tableName }}</td>
-                    <td>{{ t.originalCount }}</td>
-                    <td>{{ t.dumpCount }}</td>
-                    <td>{{ t.difference }}</td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
+        @if (currentStep() === 1) {
+            <div class="session-card">
+                <h2>Migração em andamento</h2>
+                @let s = session();
+                @if (s) {
+                    <p>Sessão: {{ s.id }}</p>
+                    @if (s.files.length) {
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Arquivo</th>
+                                    <th>Tamanho</th>
+                                    <th>Tipo</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @for (file of s.files; track file.name) {
+                                    <tr>
+                                        <td>{{ file.name }}</td>
+                                        <td>{{ file.size }}</td>
+                                        <td>{{ file.type }}</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    }
+                }
+            </div>
+        }
 
-    <div *ngIf="logs().length" class="log-card">
-        <h2>Logs</h2>
-        <pre>{{ logs().join('\n') }}</pre>
-    </div>
+        @if (currentStep() === 2) {
+            <div class="session-card">
+                <h2>Validação em andamento</h2>
+                <p>Comparando dados migrados em <code>rentafit_dump</code> com o banco original.</p>
+            </div>
+        }
+
+        @if (currentStep() === 3) {
+            @let s = session();
+            @if (s?.report; as report) {
+                <div class="report-card">
+                    <h2>Relatório da migração</h2>
+                    <p>Status: {{ report.status }}</p>
+                    <p>Clientes: {{ report.customersMigrated }}</p>
+                    <p>Funcionários: {{ report.employeesMigrated }}</p>
+                    <p>Categorias: {{ report.categoriesMigrated }}</p>
+                    <p>Roupas: {{ report.rentalItemsMigrated }}</p>
+                    <p>Contratos: {{ report.contractsMigrated }}</p>
+                    @if (report.errors.length) {
+                        <ul>
+                            @for (error of report.errors; track error) {
+                                <li class="error">{{ error }}</li>
+                            }
+                        </ul>
+                    }
+                    @if (report.warnings.length) {
+                        <ul>
+                            @for (warning of report.warnings; track warning) {
+                                <li class="warning">{{ warning }}</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+
+            @if (comparison()) {
+                <div class="comparison-card">
+                    <h2>Comparação de bancos</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tabela</th>
+                                <th>Original</th>
+                                <th>Dump</th>
+                                <th>Diferença</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @for (t of comparison()!.tables; track t.tableName) {
+                                <tr>
+                                    <td>{{ t.tableName }}</td>
+                                    <td>{{ t.originalCount }}</td>
+                                    <td>{{ t.dumpCount }}</td>
+                                    <td>{{ t.difference }}</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+
+            @if (s?.status === 'valid') {
+                <div class="session-card promote-card">
+                    <h2>Promover banco migrado</h2>
+                    <p>O banco <code>rentafit_dump</code> foi validado. Ao promover, o banco <code>rentafit</code> atual é salvo em backup e substituído pelo dump.</p>
+                    <button class="btn btn-promote" (click)="promote()" [disabled]="loading()">Promover rentafit_dump</button>
+                </div>
+            }
+
+            @if (s?.status === 'promoted') {
+                <div class="session-card success-card">
+                    <h2>Migração concluída</h2>
+                    <p>O banco <code>rentafit_dump</code> foi promovido para <code>rentafit</code>.</p>
+                    <button class="btn btn-reset" (click)="reset()">Nova migração</button>
+                </div>
+            }
+        }
+    }
+
+    @if (logs().length) {
+        <div class="log-card">
+            <h2>Logs</h2>
+            <pre>{{ logs().join('\n') }}</pre>
+        </div>
+    }
 </div>
