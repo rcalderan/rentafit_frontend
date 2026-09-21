@@ -11,7 +11,7 @@ import { resolveHomeRoute } from '../../utils/role-route.util';
   selector: 'rentafit-issuer-setup',
   imports: [FormsModule, CommonModule],
   templateUrl: './issuer-setup.component.html',
-  styleUrl: './issuer-setup.component.css'
+  styleUrl: './issuer-setup.component.css',
 })
 export class IssuerSetupComponent {
   private readonly authService = inject(AuthService);
@@ -34,6 +34,15 @@ export class IssuerSetupComponent {
   cep = '';
   paisCodigo = '1058';
   paisNome = 'BRASIL';
+
+  /** Campos fiscais NFS-e salvos junto ao emitente. */
+  nfseServiceCode = '';
+  nfseNbsCode = '';
+  nfseServiceDescription = '';
+  nfseIssRate: number | null = null;
+  nfseTotalTaxRate: number | null = null;
+  /** true = envia a IM do prestador na NFS-e (exige cadastro no CNC do município). */
+  nfseSendIm = false;
 
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
@@ -118,13 +127,15 @@ export class IssuerSetupComponent {
   private validateBranch(): string | null {
     const cnpj = this.branchCnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) return 'CNPJ da filial deve conter 14 dígitos.';
-    if (cnpj.substring(8, 12) === '0001') return 'CNPJ da filial deve ter sufixo diferente de 0001 (matriz).';
+    if (cnpj.substring(8, 12) === '0001')
+      return 'CNPJ da filial deve ter sufixo diferente de 0001 (matriz).';
     if (!this.branchLogradouro.trim()) return 'Logradouro da filial é obrigatório.';
     if (!this.branchNumero.trim()) return 'Número da filial é obrigatório.';
     if (!this.branchBairro.trim()) return 'Bairro da filial é obrigatório.';
     if (!this.branchMunicipioCodigo.trim()) return 'Código do município da filial é obrigatório.';
     if (!this.branchMunicipioNome.trim()) return 'Nome do município da filial é obrigatório.';
-    if (!this.branchUf.trim() || this.branchUf.trim().length !== 2) return 'UF da filial deve conter 2 letras.';
+    if (!this.branchUf.trim() || this.branchUf.trim().length !== 2)
+      return 'UF da filial deve conter 2 letras.';
     const cep = this.branchCep.replace(/\D/g, '');
     if (cep.length !== 8) return 'CEP da filial deve conter 8 dígitos.';
     return null;
@@ -143,7 +154,7 @@ export class IssuerSetupComponent {
     const request = this.buildRequest();
     this.issuerSetupService.configureIssuer(request).subscribe({
       next: () => this.linkIssuerToUser(request.cnpj),
-      error: (err: Error) => this.handleError(err)
+      error: (err: Error) => this.handleError(err),
     });
   }
 
@@ -164,14 +175,20 @@ export class IssuerSetupComponent {
       uf: this.uf.trim().toUpperCase(),
       cep: this.cep.replace(/\D/g, ''),
       paisCodigo: this.paisCodigo.trim(),
-      paisNome: this.paisNome.trim()
+      paisNome: this.paisNome.trim(),
+      nfseServiceCode: this.nfseServiceCode.replace(/\D/g, '') || undefined,
+      nfseNbsCode: this.nfseNbsCode.trim() || undefined,
+      nfseServiceDescription: this.nfseServiceDescription.trim() || undefined,
+      nfseIssRate: this.nfseIssRate ?? undefined,
+      nfseTotalTaxRate: this.nfseTotalTaxRate ?? undefined,
+      nfseSendIm: this.nfseSendIm,
     };
   }
 
   private linkIssuerToUser(cnpj: string): void {
     this.authService.setupIssuerCnpj(cnpj).subscribe({
       next: () => this.navigateHome(),
-      error: (err: Error) => this.handleError(err)
+      error: (err: Error) => this.handleError(err),
     });
   }
 

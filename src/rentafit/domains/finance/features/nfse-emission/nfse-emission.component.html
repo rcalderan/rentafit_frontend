@@ -29,14 +29,30 @@
       />
     </div>
 
+    <!-- Campos fiscais resolvidos do emitente (sistema/cnpj), somente leitura -->
     <div class="field-row">
       <div class="field">
-        <label>Código NBS</label>
-        <input class="input" type="text" [ngModel]="nbsCode()" (ngModelChange)="nbsCode.set($event)" />
+        <label>Código de Tributação Nacional</label>
+        <div class="readonly-value">{{ fiscalFields().serviceCode || '—' }}</div>
       </div>
       <div class="field">
-        <label>Município (IBGE)</label>
-        <input class="input" type="text" [ngModel]="cityCode()" (ngModelChange)="cityCode.set($event)" />
+        <label>Código NBS</label>
+        <div class="readonly-value">{{ fiscalFields().nbsCode || '—' }}</div>
+      </div>
+      <div class="field">
+        <label>Município da prestação (IBGE)</label>
+        <div class="readonly-value">{{ fiscalFields().cityCode || '—' }}</div>
+      </div>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label>Alíquota ISS (%)</label>
+        <div class="readonly-value">{{ fiscalFields().issRate }}</div>
+      </div>
+      <div class="field">
+        <label>Alíquota total Simples Nacional (%)</label>
+        <div class="readonly-value">{{ fiscalFields().totalTaxRate }}</div>
       </div>
     </div>
 
@@ -55,30 +71,52 @@
   @if (status() === 'PENDING_EMISSION') {
     <div class="pending-box">
       <p>⏳ Aguardando retorno do Portal Nacional...</p>
-      <div class="info-row"><span>Protocolo de Envio:</span><strong class="mono">{{ document()?.sendProtocol }}</strong></div>
-      <div class="info-row"><span>Data/Hora Envio:</span><strong>{{ formatDateTime(document()?.sentAt) }}</strong></div>
+      <div class="info-row">
+        <span>Protocolo de Envio:</span><strong class="mono">{{ document()?.sendProtocol }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Data/Hora Envio:</span><strong>{{ formatDateTime(document()?.sentAt) }}</strong>
+      </div>
     </div>
     <div class="actions">
-      <button class="btn" [disabled]="isProcessing()" (click)="checkStatus()">🔄 Verificar Status</button>
+      <button class="btn" [disabled]="isProcessing()" (click)="checkStatus()">
+        🔄 Verificar Status
+      </button>
     </div>
   }
 
   <!-- ─────────── EMITTED ─────────── -->
   @if (status() === 'EMITTED') {
     <div class="info-grid">
-      <div class="info-row"><span>Número:</span><strong>{{ document()?.number }}</strong></div>
-      <div class="info-row"><span>Série:</span><strong>{{ document()?.series }}</strong></div>
-      <div class="info-row"><span>Chave de Acesso:</span><strong class="mono">{{ document()?.accessKey }}</strong></div>
-      <div class="info-row"><span>Data de Emissão:</span><strong>{{ formatDateTime(document()?.emissionDate) }}</strong></div>
-      <div class="info-row"><span>Valor:</span><strong>{{ formatCurrency(document()?.value) }}</strong></div>
-      <div class="info-row"><span>Protocolo:</span><strong class="mono">{{ document()?.protocol }}</strong></div>
+      <div class="info-row">
+        <span>Número:</span><strong>{{ document()?.number }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Série:</span><strong>{{ document()?.series }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Chave de Acesso:</span><strong class="mono">{{ document()?.accessKey }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Data de Emissão:</span><strong>{{ formatDateTime(document()?.emissionDate) }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Valor:</span><strong>{{ formatCurrency(document()?.value) }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Protocolo:</span><strong class="mono">{{ document()?.protocol }}</strong>
+      </div>
     </div>
 
     <div class="actions actions-wrap">
       <button class="btn" (click)="downloadXml()">📄 Download XML</button>
       <button class="btn" (click)="downloadDanfe()">🖨️ Download DANFSe (PDF)</button>
       <button class="btn" (click)="showEmailModal.set(true)">✉️ Enviar por E-mail</button>
-      <button class="btn btn-danger" [disabled]="isProcessing()" (click)="showCancelModal.set(true)">
+      <button
+        class="btn btn-danger"
+        [disabled]="isProcessing()"
+        (click)="showCancelModal.set(true)"
+      >
         Cancelar NFS-e
       </button>
     </div>
@@ -87,23 +125,40 @@
   <!-- ─────────── CANCELLED ─────────── -->
   @if (status() === 'CANCELLED') {
     <div class="info-grid">
-      <div class="info-row"><span>Número NFS-e:</span><strong>{{ document()?.number }}</strong></div>
-      <div class="info-row"><span>Chave de Acesso:</span><strong class="mono">{{ document()?.accessKey }}</strong></div>
-      <div class="info-row"><span>Data Cancelamento:</span><strong>{{ formatDateTime(document()?.cancelledAt) }}</strong></div>
-      <div class="info-row"><span>Protocolo:</span><strong class="mono">{{ document()?.cancelProtocol }}</strong></div>
-      <div class="info-row"><span>Motivo:</span><strong>{{ document()?.cancelReason }}</strong></div>
+      <div class="info-row">
+        <span>Número NFS-e:</span><strong>{{ document()?.number }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Chave de Acesso:</span><strong class="mono">{{ document()?.accessKey }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Data Cancelamento:</span
+        ><strong>{{ formatDateTime(document()?.cancelledAt) }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Protocolo:</span><strong class="mono">{{ document()?.cancelProtocol }}</strong>
+      </div>
+      <div class="info-row">
+        <span>Motivo:</span><strong>{{ document()?.cancelReason }}</strong>
+      </div>
     </div>
     <div class="actions">
       <button class="btn" (click)="downloadXml()">📄 Download XML de Cancelamento</button>
-      <button class="btn btn-primary" [disabled]="isProcessing()" (click)="reemit()">Reemitir NFS-e</button>
+      <button class="btn btn-primary" [disabled]="isProcessing()" (click)="reemit()">
+        Reemitir NFS-e
+      </button>
     </div>
   }
 
   <!-- ─────────── DENIED ─────────── -->
   @if (status() === 'DENIED') {
-    <div class="warn-inline">❌ Emissão negada pelo Portal Nacional. Revise os dados e tente novamente.</div>
+    <div class="warn-inline">
+      ❌ Emissão negada pelo Portal Nacional. Revise os dados e tente novamente.
+    </div>
     <div class="actions">
-      <button class="btn btn-primary" [disabled]="isProcessing()" (click)="reemit()">Tentar Novamente</button>
+      <button class="btn btn-primary" [disabled]="isProcessing()" (click)="reemit()">
+        Tentar Novamente
+      </button>
     </div>
   }
 </section>

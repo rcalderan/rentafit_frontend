@@ -9,9 +9,10 @@ export const environment = {
   // cadastral do emitente e do produto/serviço.
   fiscalDefaults: {
     nfse: {
-      nbsCode: '1.0101',
-      cityCode: '3550308',
+      serviceCode: '',
+      nbsCode: '',
       serviceDescription: 'Locação de trajes e vestuário',
+      totalTaxRate: 0,
       ibsRate: 0.025,
       cbsRate: 0.015,
       isqnRate: 0.0,

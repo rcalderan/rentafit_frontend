@@ -146,9 +146,12 @@ export interface IEmitInvoiceRequest {
   payment?: INfePaymentInfo;
   printReceipt?: boolean;
   // NFS-e (serviço)
+  serviceCode?: string;
   nbsCode?: string;
   serviceDescription?: string;
   cityCode?: string;
+  issRate?: number;
+  totalTaxRate?: number;
   // Emitente (matriz/filial) — se omitido, usa a matriz ativa
   issuerCnpj?: string;
 }

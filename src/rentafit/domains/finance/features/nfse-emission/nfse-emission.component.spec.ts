@@ -3,8 +3,10 @@ import { of } from 'rxjs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { NfseEmissionComponent } from './nfse-emission.component';
 import { FiscalDocumentService } from '../../service/fiscal-document.service';
+import { IssuerSetupService } from '../../../auth/services/issuer-setup.service';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { IFiscalContext, IFiscalDocument } from '../../data/fiscal-document.types';
+import { IssuerInfo } from '../../../auth/data/issuer.model';
 
 const appConfig = {
   appName: 'RentAFit Test',
@@ -12,12 +14,13 @@ const appConfig = {
   s3BucketUrl: '',
   fiscalDefaults: {
     nfse: {
-      nbsCode: '1.0101',
-      cityCode: '3550308',
-      serviceDescription: 'Locação de trajes e vestuário',
+      serviceCode: '010101',
+      nbsCode: '',
+      serviceDescription: 'Serviço de teste',
+      totalTaxRate: 6,
       ibsRate: 0.025,
       cbsRate: 0.015,
-      isqnRate: 0.0,
+      isqnRate: 0,
     },
     nfe: {
       ncm: '95059000',
@@ -25,6 +28,31 @@ const appConfig = {
       unit: 'UN',
     },
   },
+};
+
+const issuerWithNfseFields: IssuerInfo = {
+  cnpj: '08299621000120',
+  rootCnpj: '08299621',
+  branchOrder: '0001',
+  digitoControle: '20',
+  matriz: true,
+  razaoSocial: 'RentAFit LTDA',
+  crt: '1',
+  logradouro: 'Rua Teste',
+  numero: '100',
+  bairro: 'Centro',
+  municipioCodigo: '3548906',
+  municipioNome: 'São Carlos',
+  uf: 'SP',
+  cep: '13560000',
+  paisCodigo: '1058',
+  paisNome: 'BRASIL',
+  certificateConfigured: true,
+  nfseServiceCode: '010101',
+  nfseNbsCode: '10101',
+  nfseServiceDescription: 'Locação de trajes e vestuário',
+  nfseIssRate: 2.5,
+  nfseTotalTaxRate: 6,
 };
 
 const paidContext: IFiscalContext = {
@@ -55,6 +83,7 @@ describe('NfseEmissionComponent', () => {
     downloadXml: ReturnType<typeof vi.fn>;
     downloadDanfe: ReturnType<typeof vi.fn>;
   };
+  let issuerSetupService: { getCurrentIssuer: ReturnType<typeof vi.fn> };
 
   const build = (context: IFiscalContext): ComponentFixture<NfseEmissionComponent> => {
     const fixture = TestBed.createComponent(NfseEmissionComponent);
@@ -75,16 +104,20 @@ describe('NfseEmissionComponent', () => {
       downloadXml: vi.fn(),
       downloadDanfe: vi.fn(),
     };
+    issuerSetupService = {
+      getCurrentIssuer: vi.fn().mockReturnValue(of(issuerWithNfseFields)),
+    };
     await TestBed.configureTestingModule({
       imports: [NfseEmissionComponent],
       providers: [
         { provide: FiscalDocumentService, useValue: fiscalService },
+        { provide: IssuerSetupService, useValue: issuerSetupService },
         { provide: APP_CONFIG, useValue: appConfig },
       ],
     }).compileComponents();
   });
 
-  it('monta a requisição de NFS-e com origem RENTAL e campos de serviço', () => {
+  it('monta a requisição de NFS-e com origem RENTAL e descrição do emitente', () => {
     const comp = build(paidContext).componentInstance as any;
     comp.emit();
     expect(fiscalService.emit).toHaveBeenCalledWith(
@@ -93,12 +126,25 @@ describe('NfseEmissionComponent', () => {
         origin: 'RENTAL',
         value: 800,
         serviceDescription: 'Locação de trajes e vestuário',
+        customerDocument: '98765432100',
       }),
     );
   });
 
-  it('exige documento do cliente para sinalizar emissão completa', () => {
+  it('resolve campos fiscais a partir do emitente configurado', () => {
+    const comp = build(paidContext).componentInstance as any;
+    expect(comp.fiscalFields()).toEqual({
+      serviceCode: '010101',
+      nbsCode: '10101',
+      cityCode: '3548906',
+      issRate: 2.5,
+      totalTaxRate: 6,
+    });
+  });
+
+  it('bloqueia emissão quando o cliente não possui CPF ou CNPJ', () => {
     const comp = build({ ...paidContext, customerDocument: '' }).componentInstance as any;
     expect(comp.hasCustomerDocument()).toBe(false);
+    expect(comp.canEmit()).toBe(false);
   });
 });

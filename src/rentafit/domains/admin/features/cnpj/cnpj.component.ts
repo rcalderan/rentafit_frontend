@@ -3,7 +3,11 @@ import { FormsModule } from '@angular/forms';
 import { CertificateService } from '../../service/certificate.service';
 import { ICertificateDetails } from '../../data/certificate.model';
 import { IssuerSetupService } from '../../../auth/services/issuer-setup.service';
-import { IssuerBranchSetupRequest, IssuerInfo, IssuerSetupRequest } from '../../../auth/data/issuer.model';
+import {
+  IssuerBranchSetupRequest,
+  IssuerInfo,
+  IssuerSetupRequest,
+} from '../../../auth/data/issuer.model';
 
 @Component({
   selector: 'rentafit-cnpj',
@@ -55,6 +59,15 @@ export class CnpjComponent implements OnInit {
   editCep = '';
   editPaisCodigo = '1058';
   editPaisNome = 'BRASIL';
+
+  /** Campos fiscais NFS-e salvos junto ao emitente (sistema/cnpj). */
+  editNfseServiceCode = '';
+  editNfseNbsCode = '';
+  editNfseServiceDescription = '';
+  editNfseIssRate: number | null = null;
+  editNfseTotalTaxRate: number | null = null;
+  /** true = envia a IM do prestador na NFS-e (E0120 exige cadastro no CNC do município). */
+  editNfseSendIm = false;
 
   /** --- Branches / Filiais --- */
   branches = signal<IssuerInfo[]>([]);
@@ -177,6 +190,12 @@ export class CnpjComponent implements OnInit {
     this.editCep = f.cep || '';
     this.editPaisCodigo = f.paisCodigo || '1058';
     this.editPaisNome = f.paisNome || 'BRASIL';
+    this.editNfseServiceCode = f.nfseServiceCode || '';
+    this.editNfseNbsCode = f.nfseNbsCode || '';
+    this.editNfseServiceDescription = f.nfseServiceDescription || '';
+    this.editNfseIssRate = f.nfseIssRate ?? null;
+    this.editNfseTotalTaxRate = f.nfseTotalTaxRate ?? null;
+    this.editNfseSendIm = f.nfseSendIm ?? false;
   }
 
   startEditFirm(): void {
@@ -216,6 +235,12 @@ export class CnpjComponent implements OnInit {
       cep: this.editCep.replace(/\D/g, ''),
       paisCodigo: this.editPaisCodigo.trim(),
       paisNome: this.editPaisNome.trim(),
+      nfseServiceCode: this.editNfseServiceCode.replace(/\D/g, '') || undefined,
+      nfseNbsCode: this.editNfseNbsCode.trim() || undefined,
+      nfseServiceDescription: this.editNfseServiceDescription.trim() || undefined,
+      nfseIssRate: this.editNfseIssRate ?? undefined,
+      nfseTotalTaxRate: this.editNfseTotalTaxRate ?? undefined,
+      nfseSendIm: this.editNfseSendIm,
     };
     this.issuerSetupService.configureIssuer(request).subscribe({
       next: (updated) => {
@@ -311,13 +336,15 @@ export class CnpjComponent implements OnInit {
   private validateBranch(): string | null {
     const cnpj = this.branchCnpj.replace(/\D/g, '');
     if (cnpj.length !== 14) return 'CNPJ da filial deve conter 14 dígitos.';
-    if (cnpj.substring(8, 12) === '0001') return 'CNPJ da filial deve ter sufixo diferente de 0001 (matriz).';
+    if (cnpj.substring(8, 12) === '0001')
+      return 'CNPJ da filial deve ter sufixo diferente de 0001 (matriz).';
     if (!this.branchLogradouro.trim()) return 'Logradouro da filial é obrigatório.';
     if (!this.branchNumero.trim()) return 'Número da filial é obrigatório.';
     if (!this.branchBairro.trim()) return 'Bairro da filial é obrigatório.';
     if (!this.branchMunicipioCodigo.trim()) return 'Código do município da filial é obrigatório.';
     if (!this.branchMunicipioNome.trim()) return 'Nome do município da filial é obrigatório.';
-    if (!this.branchUf.trim() || this.branchUf.trim().length !== 2) return 'UF da filial deve conter 2 letras.';
+    if (!this.branchUf.trim() || this.branchUf.trim().length !== 2)
+      return 'UF da filial deve conter 2 letras.';
     const cep = this.branchCep.replace(/\D/g, '');
     if (cep.length !== 8) return 'CEP da filial deve conter 8 dígitos.';
     return null;

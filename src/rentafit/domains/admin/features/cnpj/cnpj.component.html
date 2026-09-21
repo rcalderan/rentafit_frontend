@@ -1,288 +1,400 @@
 <div class="admin-container">
-    <h1>CNPJ</h1>
+  <h1>CNPJ</h1>
 
-    <div class="admin-grid">
-        <!-- Firm / Issuer Data -->
-        <div class="section-card firm-section">
-            <span class="section-title">Dados da Empresa (Emitente)</span>
-            @if (firmError()) {
-                <div class="error-text">{{ firmError() }}</div>
-            }
-            @if (firmLoading()) {
-                <div class="firm-loading">Carregando dados da empresa...</div>
-            } @else if (firm(); as f) {
-                <div class="firm-form">
-                    <div class="form-group">
-                        <label for="firmCnpj">CNPJ</label>
-                        <input id="firmCnpj" [value]="f.cnpj" disabled />
-                    </div>
-                    <div class="form-group">
-                        <label for="firmRazao">Razão Social</label>
-                        <input id="firmRazao" [(ngModel)]="editRazaoSocial" [disabled]="!firmEditing()" />
-                    </div>
-                    <div class="form-group">
-                        <label for="firmFantasia">Nome Fantasia</label>
-                        <input id="firmFantasia" [(ngModel)]="editNomeFantasia" [disabled]="!firmEditing()" />
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmIe">Inscrição Estadual</label>
-                            <input id="firmIe" [(ngModel)]="editIe" [disabled]="!firmEditing()" />
-                        </div>
-                        <div class="form-group">
-                            <label for="firmIm">Inscrição Municipal</label>
-                            <input id="firmIm" [(ngModel)]="editIm" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmCrt">CRT</label>
-                            <select id="firmCrt" [(ngModel)]="editCrt" [disabled]="!firmEditing()">
-                                <option value="1">1 - Simples Nacional</option>
-                                <option value="2">2 - Simples Nacional excesso sublimite</option>
-                                <option value="3">3 - Regime Normal</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="firmFone">Telefone</label>
-                            <input id="firmFone" [(ngModel)]="editFone" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="firmLogradouro">Logradouro</label>
-                        <input id="firmLogradouro" [(ngModel)]="editLogradouro" [disabled]="!firmEditing()" />
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmNumero">Número</label>
-                            <input id="firmNumero" [(ngModel)]="editNumero" [disabled]="!firmEditing()" />
-                        </div>
-                        <div class="form-group">
-                            <label for="firmBairro">Bairro</label>
-                            <input id="firmBairro" [(ngModel)]="editBairro" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmMunCodigo">Código Município (IBGE)</label>
-                            <input id="firmMunCodigo" [(ngModel)]="editMunicipioCodigo" [disabled]="!firmEditing()" maxlength="7" />
-                            <small class="field-info">
-                                7 dígitos. Ex: São Carlos/SP = <strong>3548906</strong>.
-                                <a href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php" target="_blank" rel="noopener">Consultar IBGE</a>.
-                            </small>
-                        </div>
-                        <div class="form-group">
-                            <label for="firmMunNome">Município</label>
-                            <input id="firmMunNome" [(ngModel)]="editMunicipioNome" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmUf">UF</label>
-                            <input id="firmUf" [(ngModel)]="editUf" [disabled]="!firmEditing()" maxlength="2" />
-                        </div>
-                        <div class="form-group">
-                            <label for="firmCep">CEP</label>
-                            <input id="firmCep" [(ngModel)]="editCep" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="firmPaisCodigo">Código País</label>
-                            <input id="firmPaisCodigo" [(ngModel)]="editPaisCodigo" [disabled]="!firmEditing()" />
-                        </div>
-                        <div class="form-group">
-                            <label for="firmPaisNome">País</label>
-                            <input id="firmPaisNome" [(ngModel)]="editPaisNome" [disabled]="!firmEditing()" />
-                        </div>
-                    </div>
-                    <div class="firm-actions">
-                        @if (!firmEditing()) {
-                            <button class="btn btn-update" (click)="startEditFirm()">Editar Dados</button>
-                        } @else {
-                            <button class="btn btn-secondary" (click)="cancelEditFirm()">Cancelar</button>
-                            <button class="btn btn-update" [disabled]="firmSaving()" (click)="saveFirm()">
-                                {{ firmSaving() ? 'Salvando...' : 'Salvar' }}
-                            </button>
-                        }
-                    </div>
-                </div>
-            } @else {
-                <div class="firm-empty">
-                    <p>Nenhuma empresa cadastrada.</p>
-                    <button class="btn btn-update" (click)="startEditFirm()">Cadastrar Empresa</button>
-                </div>
-            }
-        </div>
-
-        <!-- Digital Certificate -->
-        <div class="section-card certificate-section">
-            <span class="section-title">Certificado Digital</span>
-            @if (errorMessage() && !showUploadModal()) {
-                <div class="error-text">{{ errorMessage() }}</div>
-            }
-            @if (details(); as d) {
-                <div class="certificate-status">
-                    <div class="status-row">
-                        <span>CNPJ/CPF</span>
-                        <strong [class.text-danger]="!d.valido">{{ d.cnpjCpf ? d.cnpjCpf : 'Não disponível' }}</strong>
-                    </div>
-                    <div class="status-row">
-                        <span>Vencimento</span>
-                        <strong [class.text-danger]="!d.valido">{{ d.vencimento ? d.vencimento : '-' }}</strong>
-                    </div>
-                    <div class="status-row">
-                        <span>Dias Restantes</span>
-                        <strong [class.text-danger]="!d.valido">{{ d.diasRestantes }}</strong>
-                    </div>
-                    <div class="status-row">
-                        <span>Status</span>
-                        <strong [class.text-danger]="!d.valido">{{ d.valido ? 'Válido' : 'Inválido' }}</strong>
-                    </div>
-                    @if (d.erro) {
-                        <div class="error-text">{{ d.erro }}</div>
-                    }
-                </div>
-            }
-            @if (showUploadControls()) {
-                <div class="drop-zone" (click)="certInput.click()">
-                    <input type="file" #certInput (change)="onFileSelected($event)" hidden accept=".pfx" />
-                    @if (selectedFile(); as file) {
-                        <div>{{ file.name }}</div>
-                    } @else {
-                        <div>Clique ou arraste o arquivo .pfx aqui</div>
-                    }
-                </div>
-                <button class="btn btn-update"
-                        [disabled]="!selectedFile()"
-                        (click)="openUploadModal()">
-                    {{ uploadButtonLabel() }}
-                </button>
-            }
-        </div>
-
-        <!-- Branch / Filial -->
-        <div class="section-card branch-section">
-            <span class="section-title">Filiais</span>
-
-            @if (branchError()) {
-                <div class="error-text">{{ branchError() }}</div>
-            }
-
-            @if (branchLoading()) {
-                <div class="branch-loading">Carregando filiais...</div>
-            } @else if (branches().length > 0) {
-                <ul class="branch-list">
-                    @for (b of branches(); track b.cnpj) {
-                        <li>
-                            <span class="branch-type" [class.matriz]="b.matriz">{{ b.matriz ? 'Matriz' : 'Filial' }}</span>
-                            <span class="branch-cnpj">{{ b.cnpj }}</span>
-                            <span class="branch-name">{{ b.nomeFantasia || b.razaoSocial }}</span>
-                        </li>
-                    }
-                </ul>
-            } @else {
-                <p class="branch-empty">Nenhuma filial cadastrada.</p>
-            }
-
-            <div class="branch-actions">
-                <button class="btn btn-update" (click)="toggleBranchForm()">
-                    {{ showBranchForm() ? 'Cancelar' : 'Adicionar Filial' }}
-                </button>
+  <div class="admin-grid">
+    <!-- Firm / Issuer Data -->
+    <div class="section-card firm-section">
+      <span class="section-title">Dados da Empresa (Emitente)</span>
+      @if (firmError()) {
+        <div class="error-text">{{ firmError() }}</div>
+      }
+      @if (firmLoading()) {
+        <div class="firm-loading">Carregando dados da empresa...</div>
+      } @else if (firm(); as f) {
+        <div class="firm-form">
+          <div class="form-group">
+            <label for="firmCnpj">CNPJ</label>
+            <input id="firmCnpj" [value]="f.cnpj" disabled />
+          </div>
+          <div class="form-group">
+            <label for="firmRazao">Razão Social</label>
+            <input id="firmRazao" [(ngModel)]="editRazaoSocial" [disabled]="!firmEditing()" />
+          </div>
+          <div class="form-group">
+            <label for="firmFantasia">Nome Fantasia</label>
+            <input id="firmFantasia" [(ngModel)]="editNomeFantasia" [disabled]="!firmEditing()" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmIe">Inscrição Estadual</label>
+              <input id="firmIe" [(ngModel)]="editIe" [disabled]="!firmEditing()" />
             </div>
+            <div class="form-group">
+              <label for="firmIm">Inscrição Municipal</label>
+              <input id="firmIm" [(ngModel)]="editIm" [disabled]="!firmEditing()" />
+              <label class="checkbox-label" for="firmNfseSendIm">
+                <input
+                  id="firmNfseSendIm"
+                  type="checkbox"
+                  [(ngModel)]="editNfseSendIm"
+                  [disabled]="!firmEditing()"
+                />
+                Enviar IM na NFS-e
+              </label>
+              <small class="field-info">
+                Desmarcado = a NFS-e é emitida sem a Inscrição Municipal do prestador.
+                Marque somente se o município emissor possuir informações
+                complementares no CNC NFS-e (caso contrário a Receita rejeita com E0120).
+              </small>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmCrt">CRT</label>
+              <select id="firmCrt" [(ngModel)]="editCrt" [disabled]="!firmEditing()">
+                <option value="1">1 - Simples Nacional</option>
+                <option value="2">2 - Simples Nacional excesso sublimite</option>
+                <option value="3">3 - Regime Normal</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="firmFone">Telefone</label>
+              <input id="firmFone" [(ngModel)]="editFone" [disabled]="!firmEditing()" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="firmLogradouro">Logradouro</label>
+            <input id="firmLogradouro" [(ngModel)]="editLogradouro" [disabled]="!firmEditing()" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmNumero">Número</label>
+              <input id="firmNumero" [(ngModel)]="editNumero" [disabled]="!firmEditing()" />
+            </div>
+            <div class="form-group">
+              <label for="firmBairro">Bairro</label>
+              <input id="firmBairro" [(ngModel)]="editBairro" [disabled]="!firmEditing()" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmMunCodigo">Código Município (IBGE)</label>
+              <input
+                id="firmMunCodigo"
+                [(ngModel)]="editMunicipioCodigo"
+                [disabled]="!firmEditing()"
+                maxlength="7"
+              />
+              <small class="field-info">
+                7 dígitos. Ex: São Carlos/SP = <strong>3548906</strong>.
+                <a
+                  href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php"
+                  target="_blank"
+                  rel="noopener"
+                  >Consultar IBGE</a
+                >.
+              </small>
+            </div>
+            <div class="form-group">
+              <label for="firmMunNome">Município</label>
+              <input id="firmMunNome" [(ngModel)]="editMunicipioNome" [disabled]="!firmEditing()" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmUf">UF</label>
+              <input id="firmUf" [(ngModel)]="editUf" [disabled]="!firmEditing()" maxlength="2" />
+            </div>
+            <div class="form-group">
+              <label for="firmCep">CEP</label>
+              <input id="firmCep" [(ngModel)]="editCep" [disabled]="!firmEditing()" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmPaisCodigo">Código País</label>
+              <input id="firmPaisCodigo" [(ngModel)]="editPaisCodigo" [disabled]="!firmEditing()" />
+            </div>
+            <div class="form-group">
+              <label for="firmPaisNome">País</label>
+              <input id="firmPaisNome" [(ngModel)]="editPaisNome" [disabled]="!firmEditing()" />
+            </div>
+          </div>
 
-            @if (showBranchForm()) {
-                <div class="branch-form">
-                    <h4>Nova Filial</h4>
-                    <p class="field-info">A Razão Social vem da matriz. Informe apenas os dados locais da filial.</p>
-                    <div class="form-group">
-                        <label for="branchCnpj">CNPJ da Filial</label>
-                        <input id="branchCnpj" [(ngModel)]="branchCnpj" [disabled]="branchSaving()" />
-                    </div>
-                    <div class="form-group">
-                        <label for="branchNomeFantasia">Nome Fantasia</label>
-                        <input id="branchNomeFantasia" [(ngModel)]="branchNomeFantasia" [disabled]="branchSaving()" />
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="branchIe">Inscrição Estadual</label>
-                            <input id="branchIe" [(ngModel)]="branchIe" [disabled]="branchSaving()" />
-                        </div>
-                        <div class="form-group">
-                            <label for="branchIm">Inscrição Municipal</label>
-                            <input id="branchIm" [(ngModel)]="branchIm" [disabled]="branchSaving()" />
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="branchFone">Telefone</label>
-                        <input id="branchFone" [(ngModel)]="branchFone" [disabled]="branchSaving()" />
-                    </div>
-                    <div class="form-group">
-                        <label for="branchLogradouro">Logradouro</label>
-                        <input id="branchLogradouro" [(ngModel)]="branchLogradouro" [disabled]="branchSaving()" />
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="branchNumero">Número</label>
-                            <input id="branchNumero" [(ngModel)]="branchNumero" [disabled]="branchSaving()" />
-                        </div>
-                        <div class="form-group">
-                            <label for="branchBairro">Bairro</label>
-                            <input id="branchBairro" [(ngModel)]="branchBairro" [disabled]="branchSaving()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="branchMunicipioCodigo">Código Município (IBGE)</label>
-                            <input id="branchMunicipioCodigo" [(ngModel)]="branchMunicipioCodigo" [disabled]="branchSaving()" maxlength="7" />
-                            <small class="field-info">7 dígitos. Ex: São Carlos/SP = <strong>3548906</strong>.</small>
-                        </div>
-                        <div class="form-group">
-                            <label for="branchMunicipioNome">Município</label>
-                            <input id="branchMunicipioNome" [(ngModel)]="branchMunicipioNome" [disabled]="branchSaving()" />
-                        </div>
-                    </div>
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="branchUf">UF</label>
-                            <input id="branchUf" [(ngModel)]="branchUf" [disabled]="branchSaving()" maxlength="2" />
-                        </div>
-                        <div class="form-group">
-                            <label for="branchCep">CEP</label>
-                            <input id="branchCep" [(ngModel)]="branchCep" [disabled]="branchSaving()" />
-                        </div>
-                    </div>
-                    <div class="branch-actions">
-                        <button class="btn btn-update" [disabled]="branchSaving()" (click)="submitBranch()">
-                            {{ branchSaving() ? 'Salvando...' : 'Salvar Filial' }}
-                        </button>
-                    </div>
-                </div>
+          <!-- Campos fiscais NFS-e (mesma fonte de verdade da NF-e) -->
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmNfseServiceCode">Cód. Tributação Nacional (NFS-e)</label>
+              <input
+                id="firmNfseServiceCode"
+                [(ngModel)]="editNfseServiceCode"
+                [disabled]="!firmEditing()"
+                maxlength="6"
+              />
+              <small class="field-info">6 dígitos. Usado na emissão de NFS-e.</small>
+            </div>
+            <div class="form-group">
+              <label for="firmNfseNbsCode">Cód. NBS (opcional)</label>
+              <input
+                id="firmNfseNbsCode"
+                [(ngModel)]="editNfseNbsCode"
+                [disabled]="!firmEditing()"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmNfseServiceDescription">Descrição do serviço (NFS-e)</label>
+              <input
+                id="firmNfseServiceDescription"
+                [(ngModel)]="editNfseServiceDescription"
+                [disabled]="!firmEditing()"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="firmNfseIssRate">Alíquota ISS (%)</label>
+              <input
+                id="firmNfseIssRate"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="editNfseIssRate"
+                [disabled]="!firmEditing()"
+              />
+            </div>
+            <div class="form-group">
+              <label for="firmNfseTotalTaxRate">Alíquota Simples Nacional (%)</label>
+              <input
+                id="firmNfseTotalTaxRate"
+                type="number"
+                min="0"
+                step="0.01"
+                [(ngModel)]="editNfseTotalTaxRate"
+                [disabled]="!firmEditing()"
+              />
+            </div>
+          </div>
+          <div class="firm-actions">
+            @if (!firmEditing()) {
+              <button class="btn btn-update" (click)="startEditFirm()">Editar Dados</button>
+            } @else {
+              <button class="btn btn-secondary" (click)="cancelEditFirm()">Cancelar</button>
+              <button class="btn btn-update" [disabled]="firmSaving()" (click)="saveFirm()">
+                {{ firmSaving() ? 'Salvando...' : 'Salvar' }}
+              </button>
             }
+          </div>
         </div>
+      } @else {
+        <div class="firm-empty">
+          <p>Nenhuma empresa cadastrada.</p>
+          <button class="btn btn-update" (click)="startEditFirm()">Cadastrar Empresa</button>
+        </div>
+      }
     </div>
 
-    @if (showUploadModal()) {
-        <div class="modal-overlay" (click)="closeUploadModal()">
-            <div class="modal-content" (click)="$event.stopPropagation()">
-                <h3>Enviar certificado digital</h3>
-                <input type="password"
-                       class="cert-input"
-                       placeholder="Senha do certificado"
-                       [value]="password()"
-                       (input)="password.set($any($event).target.value)" />
-                <div class="modal-actions">
-                    <button class="btn btn-secondary" (click)="closeUploadModal()">Cancelar</button>
-                    <button class="btn btn-update"
-                            [disabled]="!password() || isUploading()"
-                            (click)="upload()">
-                        {{ isUploading() ? 'Enviando...' : 'Enviar' }}
-                    </button>
-                </div>
-                @if (errorMessage()) {
-                    <div class="error-text">{{ errorMessage() }}</div>
-                }
-            </div>
+    <!-- Digital Certificate -->
+    <div class="section-card certificate-section">
+      <span class="section-title">Certificado Digital</span>
+      @if (errorMessage() && !showUploadModal()) {
+        <div class="error-text">{{ errorMessage() }}</div>
+      }
+      @if (details(); as d) {
+        <div class="certificate-status">
+          <div class="status-row">
+            <span>CNPJ/CPF</span>
+            <strong [class.text-danger]="!d.valido">{{
+              d.cnpjCpf ? d.cnpjCpf : 'Não disponível'
+            }}</strong>
+          </div>
+          <div class="status-row">
+            <span>Vencimento</span>
+            <strong [class.text-danger]="!d.valido">{{ d.vencimento ? d.vencimento : '-' }}</strong>
+          </div>
+          <div class="status-row">
+            <span>Dias Restantes</span>
+            <strong [class.text-danger]="!d.valido">{{ d.diasRestantes }}</strong>
+          </div>
+          <div class="status-row">
+            <span>Status</span>
+            <strong [class.text-danger]="!d.valido">{{ d.valido ? 'Válido' : 'Inválido' }}</strong>
+          </div>
+          @if (d.erro) {
+            <div class="error-text">{{ d.erro }}</div>
+          }
         </div>
-    }
+      }
+      @if (showUploadControls()) {
+        <div class="drop-zone" (click)="certInput.click()">
+          <input type="file" #certInput (change)="onFileSelected($event)" hidden accept=".pfx" />
+          @if (selectedFile(); as file) {
+            <div>{{ file.name }}</div>
+          } @else {
+            <div>Clique ou arraste o arquivo .pfx aqui</div>
+          }
+        </div>
+        <button class="btn btn-update" [disabled]="!selectedFile()" (click)="openUploadModal()">
+          {{ uploadButtonLabel() }}
+        </button>
+      }
+    </div>
+
+    <!-- Branch / Filial -->
+    <div class="section-card branch-section">
+      <span class="section-title">Filiais</span>
+
+      @if (branchError()) {
+        <div class="error-text">{{ branchError() }}</div>
+      }
+
+      @if (branchLoading()) {
+        <div class="branch-loading">Carregando filiais...</div>
+      } @else if (branches().length > 0) {
+        <ul class="branch-list">
+          @for (b of branches(); track b.cnpj) {
+            <li>
+              <span class="branch-type" [class.matriz]="b.matriz">{{
+                b.matriz ? 'Matriz' : 'Filial'
+              }}</span>
+              <span class="branch-cnpj">{{ b.cnpj }}</span>
+              <span class="branch-name">{{ b.nomeFantasia || b.razaoSocial }}</span>
+            </li>
+          }
+        </ul>
+      } @else {
+        <p class="branch-empty">Nenhuma filial cadastrada.</p>
+      }
+
+      <div class="branch-actions">
+        <button class="btn btn-update" (click)="toggleBranchForm()">
+          {{ showBranchForm() ? 'Cancelar' : 'Adicionar Filial' }}
+        </button>
+      </div>
+
+      @if (showBranchForm()) {
+        <div class="branch-form">
+          <h4>Nova Filial</h4>
+          <p class="field-info">
+            A Razão Social vem da matriz. Informe apenas os dados locais da filial.
+          </p>
+          <div class="form-group">
+            <label for="branchCnpj">CNPJ da Filial</label>
+            <input id="branchCnpj" [(ngModel)]="branchCnpj" [disabled]="branchSaving()" />
+          </div>
+          <div class="form-group">
+            <label for="branchNomeFantasia">Nome Fantasia</label>
+            <input
+              id="branchNomeFantasia"
+              [(ngModel)]="branchNomeFantasia"
+              [disabled]="branchSaving()"
+            />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="branchIe">Inscrição Estadual</label>
+              <input id="branchIe" [(ngModel)]="branchIe" [disabled]="branchSaving()" />
+            </div>
+            <div class="form-group">
+              <label for="branchIm">Inscrição Municipal</label>
+              <input id="branchIm" [(ngModel)]="branchIm" [disabled]="branchSaving()" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="branchFone">Telefone</label>
+            <input id="branchFone" [(ngModel)]="branchFone" [disabled]="branchSaving()" />
+          </div>
+          <div class="form-group">
+            <label for="branchLogradouro">Logradouro</label>
+            <input
+              id="branchLogradouro"
+              [(ngModel)]="branchLogradouro"
+              [disabled]="branchSaving()"
+            />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="branchNumero">Número</label>
+              <input id="branchNumero" [(ngModel)]="branchNumero" [disabled]="branchSaving()" />
+            </div>
+            <div class="form-group">
+              <label for="branchBairro">Bairro</label>
+              <input id="branchBairro" [(ngModel)]="branchBairro" [disabled]="branchSaving()" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="branchMunicipioCodigo">Código Município (IBGE)</label>
+              <input
+                id="branchMunicipioCodigo"
+                [(ngModel)]="branchMunicipioCodigo"
+                [disabled]="branchSaving()"
+                maxlength="7"
+              />
+              <small class="field-info"
+                >7 dígitos. Ex: São Carlos/SP = <strong>3548906</strong>.</small
+              >
+            </div>
+            <div class="form-group">
+              <label for="branchMunicipioNome">Município</label>
+              <input
+                id="branchMunicipioNome"
+                [(ngModel)]="branchMunicipioNome"
+                [disabled]="branchSaving()"
+              />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label for="branchUf">UF</label>
+              <input
+                id="branchUf"
+                [(ngModel)]="branchUf"
+                [disabled]="branchSaving()"
+                maxlength="2"
+              />
+            </div>
+            <div class="form-group">
+              <label for="branchCep">CEP</label>
+              <input id="branchCep" [(ngModel)]="branchCep" [disabled]="branchSaving()" />
+            </div>
+          </div>
+          <div class="branch-actions">
+            <button class="btn btn-update" [disabled]="branchSaving()" (click)="submitBranch()">
+              {{ branchSaving() ? 'Salvando...' : 'Salvar Filial' }}
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  </div>
+
+  @if (showUploadModal()) {
+    <div class="modal-overlay" (click)="closeUploadModal()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h3>Enviar certificado digital</h3>
+        <input
+          type="password"
+          class="cert-input"
+          placeholder="Senha do certificado"
+          [value]="password()"
+          (input)="password.set($any($event).target.value)"
+        />
+        <div class="modal-actions">
+          <button class="btn btn-secondary" (click)="closeUploadModal()">Cancelar</button>
+          <button
+            class="btn btn-update"
+            [disabled]="!password() || isUploading()"
+            (click)="upload()"
+          >
+            {{ isUploading() ? 'Enviando...' : 'Enviar' }}
+          </button>
+        </div>
+        @if (errorMessage()) {
+          <div class="error-text">{{ errorMessage() }}</div>
+        }
+      </div>
+    </div>
+  }
 </div>
