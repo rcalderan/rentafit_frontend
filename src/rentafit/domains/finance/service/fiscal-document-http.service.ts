@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse, HttpParams } from '@angular/common/http'
 import { Injectable, inject } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
-import { APP_CONFIG } from '../../../shared/data/app-config.token';
+import { APP_CONFIG, AppConfig } from '../../../shared/data/app-config.token';
 import {
   FiscalDocumentType,
   FiscalOrigin,
@@ -20,14 +20,15 @@ import { FiscalDocumentService } from './fiscal-document.service';
 
 /** Resposta do backend para emissão de NFS-e (InvoiceEmissionResponseDTO). */
 interface INfseEmitResponse {
-  id: string;
-  accessKey: string;
+  accessKey?: string;
   invoiceNumber?: number;
-  protocol?: string;
+  series: string;
+  protocol: string;
   status: string;
   issueDate?: string;
-  processingDate?: string;
-  serviceValue?: number;
+  processingDate: string;
+  serviceValue: number;
+  authorizedXml?: string;
 }
 
 /** Resposta do backend para emissão de NF-e (NfeResponse). */
@@ -94,7 +95,7 @@ interface IBackendFiscalPage {
  *
  * - NF-e modelo 55 é emitida pelo microsserviço `costume-rental-nfe` via
  *   prefixo `/nfe-api/*` (roteado pelo Nginx com auth_request).
- * - NFS-e continua usando `/api/billing/invoices/emit` do Rentafit.
+ * - NFS-e é emitida pelo microsserviço `costume-rental-nfse` via `/nfse-api/*`.
  * - Listagem, detalhe e XML permanecem em `/api/fiscal-documents/*` do Rentafit.
  *
  * O ambiente é controlado por `APP_CONFIG.apiBaseUrl` (vazio em dev => proxy).
@@ -107,34 +108,36 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
   private readonly config = inject(APP_CONFIG);
 
   emit(request: IEmitInvoiceRequest): Observable<IFiscalDocument> {
-    return request.fiscalDocumentType === 'NFE'
-      ? this.emitNfe(request)
-      : this.emitNfse(request);
+    return request.fiscalDocumentType === 'NFE' ? this.emitNfe(request) : this.emitNfse(request);
   }
 
   /** Persiste/atualiza um documento fiscal já emitido no Rentafit. */
   save(document: IFiscalDocument): Observable<IFiscalDocument> {
     const body = this.toBackendSyncRequest(document);
-    return this.http
-      .post<IBackendFiscalDocument>(this.url('/api/fiscal-documents'), body)
-      .pipe(
-        map((doc) => this.mergeBackendDocument(document, doc)),
-        catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
-      );
+    return this.http.post<IBackendFiscalDocument>(this.url('/api/fiscal-documents'), body).pipe(
+      map((doc) => this.mergeBackendDocument(document, doc)),
+      catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
+    );
   }
 
   /** NF-e/NFC-e é síncrona: AUTHORIZED = EMITTED, REJECTED = DENIED. */
   private emitNfe(request: IEmitInvoiceRequest): Observable<IFiscalDocument> {
     const defaults = this.config.fiscalDefaults?.nfe;
     if (!defaults) {
-      return throwError(() => this.criarErroAmigavel(0, 'Configuração fiscal de NF-e ausente em APP_CONFIG.'));
+      return throwError(() =>
+        this.criarErroAmigavel(0, 'Configuração fiscal de NF-e ausente em APP_CONFIG.'),
+      );
     }
     if (!request.items || request.items.length === 0) {
-      return throwError(() => this.criarErroAmigavel(0, 'Itens são obrigatórios para emissão do documento fiscal.'));
+      return throwError(() =>
+        this.criarErroAmigavel(0, 'Itens são obrigatórios para emissão do documento fiscal.'),
+      );
     }
     const isNfce = request.documentModel === '65';
     if (!isNfce && !request.customer) {
-      return throwError(() => this.criarErroAmigavel(0, 'Dados do destinatário são obrigatórios para NF-e (modelo 55).'));
+      return throwError(() =>
+        this.criarErroAmigavel(0, 'Dados do destinatário são obrigatórios para NF-e (modelo 55).'),
+      );
     }
     const documentType: FiscalDocumentType = isNfce ? 'NFCE' : 'NFE';
     const body: Record<string, unknown> = {
@@ -153,64 +156,58 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
       payment: request.payment,
       printReceipt: request.printReceipt ?? true,
     };
-    return this.http
-      .post<INfeEmitResponse>(this.url('/nfe-api/emit'), body)
-      .pipe(
-        map((res) => this.toFiscalDocumentFromEmission(documentType, res, request)),
-        catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
-      );
+    return this.http.post<INfeEmitResponse>(this.url('/nfe-api/emit'), body).pipe(
+      map((res) => this.toFiscalDocumentFromEmission(documentType, res, request)),
+      catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
+    );
   }
 
-  /** NFS-e: endpoint do Portal Nacional. Pode ser 201 (síncrona) ou 202 (assíncrona). */
+  /**
+   * NFS-e: endpoint do Portal Nacional. Pode ser 201 (síncrona) ou 202 (assíncrona).
+   * Os campos fiscais (cTribNac, NBS, alíquotas, município de prestação) são
+   * resolvidos pelo backend a partir do emitente configurado em sistema/cnpj —
+   * mesma fonte de verdade da NF-e. O browser envia apenas dados da operação.
+   */
   private emitNfse(request: IEmitInvoiceRequest): Observable<IFiscalDocument> {
-    const defaults = this.config.fiscalDefaults?.nfse;
-    if (!defaults) {
-      return throwError(() => this.criarErroAmigavel(0, 'Configuração fiscal de NFS-e ausente em APP_CONFIG.'));
-    }
-    const body = {
-      customerId: request.customerId,
-      serviceValue: request.value,
-      nbsCode: request.nbsCode ?? defaults.nbsCode,
-      serviceDescription: request.serviceDescription ?? defaults.serviceDescription,
-      cityCode: request.cityCode ?? defaults.cityCode,
-      ibsRate: defaults.ibsRate,
-      cbsRate: defaults.cbsRate,
-      isqnRate: defaults.isqnRate,
-      origin: request.origin,
-      originId: request.originId,
-    };
     return this.http
-      .post<INfseEmitResponse>(this.url('/api/billing/invoices/emit'), body)
+      .post<INfseEmitResponse>(this.url('/nfse-api/nfse/emit'), this.toNfseEmissionBody(request))
       .pipe(
         map((res) => this.toFiscalDocumentFromEmission('NFSE', res, request)),
         catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
       );
   }
 
+  private toNfseEmissionBody(request: IEmitInvoiceRequest): Record<string, unknown> {
+    return {
+      descricaoServico: request.serviceDescription || undefined,
+      vServ: request.value,
+      nomeTomador: request.customerName,
+      docTomador: request.customerDocument?.replace(/\D/g, ''),
+      emailTomador: request.customerEmail,
+    };
+  }
+
   checkStatus(current: IFiscalDocument): Observable<IFiscalDocument> {
     if (current.type === 'NFE' && current.accessKey) {
-      return this.http
-        .get<INfeEmitResponse>(this.url(`/nfe-api/${current.accessKey}`))
-        .pipe(
-          map((res) => this.mergeNfeResponse(current, res)),
-          catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
-        );
+      return this.http.get<INfeEmitResponse>(this.url(`/nfe-api/${current.accessKey}`)).pipe(
+        map((res) => this.mergeNfeResponse(current, res)),
+        catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
+      );
     }
     return this.http
       .get<IBackendFiscalDocument>(this.url(`/api/fiscal-documents/${current.id}`))
       .pipe(map((doc) => this.mergeBackendDocument(current, doc)));
   }
 
-  cancel(
-    current: IFiscalDocument,
-    request: ICancelInvoiceRequest,
-  ): Observable<IFiscalDocument> {
+  cancel(current: IFiscalDocument, request: ICancelInvoiceRequest): Observable<IFiscalDocument> {
     if (!current.accessKey) {
       return throwError(() => new Error('Chave de acesso não disponível para cancelamento.'));
     }
     if (current.type === 'NFE') {
       if (!current.protocol) {
-        return throwError(() => new Error('Protocolo de autorização não disponível para cancelamento.'));
+        return throwError(
+          () => new Error('Protocolo de autorização não disponível para cancelamento.'),
+        );
       }
       const body = {
         protocol: current.protocol,
@@ -224,7 +221,9 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
           catchError((err: HttpErrorResponse) => throwError(() => this.mapearErroHttp(err))),
         );
     }
-    return throwError(() => new Error('Cancelamento de NFS-e ainda não disponível via este serviço.'));
+    return throwError(
+      () => new Error('Cancelamento de NFS-e ainda não disponível via este serviço.'),
+    );
   }
 
   reemit(_current: IFiscalDocument): Observable<IFiscalDocument> {
@@ -232,7 +231,9 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
   }
 
   sendEmail(_id: string, _request: IEmailInvoiceRequest): Observable<boolean> {
-    return throwError(() => new Error('Envio de e-mail de nota fiscal ainda não disponível no backend.'));
+    return throwError(
+      () => new Error('Envio de e-mail de nota fiscal ainda não disponível no backend.'),
+    );
   }
 
   downloadXml(documentId: string): Observable<Blob> {
@@ -264,13 +265,21 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
     httpParams = this.setParamIfPresent(httpParams, 'sort', params.sort);
     httpParams = this.setParamIfPresent(httpParams, 'type', params.type);
     httpParams = this.setParamIfPresent(httpParams, 'origin', params.origin);
-    httpParams = this.setParamIfPresent(httpParams, 'status', params.status ? this.toBackendStatus(params.status) : null);
+    httpParams = this.setParamIfPresent(
+      httpParams,
+      'status',
+      params.status ? this.toBackendStatus(params.status) : null,
+    );
     httpParams = this.setParamIfPresent(httpParams, 'customerDocument', params.customerDocument);
     httpParams = this.setParamIfPresent(httpParams, 'accessKey', params.accessKey);
     return httpParams;
   }
 
-  private setParamIfPresent(params: HttpParams, key: string, value: string | null | undefined): HttpParams {
+  private setParamIfPresent(
+    params: HttpParams,
+    key: string,
+    value: string | null | undefined,
+  ): HttpParams {
     return value ? params.set(key, value) : params;
   }
 
@@ -305,7 +314,10 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
    */
   private mapearErroHttp(error: HttpErrorResponse): Error {
     if (error.error instanceof ErrorEvent) {
-      return this.criarErroAmigavel(0, 'Falha de conectividade. Verifique a internet e tente novamente.');
+      return this.criarErroAmigavel(
+        0,
+        'Falha de conectividade. Verifique a internet e tente novamente.',
+      );
     }
 
     const status = error.status;
@@ -328,7 +340,7 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
 
     if (status === 400 || status === 422) {
       const motivo = backendMessage || 'Requisição rejeitada pela SEFAZ/Sistema fiscal.';
-      return this.criarErroAmigavel(status, motivo, xml);
+      return this.criarErroAmigavel(status, this.mensagemComOrientacaoIm(motivo), xml);
     }
 
     if (status === 401 || status === 403) {
@@ -339,20 +351,45 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
     }
 
     if (status === 404) {
-      return this.criarErroAmigavel(status, 'Endpoint fiscal não encontrado. Verifique a configuração da API.');
+      return this.criarErroAmigavel(
+        status,
+        'Endpoint fiscal não encontrado. Verifique a configuração da API.',
+      );
     }
 
     if (status === 408 || status === 0) {
-      return this.criarErroAmigavel(status, 'Tempo de resposta excedido. A SEFAZ pode estar indisponível.');
+      return this.criarErroAmigavel(
+        status,
+        'Tempo de resposta excedido. A SEFAZ pode estar indisponível.',
+      );
     }
 
     if (status >= 502 && status <= 504) {
-      return this.criarErroAmigavel(status, 'Serviço fiscal indisponível no momento. Tente novamente mais tarde.');
+      return this.criarErroAmigavel(
+        status,
+        'Serviço fiscal indisponível no momento. Tente novamente mais tarde.',
+      );
     }
 
     // Falha técnica não esperada: 500 ou outro status desconhecido.
     const mensagem = backendMessage || `Falha técnica inesperada (HTTP ${status}).`;
     return this.criarErroAmigavel(status, mensagem, xml);
+  }
+
+  /**
+   * Orienta o usuário a ajustar a opção "Enviar IM na NFS-e" em Sistema → CNPJ
+   * quando a Receita rejeita por causa da Inscrição Municipal do prestador.
+   * E0120 (IM não deve ser informada) → desmarque; IM obrigatória → marque.
+   */
+  private mensagemComOrientacaoIm(motivo: string): string {
+    const isRejeicaoIm =
+      /E0120|IM do prestador|inscri[cç][aã]o municipal do prestador/i.test(motivo);
+    if (!isRejeicaoIm) {
+      return motivo;
+    }
+    const imRejeitada = /n[aã]o deve ser informad/i.test(motivo);
+    const acao = imRejeitada ? 'desmarque' : 'marque';
+    return `${motivo} — Em Sistema → CNPJ, ${acao} a opção "Enviar IM na NFS-e" ao lado da Inscrição Municipal e tente novamente.`;
   }
 
   private criarErroAmigavel(status: number, message: string, xml?: string): Error {
@@ -395,12 +432,14 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
 
     const nfse = response as INfseEmitResponse;
     return {
-      id: nfse.id,
+      id: `NFSE-${nfse.accessKey ?? nfse.protocol}`,
       type: 'NFSE',
       status: this.mapStatus(nfse.status),
       accessKey: nfse.accessKey,
       number: nfse.invoiceNumber?.toString(),
+      series: nfse.series,
       protocol: nfse.protocol,
+      sendProtocol: nfse.status === 'PENDING' ? nfse.protocol : undefined,
       value: request.value,
       serviceDescription: request.serviceDescription,
       customerName: request.customerName,
@@ -408,14 +447,13 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
       customerDocument: request.customerDocument,
       origin: request.origin,
       originId: request.originId,
-      emissionDate: nfse.issueDate ?? nfse.processingDate ?? new Date().toISOString(),
+      emissionDate: nfse.issueDate ?? nfse.processingDate,
+      sentAt: nfse.processingDate,
+      xmlUrl: nfse.authorizedXml,
     };
   }
 
-  private mergeNfeResponse(
-    current: IFiscalDocument,
-    response: INfeEmitResponse,
-  ): IFiscalDocument {
+  private mergeNfeResponse(current: IFiscalDocument, response: INfeEmitResponse): IFiscalDocument {
     return {
       ...current,
       status: this.mapStatus(response.status),
@@ -464,6 +502,7 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
       customerEmail: document.customerEmail,
       issueDate: document.emissionDate,
       authorizedXml: document.xmlUrl,
+      serviceDescription: document.serviceDescription,
       cancelReason: document.cancelReason,
       cancelledAt: document.cancelledAt,
       cancelProtocol: document.cancelProtocol,
@@ -482,7 +521,8 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
       protocol: doc.protocol ?? current.protocol,
       number: doc.number?.toString() ?? current.number,
       series: doc.series ?? current.series,
-      emissionDate: doc.authorizationDate ?? doc.issueDate ?? doc.emissionDate ?? current.emissionDate,
+      emissionDate:
+        doc.authorizationDate ?? doc.issueDate ?? doc.emissionDate ?? current.emissionDate,
       xmlUrl: doc.authorizedXml ?? doc.signedXml ?? current.xmlUrl,
       customerName: doc.customerName ?? current.customerName,
       customerEmail: doc.customerEmail ?? current.customerEmail,

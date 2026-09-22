@@ -10,9 +10,10 @@ export interface AppConfig {
   /** Defaults fiscais para emissão quando o front não os coleta. */
   fiscalDefaults?: {
     nfse?: {
+      serviceCode?: string;
       nbsCode: string;
-      cityCode: string;
       serviceDescription: string;
+      totalTaxRate?: number;
       ibsRate: number;
       cbsRate: number;
       isqnRate: number;

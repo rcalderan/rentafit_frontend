@@ -32,7 +32,10 @@ function parseEnvFile(content) {
     const eqIndex = trimmed.indexOf('=');
     if (eqIndex < 0) continue;
     const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim().replace(/^["']|["']$/g, '');
+    const value = trimmed
+      .slice(eqIndex + 1)
+      .trim()
+      .replace(/^["']|["']$/g, '');
     vars[key] = value;
   }
   return vars;
@@ -85,9 +88,10 @@ export const environment = {
   // cadastral do emitente e do produto/servico.
   fiscalDefaults: {
     nfse: {
-      nbsCode: '1.0101',
-      cityCode: '3550308',
+      serviceCode: '',
+      nbsCode: '',
       serviceDescription: 'Locacao de trajes e vestuario',
+      totalTaxRate: 0,
       ibsRate: 0.025,
       cbsRate: 0.015,
       isqnRate: 0.0,

@@ -1,50 +1,33 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
-import { MigrationComparison, MigrationReport, MigrationSession } from './migration.model';
+import { MigrationComparison, MigrationSession } from './migration.model';
 
 @Injectable({ providedIn: 'root' })
 export class MigrationService {
     private readonly api = `${environment.apiBaseUrl}/api/v1/migration`;
+    private readonly http = inject(HttpClient);
 
-    constructor(private http: HttpClient) {}
-
-    createSession(): Observable<MigrationSession> {
-        return this.http.post<MigrationSession>(`${this.api}/sessions`, {});
-    }
-
-    uploadFile(sessionId: string, file: File): Observable<MigrationSession> {
+    upload(file: File): Observable<MigrationSession> {
         const formData = new FormData();
         formData.append('file', file);
-        return this.http.post<MigrationSession>(`${this.api}/sessions/${sessionId}/files`, formData);
+        return this.http.post<MigrationSession>(`${this.api}/upload`, formData);
     }
 
     getSession(sessionId: string): Observable<MigrationSession> {
         return this.http.get<MigrationSession>(`${this.api}/sessions/${sessionId}`);
     }
 
-    validate(sessionId: string): Observable<MigrationSession> {
-        return this.http.post<MigrationSession>(`${this.api}/sessions/${sessionId}/validate`, {});
-    }
-
-    cloneDatabase(sessionId: string): Observable<string> {
-        return this.http.post(`${this.api}/sessions/${sessionId}/clone`, {}, { responseType: 'text' });
-    }
-
-    runMigration(sessionId: string): Observable<MigrationReport> {
-        return this.http.post<MigrationReport>(`${this.api}/sessions/${sessionId}/run`, {});
+    promote(sessionId: string): Observable<{ status: string; message: string }> {
+        return this.http.post<{ status: string; message: string }>(
+            `${this.api}/sessions/${sessionId}/promote`,
+            null,
+            { params: { confirm: 'true' } },
+        );
     }
 
     compare(): Observable<MigrationComparison> {
         return this.http.get<MigrationComparison>(`${this.api}/compare`);
-    }
-
-    backup(): Observable<string> {
-        return this.http.post(`${this.api}/backup`, {}, { responseType: 'text' });
-    }
-
-    promote(): Observable<string> {
-        return this.http.post(`${this.api}/promote`, {}, { responseType: 'text' });
     }
 }

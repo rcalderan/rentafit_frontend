@@ -48,18 +48,20 @@ export abstract class FiscalEmissionBase implements OnInit {
   protected readonly showCancelModal = signal(false);
   protected readonly showEmailModal = signal(false);
 
-  protected readonly status = computed<InvoiceStatusApi>(
-    () => this.document()?.status ?? 'NONE',
-  );
+  protected readonly status = computed<InvoiceStatusApi>(() => this.document()?.status ?? 'NONE');
 
   /** Cliente possui documento (CPF/CNPJ) válido para emissão. */
   protected readonly hasCustomerDocument = computed(
     () => (this.context().customerDocument ?? '').trim().length > 0,
   );
+  protected readonly requiresCustomerDocument: boolean = false;
 
   /** Emissão liberada: pedido pago e sem nota ativa. */
   protected readonly canEmit = computed(
-    () => this.context().isPaid && this.status() === 'NONE',
+    () =>
+      this.context().isPaid &&
+      (!this.requiresCustomerDocument || this.hasCustomerDocument()) &&
+      this.status() === 'NONE',
   );
 
   ngOnInit(): void {
@@ -146,7 +148,9 @@ export abstract class FiscalEmissionBase implements OnInit {
   }
 
   protected formatCurrency(value: number | undefined): string {
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value ?? 0);
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(
+      value ?? 0,
+    );
   }
 
   protected formatDateTime(iso: string | undefined): string {
@@ -180,7 +184,7 @@ export abstract class FiscalEmissionBase implements OnInit {
 
   /** Persiste o documento fiscal emitido no Rentafit. */
   private persistIfNeeded(doc: IFiscalDocument): Observable<IFiscalDocument> {
-    if (doc.status === 'NONE') {
+    if (doc.status === 'NONE' || !doc.accessKey) {
       return of(doc);
     }
     return this.fiscalService.save(doc).pipe(

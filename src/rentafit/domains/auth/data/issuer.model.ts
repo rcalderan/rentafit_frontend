@@ -20,6 +20,14 @@ export interface IssuerInfo {
   paisCodigo: string;
   paisNome: string;
   certificateConfigured: boolean;
+  /** Campos fiscais NFS-e (mesma fonte de verdade da NF-e). */
+  nfseServiceCode?: string;
+  nfseNbsCode?: string;
+  nfseServiceDescription?: string;
+  nfseIssRate?: number;
+  nfseTotalTaxRate?: number;
+  /** true = envia a IM do prestador na NFS-e (exige cadastro no CNC do município). */
+  nfseSendIm?: boolean;
 }
 
 export interface IssuerSetupRequest {
@@ -39,6 +47,12 @@ export interface IssuerSetupRequest {
   cep: string;
   paisCodigo: string;
   paisNome: string;
+  nfseServiceCode?: string;
+  nfseNbsCode?: string;
+  nfseServiceDescription?: string;
+  nfseIssRate?: number;
+  nfseTotalTaxRate?: number;
+  nfseSendIm?: boolean;
 }
 
 export interface IssuerBranchSetupRequest {

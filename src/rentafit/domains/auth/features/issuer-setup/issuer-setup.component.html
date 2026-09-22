@@ -11,24 +11,48 @@
       <h3>Identificação</h3>
       <div class="form-group">
         <label for="cnpj">CNPJ</label>
-        <input id="cnpj" [(ngModel)]="cnpj" placeholder="00.000.000/0000-00" [disabled]="isLoading()">
+        <input
+          id="cnpj"
+          [(ngModel)]="cnpj"
+          placeholder="00.000.000/0000-00"
+          [disabled]="isLoading()"
+        />
       </div>
       <div class="form-group">
         <label for="razaoSocial">Razão Social</label>
-        <input id="razaoSocial" [(ngModel)]="razaoSocial" placeholder="Razão Social" [disabled]="isLoading()">
+        <input
+          id="razaoSocial"
+          [(ngModel)]="razaoSocial"
+          placeholder="Razão Social"
+          [disabled]="isLoading()"
+        />
       </div>
       <div class="form-group">
         <label for="nomeFantasia">Nome Fantasia</label>
-        <input id="nomeFantasia" [(ngModel)]="nomeFantasia" placeholder="Nome Fantasia" [disabled]="isLoading()">
+        <input
+          id="nomeFantasia"
+          [(ngModel)]="nomeFantasia"
+          placeholder="Nome Fantasia"
+          [disabled]="isLoading()"
+        />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="ie">Inscrição Estadual</label>
-          <input id="ie" [(ngModel)]="ie" placeholder="IE" [disabled]="isLoading()">
+          <input id="ie" [(ngModel)]="ie" placeholder="IE" [disabled]="isLoading()" />
         </div>
         <div class="form-group">
           <label for="im">Inscrição Municipal</label>
-          <input id="im" [(ngModel)]="im" placeholder="IM" [disabled]="isLoading()">
+          <input id="im" [(ngModel)]="im" placeholder="IM" [disabled]="isLoading()" />
+          <label class="checkbox-label" for="nfseSendIm">
+            <input
+              id="nfseSendIm"
+              type="checkbox"
+              [(ngModel)]="nfseSendIm"
+              [disabled]="isLoading()"
+            />
+            Enviar IM na NFS-e
+          </label>
         </div>
       </div>
       <div class="form-row">
@@ -42,7 +66,7 @@
         </div>
         <div class="form-group">
           <label for="fone">Telefone</label>
-          <input id="fone" [(ngModel)]="fone" placeholder="Telefone" [disabled]="isLoading()">
+          <input id="fone" [(ngModel)]="fone" placeholder="Telefone" [disabled]="isLoading()" />
         </div>
       </div>
     </div>
@@ -51,53 +75,141 @@
       <h3>Endereço</h3>
       <div class="form-group">
         <label for="logradouro">Logradouro</label>
-        <input id="logradouro" [(ngModel)]="logradouro" placeholder="Rua, Avenida..." [disabled]="isLoading()">
+        <input
+          id="logradouro"
+          [(ngModel)]="logradouro"
+          placeholder="Rua, Avenida..."
+          [disabled]="isLoading()"
+        />
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="numero">Número</label>
-          <input id="numero" [(ngModel)]="numero" placeholder="Número" [disabled]="isLoading()">
+          <input id="numero" [(ngModel)]="numero" placeholder="Número" [disabled]="isLoading()" />
         </div>
         <div class="form-group">
           <label for="bairro">Bairro</label>
-          <input id="bairro" [(ngModel)]="bairro" placeholder="Bairro" [disabled]="isLoading()">
+          <input id="bairro" [(ngModel)]="bairro" placeholder="Bairro" [disabled]="isLoading()" />
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="municipioCodigo">Código Município (IBGE)</label>
-          <input id="municipioCodigo" [(ngModel)]="municipioCodigo" placeholder="0000000" maxlength="7" [disabled]="isLoading()">
+          <input
+            id="municipioCodigo"
+            [(ngModel)]="municipioCodigo"
+            placeholder="0000000"
+            maxlength="7"
+            [disabled]="isLoading()"
+          />
           <small class="field-info">
-            7 dígitos: 2 da UF + 4 da ordem + 1 verificador. Ex: São Carlos/SP = <strong>3548906</strong>.
-            Consulte em
-            <a href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php" target="_blank" rel="noopener">
-              Códigos dos Municípios do IBGE
-            </a>.
+            7 dígitos: 2 da UF + 4 da ordem + 1 verificador. Ex: São Carlos/SP =
+            <strong>3548906</strong>. Consulte em
+            <a
+              href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php"
+              target="_blank"
+              rel="noopener"
+            >
+              Códigos dos Municípios do IBGE </a
+            >.
           </small>
         </div>
         <div class="form-group">
           <label for="municipioNome">Município</label>
-          <input id="municipioNome" [(ngModel)]="municipioNome" placeholder="Município" [disabled]="isLoading()">
+          <input
+            id="municipioNome"
+            [(ngModel)]="municipioNome"
+            placeholder="Município"
+            [disabled]="isLoading()"
+          />
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="uf">UF</label>
-          <input id="uf" [(ngModel)]="uf" placeholder="SP" maxlength="2" [disabled]="isLoading()">
+          <input id="uf" [(ngModel)]="uf" placeholder="SP" maxlength="2" [disabled]="isLoading()" />
         </div>
         <div class="form-group">
           <label for="cep">CEP</label>
-          <input id="cep" [(ngModel)]="cep" placeholder="00000-000" [disabled]="isLoading()">
+          <input id="cep" [(ngModel)]="cep" placeholder="00000-000" [disabled]="isLoading()" />
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
           <label for="paisCodigo">Código País</label>
-          <input id="paisCodigo" [(ngModel)]="paisCodigo" placeholder="1058" [disabled]="isLoading()">
+          <input
+            id="paisCodigo"
+            [(ngModel)]="paisCodigo"
+            placeholder="1058"
+            [disabled]="isLoading()"
+          />
         </div>
         <div class="form-group">
           <label for="paisNome">País</label>
-          <input id="paisNome" [(ngModel)]="paisNome" placeholder="BRASIL" [disabled]="isLoading()">
+          <input
+            id="paisNome"
+            [(ngModel)]="paisNome"
+            placeholder="BRASIL"
+            [disabled]="isLoading()"
+          />
+        </div>
+      </div>
+
+      <!-- Campos fiscais NFS-e (mesma fonte de verdade da NF-e) -->
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nfseServiceCode">Cód. Tributação Nacional (NFS-e)</label>
+          <input
+            id="nfseServiceCode"
+            [(ngModel)]="nfseServiceCode"
+            placeholder="010101"
+            maxlength="6"
+            [disabled]="isLoading()"
+          />
+        </div>
+        <div class="form-group">
+          <label for="nfseNbsCode">Cód. NBS (opcional)</label>
+          <input
+            id="nfseNbsCode"
+            [(ngModel)]="nfseNbsCode"
+            placeholder="1.0101"
+            [disabled]="isLoading()"
+          />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nfseServiceDescription">Descrição do serviço (NFS-e)</label>
+          <input
+            id="nfseServiceDescription"
+            [(ngModel)]="nfseServiceDescription"
+            placeholder="Locação de trajes"
+            [disabled]="isLoading()"
+          />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label for="nfseIssRate">Alíquota ISS (%)</label>
+          <input
+            id="nfseIssRate"
+            type="number"
+            min="0"
+            step="0.01"
+            [(ngModel)]="nfseIssRate"
+            [disabled]="isLoading()"
+          />
+        </div>
+        <div class="form-group">
+          <label for="nfseTotalTaxRate">Alíquota Simples Nacional (%)</label>
+          <input
+            id="nfseTotalTaxRate"
+            type="number"
+            min="0"
+            step="0.01"
+            [(ngModel)]="nfseTotalTaxRate"
+            [disabled]="isLoading()"
+          />
         </div>
       </div>
     </div>
@@ -118,8 +230,9 @@
         <ul>
           @for (b of branches(); track b.cnpj) {
             <li>
-              <strong>{{ b.matriz ? 'Matriz' : 'Filial' }}</strong> —
-              {{ b.cnpj }} ({{ b.nomeFantasia || b.razaoSocial }})
+              <strong>{{ b.matriz ? 'Matriz' : 'Filial' }}</strong> — {{ b.cnpj }} ({{
+                b.nomeFantasia || b.razaoSocial
+              }})
             </li>
           }
         </ul>
@@ -129,68 +242,126 @@
     @if (showBranchForm()) {
       <div class="form-section">
         <h3>Nova Filial</h3>
-        <p class="subtitle">A Razão Social vem da matriz. Informe apenas os dados locais da filial.</p>
+        <p class="subtitle">
+          A Razão Social vem da matriz. Informe apenas os dados locais da filial.
+        </p>
         <div class="form-group">
           <label for="branchCnpj">CNPJ da Filial</label>
-          <input id="branchCnpj" [(ngModel)]="branchCnpj" placeholder="00.000.000/0002-00" [disabled]="isLoading()">
+          <input
+            id="branchCnpj"
+            [(ngModel)]="branchCnpj"
+            placeholder="00.000.000/0002-00"
+            [disabled]="isLoading()"
+          />
         </div>
         <div class="form-group">
           <label for="branchNomeFantasia">Nome Fantasia</label>
-          <input id="branchNomeFantasia" [(ngModel)]="branchNomeFantasia" placeholder="Nome Fantasia da Filial" [disabled]="isLoading()">
+          <input
+            id="branchNomeFantasia"
+            [(ngModel)]="branchNomeFantasia"
+            placeholder="Nome Fantasia da Filial"
+            [disabled]="isLoading()"
+          />
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="branchIe">Inscrição Estadual</label>
-            <input id="branchIe" [(ngModel)]="branchIe" placeholder="IE" [disabled]="isLoading()">
+            <input id="branchIe" [(ngModel)]="branchIe" placeholder="IE" [disabled]="isLoading()" />
           </div>
           <div class="form-group">
             <label for="branchIm">Inscrição Municipal</label>
-            <input id="branchIm" [(ngModel)]="branchIm" placeholder="IM" [disabled]="isLoading()">
+            <input id="branchIm" [(ngModel)]="branchIm" placeholder="IM" [disabled]="isLoading()" />
           </div>
         </div>
         <div class="form-group">
           <label for="branchFone">Telefone</label>
-          <input id="branchFone" [(ngModel)]="branchFone" placeholder="Telefone" [disabled]="isLoading()">
+          <input
+            id="branchFone"
+            [(ngModel)]="branchFone"
+            placeholder="Telefone"
+            [disabled]="isLoading()"
+          />
         </div>
         <div class="form-group">
           <label for="branchLogradouro">Logradouro</label>
-          <input id="branchLogradouro" [(ngModel)]="branchLogradouro" placeholder="Rua, Avenida..." [disabled]="isLoading()">
+          <input
+            id="branchLogradouro"
+            [(ngModel)]="branchLogradouro"
+            placeholder="Rua, Avenida..."
+            [disabled]="isLoading()"
+          />
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="branchNumero">Número</label>
-            <input id="branchNumero" [(ngModel)]="branchNumero" placeholder="Número" [disabled]="isLoading()">
+            <input
+              id="branchNumero"
+              [(ngModel)]="branchNumero"
+              placeholder="Número"
+              [disabled]="isLoading()"
+            />
           </div>
           <div class="form-group">
             <label for="branchBairro">Bairro</label>
-            <input id="branchBairro" [(ngModel)]="branchBairro" placeholder="Bairro" [disabled]="isLoading()">
+            <input
+              id="branchBairro"
+              [(ngModel)]="branchBairro"
+              placeholder="Bairro"
+              [disabled]="isLoading()"
+            />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="branchMunicipioCodigo">Código Município (IBGE)</label>
-            <input id="branchMunicipioCodigo" [(ngModel)]="branchMunicipioCodigo" placeholder="0000000" maxlength="7" [disabled]="isLoading()">
+            <input
+              id="branchMunicipioCodigo"
+              [(ngModel)]="branchMunicipioCodigo"
+              placeholder="0000000"
+              maxlength="7"
+              [disabled]="isLoading()"
+            />
             <small class="field-info">
-              7 dígitos: 2 da UF + 4 da ordem + 1 verificador. Ex: São Carlos/SP = <strong>3548906</strong>.
-              Consulte em
-              <a href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php" target="_blank" rel="noopener">
-                Códigos dos Municípios do IBGE
-              </a>.
+              7 dígitos: 2 da UF + 4 da ordem + 1 verificador. Ex: São Carlos/SP =
+              <strong>3548906</strong>. Consulte em
+              <a
+                href="https://www.ibge.gov.br/explica/codigos-dos-municipios.php"
+                target="_blank"
+                rel="noopener"
+              >
+                Códigos dos Municípios do IBGE </a
+              >.
             </small>
           </div>
           <div class="form-group">
             <label for="branchMunicipioNome">Município</label>
-            <input id="branchMunicipioNome" [(ngModel)]="branchMunicipioNome" placeholder="Município" [disabled]="isLoading()">
+            <input
+              id="branchMunicipioNome"
+              [(ngModel)]="branchMunicipioNome"
+              placeholder="Município"
+              [disabled]="isLoading()"
+            />
           </div>
         </div>
         <div class="form-row">
           <div class="form-group">
             <label for="branchUf">UF</label>
-            <input id="branchUf" [(ngModel)]="branchUf" placeholder="SP" maxlength="2" [disabled]="isLoading()">
+            <input
+              id="branchUf"
+              [(ngModel)]="branchUf"
+              placeholder="SP"
+              maxlength="2"
+              [disabled]="isLoading()"
+            />
           </div>
           <div class="form-group">
             <label for="branchCep">CEP</label>
-            <input id="branchCep" [(ngModel)]="branchCep" placeholder="00000-000" [disabled]="isLoading()">
+            <input
+              id="branchCep"
+              [(ngModel)]="branchCep"
+              placeholder="00000-000"
+              [disabled]="isLoading()"
+            />
           </div>
         </div>
         <button (click)="submitBranch()" [disabled]="isLoading()">

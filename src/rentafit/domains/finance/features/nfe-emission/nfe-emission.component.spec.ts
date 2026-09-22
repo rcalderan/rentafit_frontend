@@ -189,7 +189,9 @@ describe('NfeEmissionComponent', () => {
         }),
       }),
     );
-    expect(fiscalService.save).toHaveBeenCalledWith(pendingDoc);
+    // Documento pendente sem accessKey não é persistido — persistIfNeeded só
+    // grava notas autorizadas (com chave) no Rentafit.
+    expect(fiscalService.save).not.toHaveBeenCalled();
     expect(comp.status()).toBe('PENDING_EMISSION');
     expect(changed).toEqual(pendingDoc);
   });

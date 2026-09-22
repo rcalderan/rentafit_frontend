@@ -13,12 +13,13 @@ const appConfig = {
   s3BucketUrl: '',
   fiscalDefaults: {
     nfse: {
-      nbsCode: '1.0101',
-      cityCode: '3550308',
-      serviceDescription: 'Locação de trajes e vestuário',
+      serviceCode: '010101',
+      nbsCode: '',
+      serviceDescription: 'Serviço de teste',
+      totalTaxRate: 6,
       ibsRate: 0.025,
       cbsRate: 0.015,
-      isqnRate: 0.0,
+      isqnRate: 0,
     },
     nfe: {
       ncm: '95059000',
@@ -67,6 +68,9 @@ const nfseRequest: IEmitInvoiceRequest = {
   origin: 'RENTAL',
   originId: 'contract-1',
   customerId: 'cust-1',
+  customerName: 'Maria Souza',
+  customerDocument: '98765432100',
+  customerEmail: 'maria@example.com',
   value: 800.0,
 };
 
@@ -112,40 +116,51 @@ describe('FiscalDocumentHttpService', () => {
     expect(doc.accessKey).toHaveLength(44);
   });
 
-  it('emite NFS-e para /api/billing/invoices/emit com defaults fiscais', async () => {
+  it('emite NFS-e enviando apenas dados da operação (emitente fica no backend)', async () => {
     const promise = lastValueFrom(service.emit(nfseRequest));
-    const req = httpMock.expectOne('/api/billing/invoices/emit');
+    const req = httpMock.expectOne('/nfse-api/nfse/emit');
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toMatchObject({
-      customerId: 'cust-1',
-      serviceValue: 800.0,
-      nbsCode: '1.0101',
-      cityCode: '3550308',
-      serviceDescription: 'Locação de trajes e vestuário',
-      ibsRate: 0.025,
-      cbsRate: 0.015,
-      isqnRate: 0.0,
-      origin: 'RENTAL',
-      originId: 'contract-1',
+      vServ: 800,
+      nomeTomador: 'Maria Souza',
+      docTomador: '98765432100',
+      emailTomador: 'maria@example.com',
     });
+    // O backend resolve emitente, certificado, cTribNac, alíquotas e município
+    // a partir do cadastro em sistema/cnpj — nada disso sai do browser.
+    expect(req.request.body).not.toHaveProperty('cnpjEmitente');
+    expect(req.request.body).not.toHaveProperty('inscricaoMunicipal');
+    expect(req.request.body).not.toHaveProperty('opSimpNac');
+    expect(req.request.body).not.toHaveProperty('cTribNac');
+    expect(req.request.body).not.toHaveProperty('aliqIss');
+    expect(req.request.body).not.toHaveProperty('codigoMunicipioPrestacao');
     req.flush({
-      id: 'nfse-uuid',
       accessKey: '12345678901234567890123456789012345678901234567890',
       invoiceNumber: 123456,
-      protocol: 'PR123456789',
+      series: '1',
+      protocol: 'DPS123456789',
       status: 'AUTHORIZED',
       issueDate: '2026-06-21T12:00:00-03:00',
-      serviceValue: 800.0,
+      processingDate: '2026-06-21T12:00:01-03:00',
+      serviceValue: 800,
+      authorizedXml: '<NFSe/>',
     });
 
     const doc = await promise;
     expect(doc.type).toBe('NFSE');
     expect(doc.status).toBe('EMITTED');
-    expect(doc.id).toBe('nfse-uuid');
+    expect(doc.id).toContain('NFSE-');
+    expect(doc.xmlUrl).toBe('<NFSe/>');
   });
 
   it('consulta status NF-e pela chave de acesso', async () => {
-    const current = { id: 'nfe-id', type: 'NFE' as const, status: 'PENDING_EMISSION' as const, value: 100, accessKey: '12345678901234567890123456789012345678901234' };
+    const current = {
+      id: 'nfe-id',
+      type: 'NFE' as const,
+      status: 'PENDING_EMISSION' as const,
+      value: 100,
+      accessKey: '12345678901234567890123456789012345678901234',
+    };
     const promise = lastValueFrom(service.checkStatus(current));
     const req = httpMock.expectOne('/nfe-api/12345678901234567890123456789012345678901234');
     expect(req.request.method).toBe('GET');
@@ -162,7 +177,12 @@ describe('FiscalDocumentHttpService', () => {
   });
 
   it('consulta status NFS-e pelo id interno do Rentafit', async () => {
-    const current = { id: 'nfse-uuid', type: 'NFSE' as const, status: 'PENDING_EMISSION' as const, value: 800 };
+    const current = {
+      id: 'nfse-uuid',
+      type: 'NFSE' as const,
+      status: 'PENDING_EMISSION' as const,
+      value: 800,
+    };
     const promise = lastValueFrom(service.checkStatus(current));
     const req = httpMock.expectOne('/api/fiscal-documents/nfse-uuid');
     expect(req.request.method).toBe('GET');
@@ -221,7 +241,9 @@ describe('FiscalDocumentHttpService', () => {
   });
 
   it('downloadDanfe informa indisponibilidade até o renderer local estar disponível', async () => {
-    await expect(lastValueFrom(service.downloadDanfe('document-id'))).rejects.toThrow('DANF-e local');
+    await expect(lastValueFrom(service.downloadDanfe('document-id'))).rejects.toThrow(
+      'DANF-e local',
+    );
   });
 
   it('cancela NF-e via /nfe-api/{chave}/cancelar', async () => {
@@ -233,8 +255,12 @@ describe('FiscalDocumentHttpService', () => {
       protocol: '123456789012345',
       value: 100,
     };
-    const promise = lastValueFrom(service.cancel(current, { reason: 'Erro de teste', sequence: '1' }));
-    const req = httpMock.expectOne('/nfe-api/12345678901234567890123456789012345678901234/cancelar');
+    const promise = lastValueFrom(
+      service.cancel(current, { reason: 'Erro de teste', sequence: '1' }),
+    );
+    const req = httpMock.expectOne(
+      '/nfe-api/12345678901234567890123456789012345678901234/cancelar',
+    );
     expect(req.request.method).toBe('POST');
     expect(req.request.body).toMatchObject({
       protocol: '123456789012345',
@@ -252,9 +278,17 @@ describe('FiscalDocumentHttpService', () => {
   });
 
   it('lista documentos fiscais via /api/fiscal-documents mapeando status e paginação', async () => {
-    const params = { type: 'NFE' as const, origin: 'SALES' as const, status: 'EMITTED' as const, page: 0, size: 20 };
+    const params = {
+      type: 'NFE' as const,
+      origin: 'SALES' as const,
+      status: 'EMITTED' as const,
+      page: 0,
+      size: 20,
+    };
     const promise = lastValueFrom(service.list(params));
-    const req = httpMock.expectOne('/api/fiscal-documents?page=0&size=20&type=NFE&origin=SALES&status=AUTHORIZED');
+    const req = httpMock.expectOne(
+      '/api/fiscal-documents?page=0&size=20&type=NFE&origin=SALES&status=AUTHORIZED',
+    );
     expect(req.request.method).toBe('GET');
     req.flush({
       content: [
