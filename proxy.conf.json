@@ -1,18 +1,18 @@
 {
   "/api": {
-    "target": "http://localhost:80",
+    "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
   },
   "/nfe-api": {
-    "target": "http://localhost:80",
+    "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
   },
   "/nfse-api": {
-    "target": "http://localhost:80",
+    "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
     "logLevel": "debug"
