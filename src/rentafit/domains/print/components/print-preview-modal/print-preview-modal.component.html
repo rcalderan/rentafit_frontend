@@ -1,0 +1,29 @@
+@if (isOpen()) {
+  <div class="modal-backdrop no-print" (click)="close.emit()"></div>
+
+  <div class="modal-dialog">
+    <!-- Modal Toolbar (Hidden on Print) -->
+    <header class="modal-header no-print">
+      <div class="modal-title-group">
+        <h3 class="modal-title">Visualização de Impressão</h3>
+        <span class="template-badge">{{ resolvedTemplate()?.name }}</span>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" (click)="close.emit()">
+          Fechar
+        </button>
+        <button type="button" class="btn btn-primary" (click)="print()">
+          🖨️ Imprimir Agora
+        </button>
+      </div>
+    </header>
+
+    <!-- Modal Paper Viewport -->
+    <div class="modal-body">
+      <div class="printable-paper" [ngStyle]="paperStyle()">
+        <div class="document-content" [innerHTML]="renderedHtml()"></div>
+      </div>
+    </div>
+  </div>
+}

@@ -26,6 +26,12 @@
             ],
             "styles": [
               "src/styles.css"
+            ],
+            "allowedCommonJsDependencies": [
+              "qrcode",
+              "bson",
+              "bcryptjs",
+              "jsencrypt"
             ]
           },
           "configurations": {

@@ -1,0 +1,105 @@
+<div class="template-list-container">
+  <!-- Page Header -->
+  <header class="page-header">
+    <div>
+      <h1 class="page-title">Templates de Impressão</h1>
+      <p class="page-subtitle">
+        Personalize o layout de impressão dos Contratos de Locação, Termos de Desistência e Cupons Fiscais NFC-e (A4, 80mm, 58mm).
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button type="button" class="btn btn-secondary" (click)="resetDefaults()">
+        🔄 Restaurar Padrões
+      </button>
+      <button type="button" class="btn btn-primary" (click)="createNewTemplate()">
+        ➕ Novo Template
+      </button>
+    </div>
+  </header>
+
+  <!-- Templates Grid -->
+  <div class="templates-grid">
+    @for (t of templates(); track t.id) {
+      <div class="template-card">
+        <div class="card-header">
+          <div class="badges-row">
+            <span class="badge" [ngClass]="getFormatBadgeClass(t.pageFormat)">
+              {{ getFormatLabel(t.pageFormat) }}
+            </span>
+            @if (t.isDefault) {
+              <span class="badge badge-default">Padrão Ativo</span>
+            }
+          </div>
+          <span class="card-type">{{ getTypeLabel(t.templateType) }}</span>
+        </div>
+
+        <div class="card-body">
+          <h3 class="template-name">{{ t.name }}</h3>
+          <p class="template-desc">{{ t.description || 'Sem descrição informada.' }}</p>
+
+          <div class="template-specs">
+            <div class="spec-item">
+              <span class="spec-label">Dimensões:</span>
+              <span class="spec-value">
+                {{ t.pageWidthMm }}mm x {{ t.pageHeightMm ? t.pageHeightMm + 'mm' : 'Contínuo' }}
+              </span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Margens:</span>
+              <span class="spec-value">{{ t.marginTopMm }}mm</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-footer">
+          <div class="footer-actions">
+            <button
+              type="button"
+              class="btn-action"
+              (click)="previewTemplate(t.id)"
+              title="Visualizar e Imprimir Teste"
+            >
+              👁️ Visualizar
+            </button>
+            <button
+              type="button"
+              class="btn-action btn-edit"
+              (click)="editTemplate(t.id)"
+              title="Editar no Studio WYSIWYG"
+            >
+              ✏️ Editar
+            </button>
+            <button
+              type="button"
+              class="btn-action"
+              (click)="duplicateTemplate(t.id)"
+              title="Duplicar Template"
+            >
+              📋 Duplicar
+            </button>
+            @if (!t.isDefault) {
+              <button
+                type="button"
+                class="btn-action btn-danger"
+                (click)="deleteTemplate(t)"
+                title="Excluir Template"
+              >
+                🗑️
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- Print Preview Modal -->
+  @if (showPreviewModal() && previewTemplateId()) {
+    <rentafit-print-preview-modal
+      [templateId]="previewTemplateId()!"
+      [isOpen]="showPreviewModal()"
+      (close)="closePreview()"
+    />
+  }
+</div>

@@ -1,0 +1,411 @@
+<div class="editor-page-wrapper">
+  <!-- Top Navigation & Action Bar -->
+  <header class="editor-header no-print">
+    <div class="header-left">
+      <button type="button" class="btn btn-secondary btn-icon" (click)="goBack()" title="Voltar à lista">
+        ← Voltar
+      </button>
+      <div class="template-title-group">
+        <input
+          type="text"
+          class="template-name-input"
+          [(ngModel)]="template().name"
+          placeholder="Nome do Template"
+        />
+        <span class="badge format-badge">{{ template().pageFormat }}</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      @if (saveSuccessMsg()) {
+        <span class="save-toast">{{ saveSuccessMsg() }}</span>
+      }
+    </div>
+
+    <div class="header-actions">
+      <!-- Zoom Selector -->
+      <div class="zoom-controls">
+        <button type="button" class="btn-zoom" (click)="zoomLevel.set(Math.max(50, zoomLevel() - 10))" [disabled]="zoomLevel() <= 50">-</button>
+        <span class="zoom-value">{{ zoomLevel() }}%</span>
+        <button type="button" class="btn-zoom" (click)="zoomLevel.set(Math.min(150, zoomLevel() + 10))" [disabled]="zoomLevel() >= 150">+</button>
+      </div>
+
+      <!-- Preview Toggle -->
+      <button
+        type="button"
+        class="btn"
+        [class.btn-preview-active]="isPreviewMode()"
+        [class.btn-secondary]="!isPreviewMode()"
+        (click)="togglePreview()"
+      >
+        @if (isPreviewMode()) {
+          ✏️ Modo Edição
+        } @else {
+          👁️ Ver com Dados
+        }
+      </button>
+
+      <!-- Print Button -->
+      <button type="button" class="btn btn-secondary" (click)="printDocument()" title="Imprimir documento">
+        🖨️ Imprimir
+      </button>
+
+      <!-- Save Button -->
+      <button type="button" class="btn btn-primary" (click)="saveTemplate()">
+        💾 Salvar Template
+      </button>
+    </div>
+  </header>
+
+  <!-- 3-Column Studio Body -->
+  <main class="editor-body no-print">
+    <!-- LEFT PANEL: Components & Dynamic Variables -->
+    <aside class="panel left-panel">
+      <div class="panel-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="leftTab() === 'variables'"
+          (click)="leftTab.set('variables')"
+        >
+          Variáveis {{ '{{}}' }}
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="leftTab() === 'blocks'"
+          (click)="leftTab.set('blocks')"
+        >
+          Blocos & Tabelas
+        </button>
+      </div>
+
+      <!-- TAB 1: VARIABLES -->
+      @if (leftTab() === 'variables') {
+        <div class="tab-content variables-tab">
+          <div class="search-box">
+            <input
+              type="text"
+              placeholder="Buscar variável (ex: cliente, valor)..."
+              [(ngModel)]="variableSearch"
+              class="input-search"
+            />
+          </div>
+
+          <div class="category-chips">
+            <button
+              type="button"
+              class="chip"
+              [class.active]="selectedCategory() === 'todos'"
+              (click)="selectedCategory.set('todos')"
+            >
+              Todos
+            </button>
+            @for (cat of categories; track cat.id) {
+              <button
+                type="button"
+                class="chip"
+                [class.active]="selectedCategory() === cat.id"
+                (click)="selectedCategory.set(cat.id)"
+              >
+                {{ cat.name }}
+              </button>
+            }
+          </div>
+
+          <div class="variables-list">
+            @for (v of filteredVariables(); track v.key) {
+              <div class="variable-item" (click)="insertTag(v)">
+                <div class="var-header">
+                  <span class="var-label">{{ v.label }}</span>
+                  <code class="var-tag">{{ v.tag }}</code>
+                </div>
+                <div class="var-sample">Ex: {{ v.sampleValue }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- TAB 2: BLOCKS & SUBCOMPONENTS -->
+      @if (leftTab() === 'blocks') {
+        <div class="tab-content blocks-tab">
+          <section class="block-section">
+            <h4 class="section-title">Texto & Títulos</h4>
+            <div class="btn-grid">
+              <button type="button" class="btn-block" (click)="insertText('h1')">H1 Título Grande</button>
+              <button type="button" class="btn-block" (click)="insertText('h2')">H2 Subtítulo</button>
+              <button type="button" class="btn-block" (click)="insertText('h3')">H3 Seção</button>
+              <button type="button" class="btn-block" (click)="insertText('p')">Parágrafo</button>
+              <button type="button" class="btn-block" (click)="insertDivider()">Linha Divisória</button>
+            </div>
+          </section>
+
+          <section class="block-section">
+            <h4 class="section-title">Subcomponentes de Tabela [Array]</h4>
+            <div class="btn-stack">
+              <button type="button" class="btn-subcomponent" (click)="insertContractItemsTable()">
+                <div class="sub-title">📦 [Tabela] Itens do Contrato</div>
+                <div class="sub-desc">Código, descrição com medidas/ajustes e valor</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertPaymentsTable()">
+                <div class="sub-title">💳 [Tabela] Formas de Pagamento</div>
+                <div class="sub-desc">Parcelas, vencimento, forma e carimbo</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertSimpleTable()">
+                <div class="sub-title">📊 Tabela Comum (3x3)</div>
+                <div class="sub-desc">Tabela em branco editável</div>
+              </button>
+            </div>
+          </section>
+
+          <section class="block-section">
+            <h4 class="section-title">Fechamento & Autenticação</h4>
+            <div class="btn-stack">
+              <button type="button" class="btn-subcomponent" (click)="insertSignatureBlock()">
+                <div class="sub-title">✍️ Bloco de Assinatura</div>
+                <div class="sub-desc">Linha de assinatura com nome do cliente e CPF</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertQrCodeBlock()">
+                <div class="sub-title">📱 Bloco QR Code NFC-e</div>
+                <div class="sub-desc">Consulta pública da SEFAZ para cupom fiscal</div>
+              </button>
+            </div>
+          </section>
+        </div>
+      }
+    </aside>
+
+    <!-- CENTER CANVAS: WYSIWYG PAGE / THERMAL ROLL -->
+    <section class="canvas-area">
+      <!-- Tiptap Toolbar (Only visible in Edit Mode) -->
+      @if (!isPreviewMode() && editor) {
+        <div class="tiptap-toolbar">
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('bold')"
+            (click)="editor.chain().focus().toggleBold().run()"
+            title="Negrito"
+          >
+            <strong>B</strong>
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('italic')"
+            (click)="editor.chain().focus().toggleItalic().run()"
+            title="Itálico"
+          >
+            <em>I</em>
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('underline')"
+            (click)="editor.chain().focus().toggleUnderline().run()"
+            title="Sublinhado"
+          >
+            <u>U</u>
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('strike')"
+            (click)="editor.chain().focus().toggleStrike().run()"
+            title="Tachado"
+          >
+            <s>S</s>
+          </button>
+
+          <span class="tb-sep"></span>
+
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive({ textAlign: 'left' })"
+            (click)="editor.chain().focus().setTextAlign('left').run()"
+            title="Alinhar à Esquerda"
+          >
+            ⬅
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive({ textAlign: 'center' })"
+            (click)="editor.chain().focus().setTextAlign('center').run()"
+            title="Centralizar"
+          >
+            ⬌
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive({ textAlign: 'right' })"
+            (click)="editor.chain().focus().setTextAlign('right').run()"
+            title="Alinhar à Direita"
+          >
+            ➡
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive({ textAlign: 'justify' })"
+            (click)="editor.chain().focus().setTextAlign('justify').run()"
+            title="Justificar"
+          >
+            ☰
+          </button>
+
+          <span class="tb-sep"></span>
+
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('bulletList')"
+            (click)="editor.chain().focus().toggleBulletList().run()"
+            title="Lista com Marcadores"
+          >
+            • Lista
+          </button>
+          <button
+            type="button"
+            class="tb-btn"
+            [class.active]="editor.isActive('orderedList')"
+            (click)="editor.chain().focus().toggleOrderedList().run()"
+            title="Lista Numerada"
+          >
+            1. Lista
+          </button>
+
+          @if (editor.isActive('table')) {
+            <span class="tb-sep"></span>
+            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().addRowAfter().run()" title="Adicionar Linha Abaixo">+ Linha</button>
+            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().deleteRow().run()" title="Excluir Linha">- Linha</button>
+            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().addColumnAfter().run()" title="Adicionar Coluna">+ Coluna</button>
+            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().deleteColumn().run()" title="Excluir Coluna">- Coluna</button>
+            <button type="button" class="tb-btn table-action danger" (click)="editor.chain().focus().deleteTable().run()" title="Excluir Tabela">Remover Tabela</button>
+          }
+        </div>
+      }
+
+      <!-- Paper Sheet Scrollable Container -->
+      <div class="sheet-viewport">
+        <div class="paper-sheet" [ngStyle]="sheetStyle()">
+          @if (!isPreviewMode()) {
+            <div #editorContainer class="tiptap-content-host"></div>
+          } @else {
+            <div class="preview-content-host" [innerHTML]="previewHtml()"></div>
+          }
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Page & Layout Properties -->
+    <aside class="panel right-panel">
+      <h3 class="panel-title">Propriedades da Página</h3>
+
+      <div class="form-group">
+        <label class="form-label">Formato do Papel</label>
+        <select
+          class="form-select"
+          [ngModel]="template().pageFormat"
+          (ngModelChange)="setPageFormat($event)"
+        >
+          <option value="A4">Folha A4 (210 x 297 mm)</option>
+          <option value="THERMAL_80MM">Bobina Térmica 80 mm (PDV)</option>
+          <option value="THERMAL_58MM">Bobina Térmica 58 mm (POS)</option>
+          <option value="CUSTOM">Customizado (Livre)</option>
+        </select>
+      </div>
+
+      @if (template().pageFormat === 'A4' || template().pageFormat === 'CUSTOM') {
+        <div class="form-group">
+          <label class="form-label">Orientação</label>
+          <div class="btn-group-toggle">
+            <button
+              type="button"
+              class="btn-toggle"
+              [class.active]="template().orientation === 'PORTRAIT'"
+              (click)="setOrientation('PORTRAIT')"
+            >
+              📄 Retrato
+            </button>
+            <button
+              type="button"
+              class="btn-toggle"
+              [class.active]="template().orientation === 'LANDSCAPE'"
+              (click)="setOrientation('LANDSCAPE')"
+            >
+              📃 Paisagem
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (template().pageFormat === 'CUSTOM') {
+        <div class="form-row">
+          <div class="form-group col">
+            <label class="form-label">Largura (mm)</label>
+            <input type="number" class="form-input" [(ngModel)]="template().pageWidthMm" min="30" max="500" />
+          </div>
+          <div class="form-group col">
+            <label class="form-label">Altura (mm)</label>
+            <input type="number" class="form-input" [(ngModel)]="template().pageHeightMm" min="30" max="1000" />
+          </div>
+        </div>
+      }
+
+      <div class="form-section-title">Margens da Página (mm)</div>
+      <div class="form-row">
+        <div class="form-group col">
+          <label class="form-label">Superior</label>
+          <input type="number" class="form-input" [(ngModel)]="template().marginTopMm" min="0" max="100" />
+        </div>
+        <div class="form-group col">
+          <label class="form-label">Inferior</label>
+          <input type="number" class="form-input" [(ngModel)]="template().marginBottomMm" min="0" max="100" />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col">
+          <label class="form-label">Esquerda</label>
+          <input type="number" class="form-input" [(ngModel)]="template().marginLeftMm" min="0" max="100" />
+        </div>
+        <div class="form-group col">
+          <label class="form-label">Direita</label>
+          <input type="number" class="form-input" [(ngModel)]="template().marginRightMm" min="0" max="100" />
+        </div>
+      </div>
+
+      <div class="form-section-title">Classificação do Template</div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Documento</label>
+        <select class="form-select" [(ngModel)]="template().templateType">
+          <option value="RENTAL_CONTRACT">Contrato de Locação</option>
+          <option value="RENTAL_CANCELLATION">Termo de Desistência</option>
+          <option value="FISCAL_RECEIPT_80MM">Cupom Fiscal NFC-e (80mm)</option>
+          <option value="FISCAL_RECEIPT_58MM">Cupom Fiscal NFC-e (58mm)</option>
+          <option value="CUSTOM">Customizado / Outro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea
+          class="form-textarea"
+          rows="3"
+          [(ngModel)]="template().description"
+          placeholder="Ex: Contrato de locação com 11 cláusulas e termo de imagem..."
+        ></textarea>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input type="checkbox" [(ngModel)]="template().isDefault" />
+          <span>Definir como Template Padrão deste tipo</span>
+        </label>
+      </div>
+    </aside>
+  </main>
+</div>
