@@ -2,6 +2,9 @@
   display: block;
   height: 100vh;
   overflow: hidden;
+  --z-sidebar-overlay: 1999;
+  --z-system-menu: 2000;
+  --z-system-action: 2001;
 }
 
 .layout-container {
@@ -20,7 +23,7 @@
   margin: 1.5rem;
   border-radius: 30px;
   box-shadow: 0 10px 30px rgba(154, 185, 235, 0.15);
-  z-index: 10;
+  z-index: var(--z-system-menu);
   height: fit-content;
   max-height: calc(100vh - 180px);
 }
@@ -175,7 +178,7 @@
   position: fixed;
   bottom: 2rem;
   left: 1.5rem;
-  z-index: 11;
+  z-index: var(--z-system-action);
   display: flex;
   flex-direction: row;
   gap: 1rem;
@@ -301,7 +304,7 @@
   inset: 0;
   background-color: rgba(0, 0, 0, 0.3);
   backdrop-filter: blur(2px);
-  z-index: 9;
+  z-index: var(--z-sidebar-overlay);
   animation: fadeIn 0.2s ease;
 }
 
