@@ -57,10 +57,15 @@
     </div>
   </header>
 
+  <!-- Formatting Ribbon (fixed top, contextual) -->
+  @if (!isPreviewMode() && editor(); as ed) {
+    <rentafit-editor-toolbar [editor]="ed" />
+  }
+
   <!-- 3-Column Studio Body -->
-  <main class="editor-body no-print">
+  <main class="editor-body">
     <!-- LEFT PANEL: Components & Dynamic Variables -->
-    <aside class="panel left-panel">
+    <aside class="panel left-panel no-print">
       <div class="panel-tabs">
         <button
           type="button"
@@ -178,117 +183,6 @@
 
     <!-- CENTER CANVAS: WYSIWYG PAGE / THERMAL ROLL -->
     <section class="canvas-area">
-      <!-- Tiptap Toolbar (Only visible in Edit Mode) -->
-      @if (!isPreviewMode() && editor) {
-        <div class="tiptap-toolbar">
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('bold')"
-            (click)="editor.chain().focus().toggleBold().run()"
-            title="Negrito"
-          >
-            <strong>B</strong>
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('italic')"
-            (click)="editor.chain().focus().toggleItalic().run()"
-            title="Itálico"
-          >
-            <em>I</em>
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('underline')"
-            (click)="editor.chain().focus().toggleUnderline().run()"
-            title="Sublinhado"
-          >
-            <u>U</u>
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('strike')"
-            (click)="editor.chain().focus().toggleStrike().run()"
-            title="Tachado"
-          >
-            <s>S</s>
-          </button>
-
-          <span class="tb-sep"></span>
-
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive({ textAlign: 'left' })"
-            (click)="editor.chain().focus().setTextAlign('left').run()"
-            title="Alinhar à Esquerda"
-          >
-            ⬅
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive({ textAlign: 'center' })"
-            (click)="editor.chain().focus().setTextAlign('center').run()"
-            title="Centralizar"
-          >
-            ⬌
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive({ textAlign: 'right' })"
-            (click)="editor.chain().focus().setTextAlign('right').run()"
-            title="Alinhar à Direita"
-          >
-            ➡
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive({ textAlign: 'justify' })"
-            (click)="editor.chain().focus().setTextAlign('justify').run()"
-            title="Justificar"
-          >
-            ☰
-          </button>
-
-          <span class="tb-sep"></span>
-
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('bulletList')"
-            (click)="editor.chain().focus().toggleBulletList().run()"
-            title="Lista com Marcadores"
-          >
-            • Lista
-          </button>
-          <button
-            type="button"
-            class="tb-btn"
-            [class.active]="editor.isActive('orderedList')"
-            (click)="editor.chain().focus().toggleOrderedList().run()"
-            title="Lista Numerada"
-          >
-            1. Lista
-          </button>
-
-          @if (editor.isActive('table')) {
-            <span class="tb-sep"></span>
-            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().addRowAfter().run()" title="Adicionar Linha Abaixo">+ Linha</button>
-            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().deleteRow().run()" title="Excluir Linha">- Linha</button>
-            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().addColumnAfter().run()" title="Adicionar Coluna">+ Coluna</button>
-            <button type="button" class="tb-btn table-action" (click)="editor.chain().focus().deleteColumn().run()" title="Excluir Coluna">- Coluna</button>
-            <button type="button" class="tb-btn table-action danger" (click)="editor.chain().focus().deleteTable().run()" title="Excluir Tabela">Remover Tabela</button>
-          }
-        </div>
-      }
-
       <!-- Paper Sheet Scrollable Container -->
       <div class="sheet-viewport">
         <div class="paper-sheet" [ngStyle]="sheetStyle()">
@@ -302,7 +196,7 @@
     </section>
 
     <!-- RIGHT PANEL: Page & Layout Properties -->
-    <aside class="panel right-panel">
+    <aside class="panel right-panel no-print">
       <h3 class="panel-title">Propriedades da Página</h3>
 
       <div class="form-group">

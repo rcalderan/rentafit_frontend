@@ -16,11 +16,9 @@ import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
 import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
-import { Table } from '@tiptap/extension-table';
 import { TableRow } from '@tiptap/extension-table-row';
-import { TableHeader } from '@tiptap/extension-table-header';
-import { TableCell } from '@tiptap/extension-table-cell';
-import Image from '@tiptap/extension-image';
+import { TextStyleKit } from '@tiptap/extension-text-style';
+import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
 
 import {
@@ -35,11 +33,13 @@ import { TEMPLATE_VARIABLES, VARIABLE_CATEGORIES } from '../../data/template-var
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
 import { TemplateInterpolationService } from '../../services/template-interpolation.service';
 import { DEFAULT_CUSTOM_TEMPLATE } from '../../data/default-templates';
+import { PrintImage, PrintTable, PrintTableCell, PrintTableHeader } from '../../data/print-editor.extensions';
+import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 
 @Component({
   selector: 'rentafit-page-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, EditorToolbarComponent],
   templateUrl: './page-editor.component.html',
   styleUrl: './page-editor.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -52,7 +52,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
 
   protected readonly editorContainer = viewChild<ElementRef<HTMLDivElement>>('editorContainer');
 
-  protected editor: Editor | null = null;
+  protected readonly editor = signal<Editor | null>(null);
   protected readonly template = signal<PrintTemplate>({ ...DEFAULT_CUSTOM_TEMPLATE });
   protected readonly Math = Math;
   protected readonly isPreviewMode = signal<boolean>(false);
@@ -118,43 +118,45 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.editor) {
-      this.editor.destroy();
-      this.editor = null;
-    }
+    this.editor()?.destroy();
+    this.editor.set(null);
   }
 
   private initTiptap(): void {
     const el = this.editorContainer()?.nativeElement;
     if (!el) return;
 
-    this.editor = new Editor({
-      element: el,
-      extensions: [
-        StarterKit.configure({
-          heading: { levels: [1, 2, 3] },
-        }),
-        Underline,
-        TextAlign.configure({
-          types: ['heading', 'paragraph'],
-        }),
-        Table.configure({
-          resizable: true,
-        }),
-        TableRow,
-        TableHeader,
-        TableCell,
-        Image,
-        Placeholder.configure({
-          placeholder: 'Comece a digitar o documento ou adicione blocos e variáveis...',
-        }),
-      ],
-      content: this.template().contentHtml || '',
-      onUpdate: ({ editor }) => {
-        const html = editor.getHTML();
-        this.template.update((t) => ({ ...t, contentHtml: html }));
-      },
-    });
+    this.editor.set(
+      new Editor({
+        element: el,
+        extensions: [
+          StarterKit.configure({
+            heading: { levels: [1, 2, 3] },
+          }),
+          TextStyleKit,
+          Highlight.configure({ multicolor: true }),
+          Underline,
+          TextAlign.configure({
+            types: ['heading', 'paragraph'],
+          }),
+          PrintTable.configure({
+            resizable: true,
+          }),
+          TableRow,
+          PrintTableHeader,
+          PrintTableCell,
+          PrintImage,
+          Placeholder.configure({
+            placeholder: 'Comece a digitar o documento ou adicione blocos e variáveis...',
+          }),
+        ],
+        content: this.template().contentHtml || '',
+        onUpdate: ({ editor }) => {
+          const html = editor.getHTML();
+          this.template.update((t) => ({ ...t, contentHtml: html }));
+        },
+      }),
+    );
   }
 
   protected setPageFormat(format: PageFormat): void {
@@ -180,37 +182,36 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     this.isPreviewMode.set(willBePreview);
 
     if (willBePreview) {
-      const rawHtml = this.editor ? this.editor.getHTML() : this.template().contentHtml;
+      const rawHtml = this.editor()?.getHTML() ?? this.template().contentHtml;
       const merged = this.interpolationService.interpolate(rawHtml);
       this.previewHtml.set(merged);
     }
   }
 
   protected insertTag(v: VariableDefinition): void {
-    if (!this.editor) return;
-    this.editor.chain().focus().insertContent(` ${v.tag} `).run();
+    this.editor()?.chain().focus().insertContent(` ${v.tag} `).run();
   }
 
   protected insertText(type: 'p' | 'h1' | 'h2' | 'h3'): void {
-    if (!this.editor) return;
-    if (type === 'h1') this.editor.chain().focus().toggleHeading({ level: 1 }).run();
-    else if (type === 'h2') this.editor.chain().focus().toggleHeading({ level: 2 }).run();
-    else if (type === 'h3') this.editor.chain().focus().toggleHeading({ level: 3 }).run();
-    else this.editor.chain().focus().setParagraph().run();
+    const ed = this.editor();
+    if (!ed) return;
+    if (type === 'h1') ed.chain().focus().toggleHeading({ level: 1 }).run();
+    else if (type === 'h2') ed.chain().focus().toggleHeading({ level: 2 }).run();
+    else if (type === 'h3') ed.chain().focus().toggleHeading({ level: 3 }).run();
+    else ed.chain().focus().setParagraph().run();
   }
 
   protected insertDivider(): void {
-    if (!this.editor) return;
-    this.editor.chain().focus().setHorizontalRule().run();
+    this.editor()?.chain().focus().setHorizontalRule().run();
   }
 
   protected insertSimpleTable(): void {
-    if (!this.editor) return;
-    this.editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    this.editor()?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
   }
 
   protected insertContractItemsTable(): void {
-    if (!this.editor) return;
+    const ed = this.editor();
+    if (!ed) return;
     const tableHtml = `
       <table class="print-table contract-items-table" style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; border: 1px solid #ccc;">
         <thead>
@@ -235,11 +236,12 @@ export class PageEditorComponent implements OnInit, OnDestroy {
         </tfoot>
       </table>
     `;
-    this.editor.chain().focus().insertContent(tableHtml).run();
+    ed.chain().focus().insertContent(tableHtml).run();
   }
 
   protected insertPaymentsTable(): void {
-    if (!this.editor) return;
+    const ed = this.editor();
+    if (!ed) return;
     const tableHtml = `
       <table class="print-table contract-payments-table" style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; border: 1px solid #ccc;">
         <thead>
@@ -262,11 +264,12 @@ export class PageEditorComponent implements OnInit, OnDestroy {
         </tbody>
       </table>
     `;
-    this.editor.chain().focus().insertContent(tableHtml).run();
+    ed.chain().focus().insertContent(tableHtml).run();
   }
 
   protected insertSignatureBlock(): void {
-    if (!this.editor) return;
+    const ed = this.editor();
+    if (!ed) return;
     const signatureHtml = `
       <div style="text-align: center; margin-top: 35px; margin-bottom: 20px;">
         <div>{{sistema.dataExtenso}}</div>
@@ -276,11 +279,12 @@ export class PageEditorComponent implements OnInit, OnDestroy {
         </div>
       </div>
     `;
-    this.editor.chain().focus().insertContent(signatureHtml).run();
+    ed.chain().focus().insertContent(signatureHtml).run();
   }
 
   protected insertQrCodeBlock(): void {
-    if (!this.editor) return;
+    const ed = this.editor();
+    if (!ed) return;
     const qrHtml = `
       <div style="text-align: center; margin: 12px 0;" data-qrcode-container="true">
         <div style="font-size: 10px; margin-bottom: 4px;">Consulta via QR Code SEFAZ:</div>
@@ -303,12 +307,12 @@ export class PageEditorComponent implements OnInit, OnDestroy {
         <div style="font-size: 9px; color: #555; margin-top: 2px;">{{nfce.urlConsulta}}</div>
       </div>
     `;
-    this.editor.chain().focus().insertContent(qrHtml).run();
+    ed.chain().focus().insertContent(qrHtml).run();
   }
 
   protected saveTemplate(): void {
-    if (this.editor) {
-      const html = this.editor.getHTML();
+    const html = this.editor()?.getHTML();
+    if (html) {
       this.template.update((t) => ({ ...t, contentHtml: html }));
     }
 

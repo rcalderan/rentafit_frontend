@@ -1,6 +1,6 @@
 <div class="template-list-container">
   <!-- Page Header -->
-  <header class="page-header">
+  <header class="page-header no-print">
     <div>
       <h1 class="page-title">Templates de Impressão</h1>
       <p class="page-subtitle">
@@ -19,7 +19,7 @@
   </header>
 
   <!-- Templates Grid -->
-  <div class="templates-grid">
+  <div class="templates-grid no-print">
     @for (t of templates(); track t.id) {
       <div class="template-card">
         <div class="card-header">

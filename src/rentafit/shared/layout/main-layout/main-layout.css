@@ -593,6 +593,7 @@
   .sidebar-overlay,
   .floating-action,
   .top-bar,
+  .tab-bar,
   .legacy-status {
     display: none !important;
   }

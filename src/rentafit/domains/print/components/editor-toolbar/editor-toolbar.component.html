@@ -1,0 +1,328 @@
+<div class="format-toolbar no-print" role="toolbar" aria-label="Formatação">
+  <!-- Histórico -->
+  <div class="tb-group">
+    <button
+      type="button"
+      class="tb-btn"
+      (click)="editor().chain().focus().undo().run()"
+      [disabled]="!canUndo()"
+      title="Desfazer (Ctrl+Z)"
+    >
+      ↶
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      (click)="editor().chain().focus().redo().run()"
+      [disabled]="!canRedo()"
+      title="Refazer (Ctrl+Y)"
+    >
+      ↷
+    </button>
+  </div>
+
+  <span class="tb-sep"></span>
+
+  <!-- Tipo de bloco + Fonte -->
+  <div class="tb-group">
+    <select
+      class="tb-select"
+      [ngModel]="blockType()"
+      (ngModelChange)="setBlockType($event)"
+      title="Estilo do parágrafo"
+    >
+      <option value="p">Texto normal</option>
+      <option value="h1">Título 1</option>
+      <option value="h2">Título 2</option>
+      <option value="h3">Título 3</option>
+      <option value="blockquote">Citação</option>
+    </select>
+
+    <select
+      class="tb-select tb-font"
+      [ngModel]="attr('textStyle', 'fontFamily')"
+      (ngModelChange)="setFontFamily($event)"
+      title="Fonte"
+    >
+      @for (f of fontFamilies; track f.value) {
+        <option [value]="f.value">{{ f.label }}</option>
+      }
+    </select>
+
+    <select
+      class="tb-select tb-size"
+      [ngModel]="attr('textStyle', 'fontSize')"
+      (ngModelChange)="setFontSize($event)"
+      title="Tamanho da fonte (pt)"
+    >
+      @for (s of fontSizes; track s.value) {
+        <option [value]="s.value">{{ s.label }}</option>
+      }
+    </select>
+  </div>
+
+  <span class="tb-sep"></span>
+
+  <!-- Estilos de texto -->
+  <div class="tb-group">
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('bold')"
+      (click)="editor().chain().focus().toggleBold().run()"
+      title="Negrito (Ctrl+B)"
+    >
+      <strong>B</strong>
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('italic')"
+      (click)="editor().chain().focus().toggleItalic().run()"
+      title="Itálico (Ctrl+I)"
+    >
+      <em>I</em>
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('underline')"
+      (click)="editor().chain().focus().toggleUnderline().run()"
+      title="Sublinhado (Ctrl+U)"
+    >
+      <u>S</u>
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('strike')"
+      (click)="editor().chain().focus().toggleStrike().run()"
+      title="Tachado"
+    >
+      <s>T</s>
+    </button>
+
+    <label class="tb-color" title="Cor do texto">
+      <span class="color-icon" [style.border-bottom-color]="attr('textStyle', 'color') || '#0f172a'">A</span>
+      <input type="color" [value]="textColor()" (input)="setTextColor($event)" />
+    </label>
+    <label class="tb-color" title="Cor de destaque">
+      <span class="color-icon highlight-icon" [style.border-bottom-color]="attr('highlight', 'color') || 'transparent'">A</span>
+      <input type="color" [value]="highlightColor()" (input)="setHighlight($event)" />
+    </label>
+    @if (attr('highlight', 'color')) {
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        (click)="editor().chain().focus().unsetHighlight().run()"
+        title="Remover destaque"
+      >
+        ✕
+      </button>
+    }
+  </div>
+
+  <span class="tb-sep"></span>
+
+  <!-- Alinhamento -->
+  <div class="tb-group">
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive({ textAlign: 'left' })"
+      (click)="editor().chain().focus().setTextAlign('left').run()"
+      title="Alinhar à esquerda"
+    >
+      ≡◂
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive({ textAlign: 'center' })"
+      (click)="editor().chain().focus().setTextAlign('center').run()"
+      title="Centralizar"
+    >
+      ≡
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive({ textAlign: 'right' })"
+      (click)="editor().chain().focus().setTextAlign('right').run()"
+      title="Alinhar à direita"
+    >
+      ▸≡
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive({ textAlign: 'justify' })"
+      (click)="editor().chain().focus().setTextAlign('justify').run()"
+      title="Justificar"
+    >
+      ☰
+    </button>
+  </div>
+
+  <span class="tb-sep"></span>
+
+  <!-- Listas e espaçamento -->
+  <div class="tb-group">
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('bulletList')"
+      (click)="editor().chain().focus().toggleBulletList().run()"
+      title="Lista com marcadores"
+    >
+      •≡
+    </button>
+    <button
+      type="button"
+      class="tb-btn"
+      [class.active]="isActive('orderedList')"
+      (click)="editor().chain().focus().toggleOrderedList().run()"
+      title="Lista numerada"
+    >
+      1.≡
+    </button>
+
+    <select
+      class="tb-select tb-size"
+      [ngModel]="attr('textStyle', 'lineHeight')"
+      (ngModelChange)="setLineHeight($event)"
+      title="Espaçamento entre linhas"
+    >
+      @for (lh of lineHeights; track lh.value) {
+        <option [value]="lh.value">{{ lh.value === '' ? 'Linha: auto' : 'Linha: ' + lh.label }}</option>
+      }
+    </select>
+
+    <button type="button" class="tb-btn" (click)="clearFormatting()" title="Limpar formatação">
+      ⌫
+    </button>
+  </div>
+
+  <!-- Imagem -->
+  @if (inImage()) {
+    <span class="tb-sep"></span>
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Imagem</span>
+      <label class="tb-inline">
+        Largura:
+        <input
+          type="number"
+          class="tb-number"
+          min="5"
+          max="100"
+          [ngModel]="imageWidth()"
+          (ngModelChange)="setImageWidth($event)"
+        />
+        %
+      </label>
+    </div>
+  }
+
+  <!-- Tabela -->
+  @if (inTable()) {
+    <span class="tb-sep"></span>
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Tabela</span>
+
+      <select
+        class="tb-select"
+        [ngModel]="tableAlign()"
+        (ngModelChange)="setTableAlign($event)"
+        title="Alinhamento da tabela na página"
+      >
+        <option value="left">⬅ Esquerda</option>
+        <option value="center">↔ Centro</option>
+        <option value="right">Direita ➡</option>
+      </select>
+
+      <select
+        class="tb-select"
+        [ngModel]="attr('table', 'width')"
+        (ngModelChange)="setTableWidth($event)"
+        title="Largura da tabela"
+      >
+        @for (w of tableWidths; track w.value) {
+          <option [value]="w.value">{{ w.label }}</option>
+        }
+      </select>
+    </div>
+
+    <span class="tb-sep"></span>
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Linhas</span>
+      <button type="button" class="tb-btn tb-mini" (click)="editor().chain().focus().addRowBefore().run()" title="Inserir linha acima">↑+</button>
+      <button type="button" class="tb-btn tb-mini" (click)="editor().chain().focus().addRowAfter().run()" title="Inserir linha abaixo">↓+</button>
+      <button type="button" class="tb-btn tb-mini danger" (click)="editor().chain().focus().deleteRow().run()" title="Excluir linha">✕</button>
+    </div>
+
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Colunas</span>
+      <button type="button" class="tb-btn tb-mini" (click)="editor().chain().focus().addColumnBefore().run()" title="Inserir coluna à esquerda">◂+</button>
+      <button type="button" class="tb-btn tb-mini" (click)="editor().chain().focus().addColumnAfter().run()" title="Inserir coluna à direita">+▸</button>
+      <button type="button" class="tb-btn tb-mini danger" (click)="editor().chain().focus().deleteColumn().run()" title="Excluir coluna">✕</button>
+    </div>
+
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Células</span>
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        [disabled]="!canMergeCells()"
+        (click)="editor().chain().focus().mergeOrSplit().run()"
+        title="Mesclar / dividir seleção"
+      >
+        ⬚⬛
+      </button>
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        (click)="editor().chain().focus().toggleHeaderRow().run()"
+        title="Alternar linha de cabeçalho"
+      >
+        ⊞ Linha
+      </button>
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        (click)="editor().chain().focus().toggleHeaderColumn().run()"
+        title="Alternar coluna de cabeçalho"
+      >
+        ⊞ Coluna
+      </button>
+
+      <select
+        class="tb-select tb-size"
+        [ngModel]="cellVerticalAlign()"
+        (ngModelChange)="setCellVerticalAlign($event)"
+        title="Alinhamento vertical da célula"
+      >
+        @for (va of verticalAligns; track va.value) {
+          <option [value]="va.value">{{ va.label }}</option>
+        }
+      </select>
+
+      <label class="tb-color" title="Cor de fundo da célula">
+        <span class="color-icon cell-icon" [style.background-color]="cellBackground()"></span>
+        <input type="color" [value]="cellBackground()" (input)="setCellBackground($event)" />
+      </label>
+      <button type="button" class="tb-btn tb-mini" (click)="clearCellBackground()" title="Limpar fundo da célula">
+        ✕
+      </button>
+    </div>
+
+    <span class="tb-sep"></span>
+    <button
+      type="button"
+      class="tb-btn danger"
+      (click)="editor().chain().focus().deleteTable().run()"
+      title="Excluir tabela inteira"
+    >
+      🗑 Tabela
+    </button>
+  }
+</div>

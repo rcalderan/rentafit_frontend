@@ -497,3 +497,36 @@ button {
         animation-iteration-count: 1 !important;
     }
 }
+
+/* ── Global Print Utilities ─────────────────────────────────────── */
+@media print {
+    .no-print,
+    .sidebar,
+    .sidebar-overlay,
+    .floating-action,
+    .top-bar,
+    .tab-bar,
+    .legacy-status {
+        display: none !important;
+    }
+
+    body, html {
+        background: #ffffff !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+
+    .layout-container,
+    .main-content,
+    .content-area {
+        margin: 0 !important;
+        padding: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        background: transparent !important;
+        width: 100% !important;
+        max-width: none !important;
+        height: auto !important;
+        overflow: visible !important;
+    }
+}
