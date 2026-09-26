@@ -1,3 +1,4 @@
+import { Extension } from '@tiptap/core';
 import { Table, TableView, type TableOptions } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
@@ -30,6 +31,9 @@ export class PrintTableView extends TableView {
   private applyPrintAttrs(node: PMNode): void {
     this.table.setAttribute('data-align', (node.attrs['align'] as string) || 'left');
     if (node.attrs['width']) this.table.style.width = node.attrs['width'] as string;
+    // espaçamento de bloco é aplicado no wrapper — o <table> em si só recebe largura
+    this.dom.style.marginTop = (node.attrs['spacingBefore'] as string) || '';
+    this.dom.style.marginBottom = (node.attrs['spacingAfter'] as string) || '';
   }
 }
 
@@ -59,6 +63,23 @@ export const PrintTable = Table.extend({
   },
 });
 
+const cellBorderAttributes = () => {
+  const cssBorder = (cssProp: 'border-style' | 'border-width' | 'border-color', jsProp: 'borderStyle' | 'borderWidth' | 'borderColor') => ({
+    default: null as string | null,
+    parseHTML: (element: HTMLElement) => element.style[jsProp] || null,
+    renderHTML: (attributes: Record<string, unknown>) => {
+      const value = attributes[jsProp];
+      if (!value) return {};
+      return value === 'none' && cssProp === 'border-style' ? { style: 'border: none' } : { style: `${cssProp}: ${value}` };
+    },
+  });
+  return {
+    borderStyle: cssBorder('border-style', 'borderStyle'),
+    borderWidth: cssBorder('border-width', 'borderWidth'),
+    borderColor: cssBorder('border-color', 'borderColor'),
+  };
+};
+
 const cellPrintAttributes = () => ({
   backgroundColor: {
     default: null,
@@ -76,6 +97,7 @@ const cellPrintAttributes = () => ({
         ? { style: `vertical-align: ${attributes['verticalAlign']}` }
         : {},
   },
+  ...cellBorderAttributes(),
 });
 
 export const PrintTableCell = TableCell.extend({
@@ -87,6 +109,44 @@ export const PrintTableCell = TableCell.extend({
 export const PrintTableHeader = TableHeader.extend({
   addAttributes() {
     return { ...this.parent?.(), ...cellPrintAttributes() };
+  },
+});
+
+/**
+ * Espaçamento entre componentes (margin-top/bottom) e entrelinha de bloco.
+ * São atributos globais de nó — aplicam-se ao bloco inteiro (não à seleção de
+ * texto como o lineHeight do textStyle) e serializam como inline style.
+ */
+const spacingAttribute = (
+  key: 'spacingBefore' | 'spacingAfter' | 'blockLineHeight',
+  cssProp: 'margin-top' | 'margin-bottom' | 'line-height',
+  jsProp: 'marginTop' | 'marginBottom' | 'lineHeight',
+) => ({
+  default: null as string | null,
+  parseHTML: (element: HTMLElement) => element.style[jsProp] || null,
+  renderHTML: (attributes: Record<string, unknown>) =>
+    attributes[key] ? { style: `${cssProp}: ${attributes[key]}` } : {},
+});
+
+export const PrintBlockSpacing = Extension.create({
+  name: 'printBlockSpacing',
+
+  addGlobalAttributes() {
+    return [
+      {
+        types: ['paragraph', 'heading', 'blockquote', 'bulletList', 'orderedList', 'listItem', 'table'],
+        attributes: {
+          spacingBefore: spacingAttribute('spacingBefore', 'margin-top', 'marginTop'),
+          spacingAfter: spacingAttribute('spacingAfter', 'margin-bottom', 'marginBottom'),
+        },
+      },
+      {
+        types: ['paragraph', 'heading', 'blockquote', 'listItem'],
+        attributes: {
+          blockLineHeight: spacingAttribute('blockLineHeight', 'line-height', 'lineHeight'),
+        },
+      },
+    ];
   },
 });
 

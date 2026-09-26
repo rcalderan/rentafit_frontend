@@ -24,15 +24,6 @@ const FONT_SIZES: SelectOption[] = [
   ),
 ];
 
-const LINE_HEIGHTS: SelectOption[] = [
-  { value: '', label: 'Auto' },
-  { value: '1', label: '1.0' },
-  { value: '1.15', label: '1.15' },
-  { value: '1.5', label: '1.5' },
-  { value: '2', label: '2.0' },
-  { value: '2.5', label: '2.5' },
-];
-
 const TABLE_WIDTHS: SelectOption[] = [
   { value: '', label: 'Automática' },
   { value: '100%', label: '100% (página inteira)' },
@@ -63,7 +54,6 @@ export class EditorToolbarComponent {
 
   protected readonly fontFamilies = FONT_FAMILIES;
   protected readonly fontSizes = FONT_SIZES;
-  protected readonly lineHeights = LINE_HEIGHTS;
   protected readonly tableWidths = TABLE_WIDTHS;
   protected readonly verticalAligns = VERTICAL_ALIGNS;
 
@@ -176,10 +166,60 @@ export class EditorToolbarComponent {
     else chain.unsetFontSize().run();
   }
 
-  protected setLineHeight(value: string): void {
-    const chain = this.editor().chain().focus();
-    if (value) chain.setLineHeight(value).run();
-    else chain.unsetLineHeight().run();
+  // --- Espaçamento de bloco (entrelinha do bloco + margens entre componentes) ---
+
+  // Atributos globais (PrintBlockSpacing): serializam como inline style e
+  // cobrem parágrafo, heading, blockquote, listas e tabela — não apenas o
+  // texto sob o cursor como o lineHeight do textStyle.
+  private setBlockAttr(key: string, value: string | null): void {
+    const { state, view } = this.editor();
+    const tr = state.tr;
+    const allowed = new Set([
+      'paragraph',
+      'heading',
+      'blockquote',
+      'bulletList',
+      'orderedList',
+      'listItem',
+      'table',
+    ]);
+    state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
+      if (!allowed.has(node.type.name) || !(key in node.attrs)) return;
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, [key]: value });
+    });
+    view.dispatch(tr.scrollIntoView());
+  }
+
+  private blockAttr(key: string): string {
+    this.version();
+    const { state } = this.editor();
+    let value = '';
+    state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
+      if (value || !(key in node.attrs)) return;
+      const v = node.attrs[key];
+      if (v != null) value = String(v);
+    });
+    return value;
+  }
+
+  protected blockLineHeight(): string {
+    return this.blockAttr('blockLineHeight');
+  }
+
+  protected setBlockLineHeight(value: number | string | null): void {
+    const n = Number(value);
+    this.setBlockAttr('blockLineHeight', Number.isFinite(n) && n > 0 ? String(n) : null);
+  }
+
+  protected spacingValue(key: 'spacingBefore' | 'spacingAfter'): string {
+    const raw = this.blockAttr(key);
+    const match = raw.match(/^([\d.]+)/);
+    return match ? match[1] : '';
+  }
+
+  protected setSpacing(key: 'spacingBefore' | 'spacingAfter', value: number | string | null): void {
+    const n = Number(value);
+    this.setBlockAttr(key, Number.isFinite(n) && n > 0 ? `${n}pt` : null);
   }
 
   protected setTextColor(event: Event): void {
@@ -238,6 +278,51 @@ export class EditorToolbarComponent {
 
   protected clearCellBackground(): void {
     this.editor().chain().focus().setCellAttribute('backgroundColor', null).run();
+  }
+
+  // --- Bordas de célula ---
+
+  protected readonly borderStyles: SelectOption[] = [
+    { value: 'solid', label: 'Sólida' },
+    { value: 'dashed', label: 'Tracejada' },
+    { value: 'dotted', label: 'Pontilhada' },
+    { value: 'double', label: 'Dupla' },
+    { value: 'none', label: 'Nenhuma' },
+  ];
+
+  protected readonly pendingBorderStyle = signal('solid');
+  protected readonly pendingBorderWidth = signal(1);
+  protected readonly pendingBorderColor = signal('#64748b');
+
+  private pendingBorderAttrs(): Record<string, string | null> {
+    const none = this.pendingBorderStyle() === 'none';
+    return {
+      borderStyle: this.pendingBorderStyle(),
+      borderWidth: none ? null : `${this.pendingBorderWidth()}px`,
+      borderColor: none ? null : this.pendingBorderColor(),
+    };
+  }
+
+  protected applyBorders(scope: 'cells' | 'table'): void {
+    const attrs = this.pendingBorderAttrs();
+    const { state, view } = this.editor();
+    if (scope === 'cells') {
+      const chain = this.editor().chain().focus();
+      chain
+        .setCellAttribute('borderStyle', attrs['borderStyle'])
+        .setCellAttribute('borderWidth', attrs['borderWidth'])
+        .setCellAttribute('borderColor', attrs['borderColor'])
+        .run();
+      return;
+    }
+    const table = findParentNode((node) => node.type.name === 'table')(state.selection);
+    if (!table) return;
+    const tr = state.tr;
+    state.doc.nodesBetween(table.pos, table.pos + table.node.nodeSize, (node, pos) => {
+      if (node.type.name !== 'tableCell' && node.type.name !== 'tableHeader') return;
+      tr.setNodeMarkup(pos, undefined, { ...node.attrs, ...attrs });
+    });
+    view.dispatch(tr.scrollIntoView());
   }
 
   protected cellBackground(): string {

@@ -34,7 +34,13 @@ import { TEMPLATE_VARIABLES, VARIABLE_CATEGORIES } from '../../data/template-var
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
 import { TemplateInterpolationService } from '../../services/template-interpolation.service';
 import { DEFAULT_CUSTOM_TEMPLATE } from '../../data/default-templates';
-import { PrintImage, PrintTable, PrintTableCell, PrintTableHeader } from '../../data/print-editor.extensions';
+import {
+  PrintBlockSpacing,
+  PrintImage,
+  PrintTable,
+  PrintTableCell,
+  PrintTableHeader,
+} from '../../data/print-editor.extensions';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 
 @Component({
@@ -186,6 +192,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
           TableRow,
           PrintTableHeader,
           PrintTableCell,
+          PrintBlockSpacing,
           PrintImage,
           // marca o nó em foco com .has-focus (feedback visual do elemento ativo)
           Focus.configure({ className: 'has-focus', mode: 'deepest' }),

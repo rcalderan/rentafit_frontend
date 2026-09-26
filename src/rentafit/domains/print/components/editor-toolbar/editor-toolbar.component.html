@@ -187,16 +187,51 @@
       1.≡
     </button>
 
-    <select
-      class="tb-select tb-size"
-      [ngModel]="attr('textStyle', 'lineHeight')"
-      (ngModelChange)="setLineHeight($event)"
-      title="Espaçamento entre linhas"
-    >
-      @for (lh of lineHeights; track lh.value) {
-        <option [value]="lh.value">{{ lh.value === '' ? 'Linha: auto' : 'Linha: ' + lh.label }}</option>
-      }
-    </select>
+    <label class="tb-inline" title="Entrelinha do bloco — qualquer valor (ex.: 1.15, 1.8)">
+      ↕
+      <input
+        type="number"
+        class="tb-number"
+        min="0.6"
+        max="5"
+        step="0.05"
+        list="tb-lh-presets"
+        [ngModel]="blockLineHeight()"
+        (ngModelChange)="setBlockLineHeight($event)"
+      />
+      <datalist id="tb-lh-presets">
+        <option value="1"></option>
+        <option value="1.15"></option>
+        <option value="1.5"></option>
+        <option value="2"></option>
+        <option value="2.5"></option>
+      </datalist>
+    </label>
+
+    <label class="tb-inline" title="Espaço antes do bloco, em pt (entre parágrafos/tabelas)">
+      ⬒
+      <input
+        type="number"
+        class="tb-number"
+        min="0"
+        max="200"
+        step="1"
+        [ngModel]="spacingValue('spacingBefore')"
+        (ngModelChange)="setSpacing('spacingBefore', $event)"
+      />
+    </label>
+    <label class="tb-inline" title="Espaço depois do bloco, em pt">
+      ⬓
+      <input
+        type="number"
+        class="tb-number"
+        min="0"
+        max="200"
+        step="1"
+        [ngModel]="spacingValue('spacingAfter')"
+        (ngModelChange)="setSpacing('spacingAfter', $event)"
+      />
+    </label>
 
     <button type="button" class="tb-btn" (click)="clearFormatting()" title="Limpar formatação">
       ⌫
@@ -312,6 +347,51 @@
       </label>
       <button type="button" class="tb-btn tb-mini" (click)="clearCellBackground()" title="Limpar fundo da célula">
         ✕
+      </button>
+    </div>
+
+    <div class="tb-group tb-table-group">
+      <span class="tb-label">Bordas</span>
+      <select
+        class="tb-select"
+        [ngModel]="pendingBorderStyle()"
+        (ngModelChange)="pendingBorderStyle.set($event)"
+        title="Estilo da borda"
+      >
+        @for (bs of borderStyles; track bs.value) {
+          <option [value]="bs.value">{{ bs.label }}</option>
+        }
+      </select>
+      <label class="tb-inline" title="Espessura da borda (px)">
+        <input
+          type="number"
+          class="tb-number"
+          min="0.5"
+          max="8"
+          step="0.5"
+          [ngModel]="pendingBorderWidth()"
+          (ngModelChange)="pendingBorderWidth.set(+$event)"
+        />
+        px
+      </label>
+      <label class="tb-color" title="Cor da borda">
+        <input type="color" [ngModel]="pendingBorderColor()" (ngModelChange)="pendingBorderColor.set($event)" />
+      </label>
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        (click)="applyBorders('cells')"
+        title="Aplicar nas células selecionadas"
+      >
+        ⬚ Células
+      </button>
+      <button
+        type="button"
+        class="tb-btn tb-mini"
+        (click)="applyBorders('table')"
+        title="Aplicar em todas as células da tabela"
+      >
+        ⊞ Tabela
       </button>
     </div>
 
