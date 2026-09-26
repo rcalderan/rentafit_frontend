@@ -9,7 +9,8 @@
         <input
           type="text"
           class="template-name-input"
-          [(ngModel)]="template().name"
+          [ngModel]="template().name"
+          (ngModelChange)="updateTemplate({ name: $event })"
           placeholder="Nome do Template"
         />
         <span class="badge format-badge">{{ template().pageFormat }}</span>
@@ -185,12 +186,63 @@
     <section class="canvas-area">
       <!-- Paper Sheet Scrollable Container -->
       <div class="sheet-viewport">
-        <div class="paper-sheet" [ngStyle]="sheetStyle()">
-          @if (!isPreviewMode()) {
-            <div #editorContainer class="tiptap-content-host"></div>
-          } @else {
-            <div class="preview-content-host" [innerHTML]="previewHtml()"></div>
-          }
+        <div class="paper-frame" [ngStyle]="frameStyle()">
+          <!-- Rulers (mm) com zonas de offset vs margem -->
+          <div class="ruler ruler-corner no-print" [class.hide-in-preview]="isPreviewMode()"></div>
+          <div
+            class="ruler ruler-top no-print"
+            [class.hide-in-preview]="isPreviewMode()"
+            [style.width.mm]="sheetWidthMm()"
+          >
+            <div class="r-zone zone-offset" [style.left]="'0'" [style.width.mm]="offsetMm()"></div>
+            <div
+              class="r-zone zone-margin"
+              [style.left.mm]="offsetMm()"
+              [style.width.mm]="template().marginLeftMm"
+            ></div>
+            <div
+              class="r-zone zone-margin"
+              [style.right.mm]="offsetMm()"
+              [style.width.mm]="template().marginRightMm"
+            ></div>
+            <div class="r-zone zone-offset" [style.right]="'0'" [style.width.mm]="offsetMm()"></div>
+            @for (mm of rulerTicksX(); track mm) {
+              <span class="r-num" [style.left.mm]="mm">{{ mm }}</span>
+            }
+          </div>
+          <div
+            class="ruler ruler-left no-print"
+            [class.hide-in-preview]="isPreviewMode()"
+            [style.height]="'100%'"
+          >
+            <div class="r-zone zone-offset" [style.top]="'0'" [style.height.mm]="offsetMm()"></div>
+            <div
+              class="r-zone zone-margin"
+              [style.top.mm]="offsetMm()"
+              [style.height.mm]="template().marginTopMm"
+            ></div>
+            <div
+              class="r-zone zone-margin"
+              [style.bottom.mm]="offsetMm()"
+              [style.height.mm]="template().marginBottomMm"
+            ></div>
+            <div class="r-zone zone-offset" [style.bottom]="'0'" [style.height.mm]="offsetMm()"></div>
+            @for (mm of rulerTicksY(); track mm) {
+              <span class="r-num" [style.top.mm]="mm">{{ mm }}</span>
+            }
+          </div>
+
+          <div class="paper-sheet" [ngStyle]="sheetStyle()">
+            <div class="offset-guide no-print" [style.inset.mm]="offsetMm()"></div>
+            <div
+              #editorContainer
+              class="tiptap-content-host"
+              [class.host-hidden]="isPreviewMode()"
+            ></div>
+            @if (isPreviewMode()) {
+              <div class="preview-content-host" [innerHTML]="previewHtml()"></div>
+            }
+          </div>
         </div>
       </div>
     </section>
@@ -241,11 +293,25 @@
         <div class="form-row">
           <div class="form-group col">
             <label class="form-label">Largura (mm)</label>
-            <input type="number" class="form-input" [(ngModel)]="template().pageWidthMm" min="30" max="500" />
+            <input
+              type="number"
+              class="form-input"
+              [ngModel]="template().pageWidthMm"
+              (ngModelChange)="updateTemplate({ pageWidthMm: $event })"
+              min="30"
+              max="500"
+            />
           </div>
           <div class="form-group col">
             <label class="form-label">Altura (mm)</label>
-            <input type="number" class="form-input" [(ngModel)]="template().pageHeightMm" min="30" max="1000" />
+            <input
+              type="number"
+              class="form-input"
+              [ngModel]="template().pageHeightMm"
+              (ngModelChange)="updateTemplate({ pageHeightMm: $event })"
+              min="30"
+              max="1000"
+            />
           </div>
         </div>
       }
@@ -254,28 +320,78 @@
       <div class="form-row">
         <div class="form-group col">
           <label class="form-label">Superior</label>
-          <input type="number" class="form-input" [(ngModel)]="template().marginTopMm" min="0" max="100" />
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginTopMm"
+            (ngModelChange)="updateTemplate({ marginTopMm: $event })"
+            min="0"
+            max="100"
+          />
         </div>
         <div class="form-group col">
           <label class="form-label">Inferior</label>
-          <input type="number" class="form-input" [(ngModel)]="template().marginBottomMm" min="0" max="100" />
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginBottomMm"
+            (ngModelChange)="updateTemplate({ marginBottomMm: $event })"
+            min="0"
+            max="100"
+          />
         </div>
       </div>
       <div class="form-row">
         <div class="form-group col">
           <label class="form-label">Esquerda</label>
-          <input type="number" class="form-input" [(ngModel)]="template().marginLeftMm" min="0" max="100" />
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginLeftMm"
+            (ngModelChange)="updateTemplate({ marginLeftMm: $event })"
+            min="0"
+            max="100"
+          />
         </div>
         <div class="form-group col">
           <label class="form-label">Direita</label>
-          <input type="number" class="form-input" [(ngModel)]="template().marginRightMm" min="0" max="100" />
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginRightMm"
+            (ngModelChange)="updateTemplate({ marginRightMm: $event })"
+            min="0"
+            max="100"
+          />
         </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Offset da impressora (mm)
+          <span class="hint-badge" title="Borda física não-imprimível do papel">dead zone</span>
+        </label>
+        <input
+          type="number"
+          class="form-input"
+          [ngModel]="offsetMm()"
+          (ngModelChange)="updateTemplate({ printOffsetMm: $event })"
+          min="0"
+          max="30"
+        />
+        <small class="form-hint">
+          Zona vermelha na régua — borda que a impressora não alcança. Somada às margens no papel.
+        </small>
       </div>
 
       <div class="form-section-title">Classificação do Template</div>
       <div class="form-group">
         <label class="form-label">Tipo de Documento</label>
-        <select class="form-select" [(ngModel)]="template().templateType">
+        <select
+          class="form-select"
+          [ngModel]="template().templateType"
+          (ngModelChange)="updateTemplate({ templateType: $event })"
+        >
           <option value="RENTAL_CONTRACT">Contrato de Locação</option>
           <option value="RENTAL_CANCELLATION">Termo de Desistência</option>
           <option value="FISCAL_RECEIPT_80MM">Cupom Fiscal NFC-e (80mm)</option>
@@ -289,14 +405,19 @@
         <textarea
           class="form-textarea"
           rows="3"
-          [(ngModel)]="template().description"
+          [ngModel]="template().description"
+          (ngModelChange)="updateTemplate({ description: $event })"
           placeholder="Ex: Contrato de locação com 11 cláusulas e termo de imagem..."
         ></textarea>
       </div>
 
       <div class="form-group checkbox-group">
         <label class="checkbox-label">
-          <input type="checkbox" [(ngModel)]="template().isDefault" />
+          <input
+            type="checkbox"
+            [ngModel]="template().isDefault"
+            (ngModelChange)="updateTemplate({ isDefault: $event })"
+          />
           <span>Definir como Template Padrão deste tipo</span>
         </label>
       </div>

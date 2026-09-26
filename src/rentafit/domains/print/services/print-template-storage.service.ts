@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 import { INITIAL_DEFAULT_TEMPLATES } from '../data/default-templates';
-import { PrintTemplate, TemplateType } from '../data/print-template.model';
+import { PAGE_FORMAT_PRESETS, PrintTemplate, TemplateType } from '../data/print-template.model';
 
 const STORAGE_KEY = 'rentafit_print_templates_v1';
 
@@ -20,7 +20,7 @@ export class PrintTemplateStorageService {
       if (raw) {
         const parsed = JSON.parse(raw) as PrintTemplate[];
         if (Array.isArray(parsed) && parsed.length > 0) {
-          this.templates.set(parsed);
+          this.templates.set(parsed.map((t) => this.normalizeTemplate(t)));
           return;
         }
       }
@@ -112,6 +112,11 @@ export class PrintTemplateStorageService {
   resetToDefaults(): void {
     this.templates.set([...INITIAL_DEFAULT_TEMPLATES]);
     this.persist();
+  }
+
+  private normalizeTemplate(t: PrintTemplate): PrintTemplate {
+    if (typeof t.printOffsetMm === 'number') return t;
+    return { ...t, printOffsetMm: PAGE_FORMAT_PRESETS[t.pageFormat]?.defaultOffsetMm ?? 0 };
   }
 
   private persist(): void {

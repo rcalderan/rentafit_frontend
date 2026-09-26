@@ -66,13 +66,16 @@ export class PrintPreviewModalComponent {
       height = t.pageWidthMm;
     }
 
+    // padding visual = margem da página + offset físico da impressora,
+    // o mesmo cálculo da folha do editor
+    const offset = t.printOffsetMm ?? 0;
     return {
       width: `${width}mm`,
       minHeight: height ? `${height}mm` : '150mm',
-      paddingTop: `${t.marginTopMm}mm`,
-      paddingBottom: `${t.marginBottomMm}mm`,
-      paddingLeft: `${t.marginLeftMm}mm`,
-      paddingRight: `${t.marginRightMm}mm`,
+      paddingTop: `${t.marginTopMm + offset}mm`,
+      paddingBottom: `${t.marginBottomMm + offset}mm`,
+      paddingLeft: `${t.marginLeftMm + offset}mm`,
+      paddingRight: `${t.marginRightMm + offset}mm`,
     };
   });
 

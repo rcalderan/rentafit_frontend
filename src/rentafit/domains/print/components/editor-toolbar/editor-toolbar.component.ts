@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Editor } from '@tiptap/core';
+import { Editor, findParentNode } from '@tiptap/core';
 
 interface SelectOption {
   value: string;
@@ -100,6 +100,16 @@ export class EditorToolbarComponent {
     return value == null ? '' : String(value);
   }
 
+  // Lê atributo de um nó ancestral da seleção (table, tableCell, tableHeader).
+  // getAttributes() não resolve ancestrais quando o cursor está dentro de célula.
+  private ancestorAttr(names: string[], key: string): string {
+    this.version();
+    const sel = this.editor().state.selection;
+    const found = findParentNode((node) => names.includes(node.type.name))(sel);
+    const value = found?.node.attrs[key];
+    return value == null ? '' : String(value);
+  }
+
   protected inTable(): boolean {
     this.version();
     return this.editor().isActive('table');
@@ -189,19 +199,32 @@ export class EditorToolbarComponent {
   // --- Comandos de tabela ---
 
   protected tableAlign(): string {
-    return this.attr('table', 'align') || 'left';
+    return this.ancestorAttr(['table'], 'align') || 'left';
+  }
+
+  protected ancestorAttrValue(key: string): string {
+    return this.ancestorAttr(['table'], key);
+  }
+
+  // updateAttributes() do core só enxerga nós entre from..to da seleção —
+  // com o cursor dentro de uma célula o <table> é ancestral e não é alterado.
+  private updateTableAttr(key: string, value: unknown): void {
+    const { state, view } = this.editor();
+    const parent = findParentNode((node) => node.type.name === 'table')(state.selection);
+    if (!parent) return;
+    const tr = state.tr.setNodeMarkup(parent.pos, undefined, {
+      ...parent.node.attrs,
+      [key]: value,
+    });
+    view.dispatch(tr.scrollIntoView());
   }
 
   protected setTableAlign(value: string): void {
-    this.editor().chain().focus().updateAttributes('table', { align: value }).run();
+    this.updateTableAttr('align', value);
   }
 
   protected setTableWidth(value: string): void {
-    this.editor()
-      .chain()
-      .focus()
-      .updateAttributes('table', { width: value || null })
-      .run();
+    this.updateTableAttr('width', value || null);
   }
 
   protected setCellVerticalAlign(value: string): void {
@@ -218,13 +241,11 @@ export class EditorToolbarComponent {
   }
 
   protected cellBackground(): string {
-    const cellType = this.editor().isActive('tableHeader') ? 'tableHeader' : 'tableCell';
-    return this.attr(cellType, 'backgroundColor') || '#ffffff';
+    return this.ancestorAttr(['tableCell', 'tableHeader'], 'backgroundColor') || '#ffffff';
   }
 
   protected cellVerticalAlign(): string {
-    const cellType = this.editor().isActive('tableHeader') ? 'tableHeader' : 'tableCell';
-    return this.attr(cellType, 'verticalAlign') || 'top';
+    return this.ancestorAttr(['tableCell', 'tableHeader'], 'verticalAlign') || 'top';
   }
 
   // --- Comandos de imagem ---

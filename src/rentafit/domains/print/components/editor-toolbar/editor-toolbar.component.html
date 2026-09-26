@@ -242,7 +242,7 @@
 
       <select
         class="tb-select"
-        [ngModel]="attr('table', 'width')"
+        [ngModel]="ancestorAttrValue('width')"
         (ngModelChange)="setTableWidth($event)"
         title="Largura da tabela"
       >

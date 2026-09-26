@@ -1,6 +1,7 @@
-import { Table } from '@tiptap/extension-table';
+import { Table, TableView, type TableOptions } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
+import type { Node as PMNode } from '@tiptap/pm/model';
 import Image from '@tiptap/extension-image';
 
 /**
@@ -9,18 +10,44 @@ import Image from '@tiptap/extension-image';
  * garantindo que sobrevivam ao preview interpolado e à impressão.
  */
 
-const alignmentAttribute = (tag: 'table' | 'cell') => ({
+/**
+ * Com resizable: true, quem instancia o TableView é o plugin columnResizing
+ * do prosemirror-tables — sem HTMLAttributes e com update() que só recalcula
+ * colunas. Sem esta subclasse, data-align/width nunca chegam ao DOM do editor.
+ */
+export class PrintTableView extends TableView {
+  constructor(node: PMNode, cellMinWidth: number) {
+    super(node, cellMinWidth);
+    this.applyPrintAttrs(node);
+  }
+
+  override update(node: PMNode): boolean {
+    if (!super.update(node)) return false;
+    this.applyPrintAttrs(node);
+    return true;
+  }
+
+  private applyPrintAttrs(node: PMNode): void {
+    this.table.setAttribute('data-align', (node.attrs['align'] as string) || 'left');
+    if (node.attrs['width']) this.table.style.width = node.attrs['width'] as string;
+  }
+}
+
+const alignmentAttribute = () => ({
   default: 'left' as const,
   parseHTML: (element: HTMLElement) => element.getAttribute('data-align') || 'left',
   renderHTML: (attributes: Record<string, unknown>) => ({ 'data-align': attributes['align'] }),
 });
 
 export const PrintTable = Table.extend({
+  addOptions(): TableOptions {
+    return { ...this.parent?.(), View: PrintTableView } as TableOptions;
+  },
   addAttributes() {
     return {
       ...this.parent?.(),
       // data-align é estilizado via CSS (margin auto) para alinhar a tabela na página
-      align: alignmentAttribute('table'),
+      align: alignmentAttribute(),
       // largura manual em %; null = colwidth/min-width calculados pelo Tiptap
       width: {
         default: null,

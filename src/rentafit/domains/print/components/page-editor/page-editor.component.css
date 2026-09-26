@@ -404,13 +404,125 @@
   align-items: flex-start;
 }
 
+/* Frame com zoom — réguas acompanham a escala pois usam mm absolutos */
+.paper-frame {
+  position: relative;
+  margin-top: 24px;
+  margin-left: 24px;
+}
+
+/* Rulers (mm) */
+.ruler {
+  position: absolute;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+  font-size: 7px;
+  font-weight: 600;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.ruler-top {
+  top: -22px;
+  left: 0;
+  height: 20px;
+  background-image:
+    repeating-linear-gradient(to right, rgba(51, 65, 85, 0.7) 0, rgba(51, 65, 85, 0.7) 0.4mm, transparent 0.4mm, transparent 10mm),
+    repeating-linear-gradient(to right, rgba(100, 116, 139, 0.5) 0, rgba(100, 116, 139, 0.5) 0.3mm, transparent 0.3mm, transparent 5mm),
+    repeating-linear-gradient(to right, rgba(148, 163, 184, 0.35) 0, rgba(148, 163, 184, 0.35) 0.25mm, transparent 0.25mm, transparent 1mm);
+  background-size: 100% 10px, 100% 7px, 100% 4px;
+  background-repeat: repeat-x;
+  background-position: bottom left;
+}
+
+.ruler-left {
+  left: -22px;
+  top: 0;
+  width: 20px;
+  background-image:
+    repeating-linear-gradient(to bottom, rgba(51, 65, 85, 0.7) 0, rgba(51, 65, 85, 0.7) 0.4mm, transparent 0.4mm, transparent 10mm),
+    repeating-linear-gradient(to bottom, rgba(100, 116, 139, 0.5) 0, rgba(100, 116, 139, 0.5) 0.3mm, transparent 0.3mm, transparent 5mm),
+    repeating-linear-gradient(to bottom, rgba(148, 163, 184, 0.35) 0, rgba(148, 163, 184, 0.35) 0.25mm, transparent 0.25mm, transparent 1mm);
+  background-size: 10px 100%, 7px 100%, 4px 100%;
+  background-repeat: repeat-y;
+  background-position: top right;
+}
+
+.ruler-corner {
+  top: -22px;
+  left: -22px;
+  width: 20px;
+  height: 20px;
+  background: #e2e8f0;
+}
+
+.r-num {
+  position: absolute;
+  line-height: 1;
+}
+
+.ruler-top .r-num {
+  top: 2px;
+  transform: translateX(1px);
+}
+
+.ruler-left .r-num {
+  left: 1px;
+  transform: translateY(1px);
+}
+
+/* Zonas: vermelho = offset físico da impressora, azul = margem do layout */
+.r-zone {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.ruler-left .r-zone {
+  top: auto;
+  bottom: auto;
+  left: 0;
+  right: 0;
+}
+
+.zone-offset {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(239, 68, 68, 0.35) 0,
+    rgba(239, 68, 68, 0.35) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+}
+
+.zone-margin {
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.hide-in-preview {
+  display: none;
+}
+
+/* Guia da zona morta da impressora (offset) dentro da folha */
+.offset-guide {
+  position: absolute;
+  border: 1px dashed rgba(239, 68, 68, 0.6);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.host-hidden {
+  display: none;
+}
+
 /* Real Paper Sheet */
 .paper-sheet {
   background-color: #ffffff;
   box-shadow: 0 10px 35px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.06);
   box-sizing: border-box;
   color: #0f172a;
-  transition: transform 0.15s ease-out;
   position: relative;
 }
 
@@ -629,6 +741,11 @@
     width: 100% !important;
   }
 
+  .paper-frame {
+    transform: none !important;
+    margin: 0 !important;
+  }
+
   .paper-sheet {
     box-shadow: none !important;
     transform: none !important;
@@ -636,5 +753,12 @@
     width: 100% !important;
     min-height: auto !important;
     page-break-after: avoid;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .paper-sheet * {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 }

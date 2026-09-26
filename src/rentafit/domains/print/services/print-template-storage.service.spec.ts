@@ -34,6 +34,7 @@ describe('PrintTemplateStorageService', () => {
       marginBottomMm: 15,
       marginLeftMm: 15,
       marginRightMm: 15,
+      printOffsetMm: 5,
       contentJson: null,
       contentHtml: '<h1>Festa</h1>',
       isDefault: false,

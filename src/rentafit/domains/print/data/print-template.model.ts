@@ -32,6 +32,8 @@ export interface PrintTemplate {
   marginBottomMm: number;
   marginLeftMm: number;
   marginRightMm: number;
+  /** Borda física não-imprimível da impressora (dead zone), somada às margens */
+  printOffsetMm: number;
   contentJson: any;
   contentHtml: string;
   cssStyles?: string;
@@ -56,29 +58,33 @@ export interface VariableCategory {
   variables: VariableDefinition[];
 }
 
-export const PAGE_FORMAT_PRESETS: Record<PageFormat, { name: string; widthMm: number; heightMm: number | null; defaultMargins: { top: number; bottom: number; left: number; right: number } }> = {
+export const PAGE_FORMAT_PRESETS: Record<PageFormat, { name: string; widthMm: number; heightMm: number | null; defaultMargins: { top: number; bottom: number; left: number; right: number }; defaultOffsetMm: number }> = {
   A4: {
     name: 'Folha A4 (210 x 297 mm)',
     widthMm: 210,
     heightMm: 297,
     defaultMargins: { top: 15, bottom: 15, left: 15, right: 15 },
+    defaultOffsetMm: 5,
   },
   THERMAL_80MM: {
     name: 'Bobina Térmica 80 mm (PDV / Bematech / Elgin)',
     widthMm: 80,
     heightMm: null,
     defaultMargins: { top: 4, bottom: 4, left: 4, right: 4 },
+    defaultOffsetMm: 2,
   },
   THERMAL_58MM: {
     name: 'Bobina Térmica 58 mm (POS Móvel / Mini)',
     widthMm: 58,
     heightMm: null,
     defaultMargins: { top: 3, bottom: 3, left: 3, right: 3 },
+    defaultOffsetMm: 1,
   },
   CUSTOM: {
     name: 'Tamanho Customizado',
     widthMm: 210,
     heightMm: 297,
     defaultMargins: { top: 10, bottom: 10, left: 10, right: 10 },
+    defaultOffsetMm: 0,
   },
 };

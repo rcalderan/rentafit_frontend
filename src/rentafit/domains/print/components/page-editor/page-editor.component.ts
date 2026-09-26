@@ -5,6 +5,7 @@ import {
   OnDestroy,
   OnInit,
   computed,
+  effect,
   inject,
   signal,
   viewChild,
@@ -14,7 +15,6 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Editor } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
-import Underline from '@tiptap/extension-underline';
 import TextAlign from '@tiptap/extension-text-align';
 import { TableRow } from '@tiptap/extension-table-row';
 import { TextStyleKit } from '@tiptap/extension-text-style';
@@ -80,32 +80,72 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     });
   });
 
+  protected readonly sheetWidthMm = computed(() => {
+    const t = this.template();
+    return t.orientation === 'LANDSCAPE' && t.pageHeightMm ? t.pageHeightMm : t.pageWidthMm;
+  });
+
+  protected readonly sheetHeightMm = computed(() => {
+    const t = this.template();
+    return t.orientation === 'LANDSCAPE' && t.pageHeightMm ? t.pageWidthMm : t.pageHeightMm;
+  });
+
+  protected readonly offsetMm = computed(() => this.template().printOffsetMm ?? 0);
+
   protected readonly sheetStyle = computed(() => {
     const t = this.template();
-    const isLandscape = t.orientation === 'LANDSCAPE';
-    const zoom = this.zoomLevel() / 100;
-
-    let width = t.pageWidthMm;
-    let height = t.pageHeightMm;
-
-    if (isLandscape && height) {
-      width = t.pageHeightMm!;
-      height = t.pageWidthMm;
-    }
+    const offset = this.offsetMm();
+    const height = this.sheetHeightMm();
 
     return {
-      width: `${width}mm`,
+      width: `${this.sheetWidthMm()}mm`,
       minHeight: height ? `${height}mm` : '160mm',
-      paddingTop: `${t.marginTopMm}mm`,
-      paddingBottom: `${t.marginBottomMm}mm`,
-      paddingLeft: `${t.marginLeftMm}mm`,
-      paddingRight: `${t.marginRightMm}mm`,
-      transform: `scale(${zoom})`,
-      transformOrigin: 'top center',
+      // Offset = zona física morta da impressora; margem = área reservada do layout.
+      // Ambos viram padding para que preview e impressão batam 1:1 (@page margin 0).
+      paddingTop: `${offset + t.marginTopMm}mm`,
+      paddingBottom: `${offset + t.marginBottomMm}mm`,
+      paddingLeft: `${offset + t.marginLeftMm}mm`,
+      paddingRight: `${offset + t.marginRightMm}mm`,
     };
   });
 
+  protected readonly frameStyle = computed(() => ({
+    transform: `scale(${this.zoomLevel() / 100})`,
+    transformOrigin: 'top center',
+  }));
+
+  protected readonly rulerTicksX = computed(() => this.buildTicks(this.sheetWidthMm()));
+  protected readonly rulerTicksY = computed(() => this.buildTicks(this.sheetHeightMm() ?? 160));
+
+  // @page dinâmico: anula a margem padrão do browser (~10mm) que deslocava
+  // o conteúdo na impressão sem aparecer no preview. O offset físico da
+  // impressora é compensado no padding da folha.
+  private readonly printPageStyleEl = document.createElement('style');
+
+  constructor() {
+    effect(() => {
+      const width = this.sheetWidthMm();
+      const height = this.sheetHeightMm();
+      const size = height ? `size: ${width}mm ${height}mm;` : `size: ${width}mm auto;`;
+      this.printPageStyleEl.textContent = `@page { ${size} margin: 0; }`;
+    });
+  }
+
+  private buildTicks(lengthMm: number): number[] {
+    const ticks: number[] = [];
+    for (let mm = 0; mm <= Math.floor(lengthMm); mm += 10) {
+      ticks.push(mm);
+    }
+    return ticks;
+  }
+
+  protected updateTemplate(patch: Partial<PrintTemplate>): void {
+    this.template.update((t) => ({ ...t, ...patch }));
+  }
+
   ngOnInit(): void {
+    document.head.appendChild(this.printPageStyleEl);
+
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
       const existing = this.storageService.getById(id);
@@ -120,6 +160,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.editor()?.destroy();
     this.editor.set(null);
+    this.printPageStyleEl.remove();
   }
 
   private initTiptap(): void {
@@ -135,7 +176,6 @@ export class PageEditorComponent implements OnInit, OnDestroy {
           }),
           TextStyleKit,
           Highlight.configure({ multicolor: true }),
-          Underline,
           TextAlign.configure({
             types: ['heading', 'paragraph'],
           }),
@@ -170,6 +210,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
       marginBottomMm: preset.defaultMargins.bottom,
       marginLeftMm: preset.defaultMargins.left,
       marginRightMm: preset.defaultMargins.right,
+      printOffsetMm: preset.defaultOffsetMm,
     }));
   }
 

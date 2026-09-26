@@ -13,6 +13,7 @@ export const DEFAULT_RENTAL_CONTRACT_TEMPLATE: PrintTemplate = {
   marginBottomMm: 12,
   marginLeftMm: 14,
   marginRightMm: 14,
+  printOffsetMm: 5,
   contentJson: null,
   contentHtml: `
 <div class="print-contract-container">
@@ -164,6 +165,7 @@ export const DEFAULT_CANCELLATION_TEMPLATE: PrintTemplate = {
   marginBottomMm: 25,
   marginLeftMm: 25,
   marginRightMm: 25,
+  printOffsetMm: 5,
   contentJson: null,
   contentHtml: `
 <div class="print-cancellation-container" style="font-family: 'Inter', Arial, sans-serif; line-height: 1.6; font-size: 13px;">
@@ -230,6 +232,7 @@ export const DEFAULT_NFCE_80MM_TEMPLATE: PrintTemplate = {
   marginBottomMm: 4,
   marginLeftMm: 4,
   marginRightMm: 4,
+  printOffsetMm: 2,
   contentJson: null,
   contentHtml: `
 <div class="thermal-receipt" style="font-family: 'Courier New', Courier, monospace; font-size: 10px; line-height: 1.25; color: #000; text-align: left; width: 100%;">
@@ -363,6 +366,7 @@ export const DEFAULT_NFCE_58MM_TEMPLATE: PrintTemplate = {
   marginBottomMm: 3,
   marginLeftMm: 3,
   marginRightMm: 3,
+  printOffsetMm: 1,
   contentJson: null,
   contentHtml: `
 <div class="thermal-receipt-58" style="font-family: 'Courier New', Courier, monospace; font-size: 8.5px; line-height: 1.2; color: #000; width: 100%;">
@@ -443,6 +447,7 @@ export const DEFAULT_CUSTOM_TEMPLATE: PrintTemplate = {
   marginBottomMm: 15,
   marginLeftMm: 15,
   marginRightMm: 15,
+  printOffsetMm: 0,
   contentJson: null,
   contentHtml: `
 <div style="font-family: Arial, sans-serif;">
