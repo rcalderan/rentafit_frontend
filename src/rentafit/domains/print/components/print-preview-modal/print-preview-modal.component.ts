@@ -7,9 +7,11 @@ import {
   output,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { SafeHtml } from '@angular/platform-browser';
 
 import { TemplateType } from '../../data/print-template.model';
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
+import { PrintHtmlSanitizerService } from '../../services/print-html-sanitizer.service';
 import {
   InterpolationContext,
   TemplateInterpolationService,
@@ -26,6 +28,7 @@ import {
 export class PrintPreviewModalComponent {
   private readonly storageService = inject(PrintTemplateStorageService);
   private readonly interpolationService = inject(TemplateInterpolationService);
+  private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
 
   templateId = input<string | null>(null);
   templateType = input<TemplateType | null>(null);
@@ -46,11 +49,12 @@ export class PrintPreviewModalComponent {
     return undefined;
   });
 
-  protected readonly renderedHtml = computed(() => {
+  protected readonly renderedHtml = computed<SafeHtml | string>(() => {
     const t = this.resolvedTemplate();
-    if (!t) return '<p>Template não encontrado.</p>';
+    if (!t) return this.printHtmlSanitizer.sanitize('<p>Template não encontrado.</p>');
     const data = this.customData() || undefined;
-    return this.interpolationService.interpolate(t.contentHtml, data);
+    const html = this.interpolationService.interpolate(t.contentHtml, data);
+    return this.printHtmlSanitizer.sanitize(html);
   });
 
   protected readonly paperStyle = computed(() => {

@@ -18,6 +18,12 @@
     </div>
   </header>
 
+  @if (persistenceMode() === 'local') {
+    <p class="persistence-warning" role="status">
+      API indisponível. Alterações feitas offline ficam somente neste navegador e não são sincronizadas automaticamente; revise e salve novamente quando o servidor voltar.
+    </p>
+  }
+
   <!-- Templates Grid -->
   <div class="templates-grid no-print">
     @for (t of templates(); track t.id) {

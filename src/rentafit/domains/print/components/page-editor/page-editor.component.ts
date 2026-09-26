@@ -14,6 +14,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Editor } from '@tiptap/core';
+import { SafeHtml } from '@angular/platform-browser';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
 import { TableRow } from '@tiptap/extension-table-row';
@@ -33,6 +34,7 @@ import {
 import { TEMPLATE_VARIABLES, VARIABLE_CATEGORIES } from '../../data/template-variables';
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
 import { TemplateInterpolationService } from '../../services/template-interpolation.service';
+import { PrintHtmlSanitizerService } from '../../services/print-html-sanitizer.service';
 import { DEFAULT_CUSTOM_TEMPLATE } from '../../data/default-templates';
 import {
   PrintBlockSpacing,
@@ -54,6 +56,7 @@ import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.compone
 export class PageEditorComponent implements OnInit, OnDestroy {
   private readonly storageService = inject(PrintTemplateStorageService);
   private readonly interpolationService = inject(TemplateInterpolationService);
+  private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -63,7 +66,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   protected readonly template = signal<PrintTemplate>({ ...DEFAULT_CUSTOM_TEMPLATE });
   protected readonly Math = Math;
   protected readonly isPreviewMode = signal<boolean>(false);
-  protected readonly previewHtml = signal<string>('');
+  protected readonly previewHtml = signal<SafeHtml | string>('');
   protected readonly selectedCategory = signal<string>('todos');
   protected readonly variableSearch = signal<string>('');
   protected readonly zoomLevel = signal<number>(100);
@@ -152,15 +155,14 @@ export class PageEditorComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     document.head.appendChild(this.printPageStyleEl);
+    void this.initializeTemplate();
+  }
 
+  private async initializeTemplate(): Promise<void> {
+    await this.storageService.initialize();
     const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      const existing = this.storageService.getById(id);
-      if (existing) {
-        this.template.set({ ...existing });
-      }
-    }
-
+    const existing = id ? this.storageService.getById(id) : undefined;
+    if (existing) this.template.set({ ...existing });
     setTimeout(() => this.initTiptap(), 0);
   }
 
@@ -235,7 +237,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     if (willBePreview) {
       const rawHtml = this.editor()?.getHTML() ?? this.template().contentHtml;
       const merged = this.interpolationService.interpolate(rawHtml);
-      this.previewHtml.set(merged);
+      this.previewHtml.set(this.printHtmlSanitizer.sanitize(merged));
     }
   }
 
@@ -361,17 +363,18 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     ed.chain().focus().insertContent(qrHtml).run();
   }
 
-  protected saveTemplate(): void {
+  protected async saveTemplate(): Promise<void> {
     const html = this.editor()?.getHTML();
-    if (html) {
-      this.template.update((t) => ({ ...t, contentHtml: html }));
-    }
+    if (html) this.template.update((t) => ({ ...t, contentHtml: html }));
 
-    const saved = this.storageService.save(this.template());
+    const saved = await this.storageService.saveAndSync(this.template());
     this.template.set(saved);
-
-    this.saveSuccessMsg.set('Template salvo com sucesso!');
-    setTimeout(() => this.saveSuccessMsg.set(null), 3000);
+    this.saveSuccessMsg.set(
+      this.storageService.persistenceMode() === 'backend'
+        ? 'Template salvo no servidor.'
+        : 'API indisponível: template salvo localmente neste navegador.',
+    );
+    setTimeout(() => this.saveSuccessMsg.set(null), 4000);
   }
 
   protected printDocument(): void {

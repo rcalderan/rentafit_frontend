@@ -1,17 +1,63 @@
-import { Injectable, signal } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Injectable, inject, signal } from '@angular/core';
+import { firstValueFrom } from 'rxjs';
 import { INITIAL_DEFAULT_TEMPLATES } from '../data/default-templates';
 import { PAGE_FORMAT_PRESETS, PrintTemplate, TemplateType } from '../data/print-template.model';
 
 const STORAGE_KEY = 'rentafit_print_templates_v1';
+const API_URL = '/api/v1/print-templates';
 
 @Injectable({
   providedIn: 'root',
 })
 export class PrintTemplateStorageService {
+  private readonly http = inject(HttpClient, { optional: true });
+  private backendAvailable = false;
+  private initialization?: Promise<void>;
+
   readonly templates = signal<PrintTemplate[]>([]);
+  readonly persistenceMode = signal<'loading' | 'backend' | 'local'>('loading');
 
   constructor() {
     this.loadFromStorage();
+    if (!this.http) this.persistenceMode.set('local');
+  }
+
+  initialize(): Promise<void> {
+    if (!this.http) return Promise.resolve();
+    this.initialization ??= this.loadFromBackend();
+    return this.initialization;
+  }
+
+  private async loadFromBackend(): Promise<void> {
+    const http = this.http;
+    if (!http) return;
+    try {
+      let remote = await firstValueFrom(http.get<PrintTemplate[]>(API_URL));
+      const cached = this.templates();
+      const cachedById = new Map(cached.map((template) => [template.id, template]));
+      const ids = new Set(remote.map((template) => template.id));
+      const defaultsToSeed = INITIAL_DEFAULT_TEMPLATES
+        .filter((template) => !ids.has(template.id))
+        .map((template) => cachedById.get(template.id) ?? template);
+      const missingLocalTemplates = remote.length ? [] : cached.filter((template) => !ids.has(template.id));
+      const toSeed = [
+        ...missingLocalTemplates,
+        ...defaultsToSeed.filter(
+          (template) => !missingLocalTemplates.some((local) => local.id === template.id),
+        ),
+      ];
+      await Promise.all(toSeed.map((template) => this.putRemote(template)));
+      if (toSeed.length) remote = await firstValueFrom(http.get<PrintTemplate[]>(API_URL));
+      this.templates.set(remote.map((template) => this.normalizeTemplate(template)));
+      this.persist();
+      this.backendAvailable = true;
+      this.persistenceMode.set('backend');
+    } catch {
+      this.backendAvailable = false;
+      this.persistenceMode.set('local');
+      this.loadFromStorage();
+    }
   }
 
   loadFromStorage(): void {
@@ -79,6 +125,31 @@ export class PrintTemplateStorageService {
     return template;
   }
 
+  async saveAndSync(template: PrintTemplate): Promise<PrintTemplate> {
+    const saved = this.save(template);
+    if (!this.backendAvailable) return saved;
+    const affected = template.isDefault
+      ? this.templates().filter((item) => item.templateType === template.templateType)
+      : [saved];
+    try {
+      await Promise.all(affected.map((item) => this.putRemote(item)));
+    } catch {
+      this.useLocalFallback();
+    }
+    return saved;
+  }
+
+  async duplicateAndSync(id: string): Promise<PrintTemplate | undefined> {
+    const copy = this.duplicate(id);
+    if (!copy || !this.backendAvailable) return copy;
+    try {
+      await this.putRemote(copy);
+    } catch {
+      this.useLocalFallback();
+    }
+    return copy;
+  }
+
   duplicate(id: string): PrintTemplate | undefined {
     const original = this.getById(id);
     if (!original) return undefined;
@@ -109,8 +180,56 @@ export class PrintTemplateStorageService {
     return false;
   }
 
+  async deleteAndSync(id: string): Promise<boolean> {
+    const deleted = this.delete(id);
+    if (!deleted || !this.backendAvailable || !this.http) return deleted;
+    try {
+      await firstValueFrom(this.http.delete<void>(`${API_URL}/${encodeURIComponent(id)}`));
+    } catch {
+      this.useLocalFallback();
+    }
+    return deleted;
+  }
+
   resetToDefaults(): void {
     this.templates.set([...INITIAL_DEFAULT_TEMPLATES]);
+    this.persist();
+  }
+
+  async resetToDefaultsAndSync(): Promise<void> {
+    const http = this.http;
+    if (!this.backendAvailable || !http) {
+      this.resetToDefaults();
+      return;
+    }
+    try {
+      const current = await firstValueFrom(http.get<PrintTemplate[]>(API_URL));
+      const defaults = [...INITIAL_DEFAULT_TEMPLATES];
+      const defaultIds = new Set(defaults.map((template) => template.id));
+      await Promise.all(
+        current
+          .filter((template) => !defaultIds.has(template.id))
+          .map((template) => firstValueFrom(http.delete<void>(`${API_URL}/${encodeURIComponent(template.id)}`))),
+      );
+      await Promise.all(defaults.map((template) => this.putRemote(template)));
+      this.templates.set(defaults);
+      this.persist();
+    } catch {
+      this.useLocalFallback();
+      this.resetToDefaults();
+    }
+  }
+
+  private async putRemote(template: PrintTemplate): Promise<PrintTemplate> {
+    const http = this.http;
+    if (!http) throw new Error('Print template API requires HttpClient.');
+    const { id, createdAt: _createdAt, updatedAt: _updatedAt, ...body } = template;
+    return firstValueFrom(http.put<PrintTemplate>(`${API_URL}/${encodeURIComponent(id)}`, body));
+  }
+
+  private useLocalFallback(): void {
+    this.backendAvailable = false;
+    this.persistenceMode.set('local');
     this.persist();
   }
 

@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, effect, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Editor, findParentNode } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
 
 interface SelectOption {
   value: string;
@@ -174,30 +175,48 @@ export class EditorToolbarComponent {
   private setBlockAttr(key: string, value: string | null): void {
     const { state, view } = this.editor();
     const tr = state.tr;
-    const allowed = new Set([
-      'paragraph',
-      'heading',
-      'blockquote',
-      'bulletList',
-      'orderedList',
-      'listItem',
-      'table',
-    ]);
-    state.doc.nodesBetween(state.selection.from, state.selection.to, (node, pos) => {
-      if (!allowed.has(node.type.name) || !(key in node.attrs)) return;
-      tr.setNodeMarkup(pos, undefined, { ...node.attrs, [key]: value });
-    });
-    view.dispatch(tr.scrollIntoView());
+    const selection = state.selection;
+    if (selection.empty) {
+      const target = this.selectionBlock(key);
+      if (target) tr.setNodeMarkup(target.pos, undefined, { ...target.node.attrs, [key]: value });
+    } else {
+      state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
+        if (!(key in node.attrs)) return;
+        tr.setNodeMarkup(pos, undefined, { ...node.attrs, [key]: value });
+      });
+    }
+    if (tr.docChanged) view.dispatch(tr.scrollIntoView());
+  }
+
+  private selectionBlock(key: string): { node: ProseMirrorNode; pos: number } | undefined {
+    const { $from } = this.editor().state.selection;
+    if (key !== 'blockLineHeight') {
+      for (let depth = $from.depth; depth > 0; depth--) {
+        const node = $from.node(depth);
+        if (node.type.name === 'table' && key in node.attrs) {
+          return { node, pos: $from.before(depth) };
+        }
+      }
+    }
+    for (let depth = $from.depth; depth > 0; depth--) {
+      const node = $from.node(depth);
+      if (key in node.attrs) return { node, pos: $from.before(depth) };
+    }
+    return undefined;
   }
 
   private blockAttr(key: string): string {
     this.version();
     const { state } = this.editor();
+    if (state.selection.empty) {
+      const value = this.selectionBlock(key)?.node.attrs[key];
+      return value == null ? '' : String(value);
+    }
     let value = '';
     state.doc.nodesBetween(state.selection.from, state.selection.to, (node) => {
       if (value || !(key in node.attrs)) return;
-      const v = node.attrs[key];
-      if (v != null) value = String(v);
+      const attr = node.attrs[key];
+      if (attr != null) value = String(attr);
     });
     return value;
   }

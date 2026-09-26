@@ -19,8 +19,13 @@ export class TemplateListComponent {
   private readonly router = inject(Router);
 
   protected readonly templates = this.storageService.templates;
+  protected readonly persistenceMode = this.storageService.persistenceMode;
   protected readonly previewTemplateId = signal<string | null>(null);
   protected readonly showPreviewModal = signal<boolean>(false);
+
+  constructor() {
+    void this.storageService.initialize();
+  }
 
   protected createNewTemplate(): void {
     this.router.navigate(['/admin/print-templates/new']);
@@ -30,16 +35,14 @@ export class TemplateListComponent {
     this.router.navigate(['/admin/print-templates/editor', id]);
   }
 
-  protected duplicateTemplate(id: string): void {
-    const copy = this.storageService.duplicate(id);
-    if (copy) {
-      this.editTemplate(copy.id);
-    }
+  protected async duplicateTemplate(id: string): Promise<void> {
+    const copy = await this.storageService.duplicateAndSync(id);
+    if (copy) this.editTemplate(copy.id);
   }
 
   protected deleteTemplate(t: PrintTemplate): void {
     if (confirm(`Deseja realmente remover o template "${t.name}"?`)) {
-      this.storageService.delete(t.id);
+      void this.storageService.deleteAndSync(t.id);
     }
   }
 
@@ -55,7 +58,7 @@ export class TemplateListComponent {
 
   protected resetDefaults(): void {
     if (confirm('Restaurar todos os templates para as versões de fábrica? Modificações locais serão substituídas.')) {
-      this.storageService.resetToDefaults();
+      void this.storageService.resetToDefaultsAndSync();
     }
   }
 
