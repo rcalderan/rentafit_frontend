@@ -20,6 +20,7 @@ import { TableRow } from '@tiptap/extension-table-row';
 import { TextStyleKit } from '@tiptap/extension-text-style';
 import Highlight from '@tiptap/extension-highlight';
 import Placeholder from '@tiptap/extension-placeholder';
+import { Focus } from '@tiptap/extensions';
 
 import {
   PAGE_FORMAT_PRESETS,
@@ -186,6 +187,8 @@ export class PageEditorComponent implements OnInit, OnDestroy {
           PrintTableHeader,
           PrintTableCell,
           PrintImage,
+          // marca o nó em foco com .has-focus (feedback visual do elemento ativo)
+          Focus.configure({ className: 'has-focus', mode: 'deepest' }),
           Placeholder.configure({
             placeholder: 'Comece a digitar o documento ou adicione blocos e variáveis...',
           }),

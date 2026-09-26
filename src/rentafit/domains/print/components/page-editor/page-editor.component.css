@@ -588,6 +588,14 @@
   pointer-events: none;
 }
 
+/* Focus extension: realce do bloco ativo (só no editor; a classe é decoração
+   do ProseMirror e não entra no HTML serializado, então nunca sai na impressão) */
+.tiptap-content-host ::ng-deep .tiptap .has-focus {
+  outline: 1.5px solid rgba(37, 99, 235, 0.45);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
 /* Table alignment on page (edit + preview/print share the same HTML) */
 .paper-sheet ::ng-deep table[data-align='center'] {
   margin-left: auto;
