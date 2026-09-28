@@ -65,9 +65,10 @@
                         <td><span class="status-badge status-active">Em Aberto</span></td>
                         <td>
                             <div class="table-actions">
-                                <button class="action-btn">👁️</button>
-                                <button class="action-btn">💰</button>
-                                <button class="action-btn">✓</button>
+                                <button class="action-btn" title="Visualizar">👁️</button>
+                                <button class="action-btn" title="Pagamentos">💰</button>
+                                <button class="action-btn" (click)="openPrintModal()" title="Imprimir Contrato de Locação">🖨️</button>
+                                <button class="action-btn" title="Finalizar">✓</button>
                             </div>
                         </td>
                     </tr>
@@ -75,4 +76,12 @@
             </table>
         </div>
     </div>
+
+    @if (showPrintModal()) {
+        <rentafit-print-preview-modal
+            templateType="RENTAL_CONTRACT"
+            [isOpen]="showPrintModal()"
+            (close)="closePrintModal()"
+        />
+    }
 </div>

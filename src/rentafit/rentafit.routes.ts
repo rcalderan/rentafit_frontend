@@ -194,6 +194,24 @@ export const routes: Routes = [
                 loadComponent: () => import('./domains/admin/features/system/system.component').then(m => m.SystemComponent),
                 canActivate: [roleGuard],
                 data: { roles: [UserRole.ADMIN, UserRole.MANAGER], title: 'Sistema', tabGroup: 'admin' }
+            },
+            {
+                path: 'admin/print-templates',
+                loadComponent: () => import('./domains/print/components/template-list/template-list.component').then(m => m.TemplateListComponent),
+                canActivate: [roleGuard],
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Templates de Impressão', tabGroup: 'admin' }
+            },
+            {
+                path: 'admin/print-templates/editor/:id',
+                loadComponent: () => import('./domains/print/components/page-editor/page-editor.component').then(m => m.PageEditorComponent),
+                canActivate: [roleGuard],
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER], title: 'Editor de Template' }
+            },
+            {
+                path: 'admin/print-templates/new',
+                loadComponent: () => import('./domains/print/components/page-editor/page-editor.component').then(m => m.PageEditorComponent),
+                canActivate: [roleGuard],
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER], title: 'Novo Template' }
             }
         ]
     },

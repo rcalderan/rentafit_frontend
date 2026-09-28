@@ -1,0 +1,426 @@
+<div class="editor-page-wrapper">
+  <!-- Top Navigation & Action Bar -->
+  <header class="editor-header no-print">
+    <div class="header-left">
+      <button type="button" class="btn btn-secondary btn-icon" (click)="goBack()" title="Voltar à lista">
+        ← Voltar
+      </button>
+      <div class="template-title-group">
+        <input
+          type="text"
+          class="template-name-input"
+          [ngModel]="template().name"
+          (ngModelChange)="updateTemplate({ name: $event })"
+          placeholder="Nome do Template"
+        />
+        <span class="badge format-badge">{{ template().pageFormat }}</span>
+      </div>
+    </div>
+
+    <div class="header-center">
+      @if (saveSuccessMsg()) {
+        <span class="save-toast">{{ saveSuccessMsg() }}</span>
+      }
+    </div>
+
+    <div class="header-actions">
+      <!-- Zoom Selector -->
+      <div class="zoom-controls">
+        <button type="button" class="btn-zoom" (click)="zoomLevel.set(Math.max(50, zoomLevel() - 10))" [disabled]="zoomLevel() <= 50">-</button>
+        <span class="zoom-value">{{ zoomLevel() }}%</span>
+        <button type="button" class="btn-zoom" (click)="zoomLevel.set(Math.min(150, zoomLevel() + 10))" [disabled]="zoomLevel() >= 150">+</button>
+      </div>
+
+      <!-- Preview Toggle -->
+      <button
+        type="button"
+        class="btn"
+        [class.btn-preview-active]="isPreviewMode()"
+        [class.btn-secondary]="!isPreviewMode()"
+        (click)="togglePreview()"
+      >
+        @if (isPreviewMode()) {
+          ✏️ Modo Edição
+        } @else {
+          👁️ Ver com Dados
+        }
+      </button>
+
+      <!-- Print Button -->
+      <button type="button" class="btn btn-secondary" (click)="printDocument()" title="Imprimir documento">
+        🖨️ Imprimir
+      </button>
+
+      <!-- Save Button -->
+      <button type="button" class="btn btn-primary" (click)="saveTemplate()">
+        💾 Salvar Template
+      </button>
+    </div>
+  </header>
+
+  <!-- Formatting Ribbon (fixed top, contextual) -->
+  @if (!isPreviewMode() && editor(); as ed) {
+    <rentafit-editor-toolbar [editor]="ed" />
+  }
+
+  <!-- 3-Column Studio Body -->
+  <main class="editor-body">
+    <!-- LEFT PANEL: Components & Dynamic Variables -->
+    <aside class="panel left-panel no-print">
+      <div class="panel-tabs">
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="leftTab() === 'variables'"
+          (click)="leftTab.set('variables')"
+        >
+          Variáveis {{ '{{}}' }}
+        </button>
+        <button
+          type="button"
+          class="tab-btn"
+          [class.active]="leftTab() === 'blocks'"
+          (click)="leftTab.set('blocks')"
+        >
+          Blocos & Tabelas
+        </button>
+      </div>
+
+      <!-- TAB 1: VARIABLES -->
+      @if (leftTab() === 'variables') {
+        <div class="tab-content variables-tab">
+          <div class="search-box">
+            <input
+              type="text"
+              placeholder="Buscar variável (ex: cliente, valor)..."
+              [(ngModel)]="variableSearch"
+              class="input-search"
+            />
+          </div>
+
+          <div class="category-chips">
+            <button
+              type="button"
+              class="chip"
+              [class.active]="selectedCategory() === 'todos'"
+              (click)="selectedCategory.set('todos')"
+            >
+              Todos
+            </button>
+            @for (cat of categories; track cat.id) {
+              <button
+                type="button"
+                class="chip"
+                [class.active]="selectedCategory() === cat.id"
+                (click)="selectedCategory.set(cat.id)"
+              >
+                {{ cat.name }}
+              </button>
+            }
+          </div>
+
+          <div class="variables-list">
+            @for (v of filteredVariables(); track v.key) {
+              <div class="variable-item" (click)="insertTag(v)">
+                <div class="var-header">
+                  <span class="var-label">{{ v.label }}</span>
+                  <code class="var-tag">{{ v.tag }}</code>
+                </div>
+                <div class="var-sample">Ex: {{ v.sampleValue }}</div>
+              </div>
+            }
+          </div>
+        </div>
+      }
+
+      <!-- TAB 2: BLOCKS & SUBCOMPONENTS -->
+      @if (leftTab() === 'blocks') {
+        <div class="tab-content blocks-tab">
+          <section class="block-section">
+            <h4 class="section-title">Texto & Títulos</h4>
+            <div class="btn-grid">
+              <button type="button" class="btn-block" (click)="insertText('h1')">H1 Título Grande</button>
+              <button type="button" class="btn-block" (click)="insertText('h2')">H2 Subtítulo</button>
+              <button type="button" class="btn-block" (click)="insertText('h3')">H3 Seção</button>
+              <button type="button" class="btn-block" (click)="insertText('p')">Parágrafo</button>
+              <button type="button" class="btn-block" (click)="insertDivider()">Linha Divisória</button>
+            </div>
+          </section>
+
+          <section class="block-section">
+            <h4 class="section-title">Subcomponentes de Tabela [Array]</h4>
+            <div class="btn-stack">
+              <button type="button" class="btn-subcomponent" (click)="insertContractItemsTable()">
+                <div class="sub-title">📦 [Tabela] Itens do Contrato</div>
+                <div class="sub-desc">Código, descrição com medidas/ajustes e valor</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertPaymentsTable()">
+                <div class="sub-title">💳 [Tabela] Formas de Pagamento</div>
+                <div class="sub-desc">Parcelas, vencimento, forma e carimbo</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertSimpleTable()">
+                <div class="sub-title">📊 Tabela Comum (3x3)</div>
+                <div class="sub-desc">Tabela em branco editável</div>
+              </button>
+            </div>
+          </section>
+
+          <section class="block-section">
+            <h4 class="section-title">Fechamento & Autenticação</h4>
+            <div class="btn-stack">
+              <button type="button" class="btn-subcomponent" (click)="insertSignatureBlock()">
+                <div class="sub-title">✍️ Bloco de Assinatura</div>
+                <div class="sub-desc">Linha de assinatura com nome do cliente e CPF</div>
+              </button>
+              <button type="button" class="btn-subcomponent" (click)="insertQrCodeBlock()">
+                <div class="sub-title">📱 Bloco QR Code NFC-e</div>
+                <div class="sub-desc">Consulta pública da SEFAZ para cupom fiscal</div>
+              </button>
+            </div>
+          </section>
+        </div>
+      }
+    </aside>
+
+    <!-- CENTER CANVAS: WYSIWYG PAGE / THERMAL ROLL -->
+    <section class="canvas-area">
+      <!-- Paper Sheet Scrollable Container -->
+      <div class="sheet-viewport">
+        <div class="paper-frame" [ngStyle]="frameStyle()">
+          <!-- Rulers (mm) com zonas de offset vs margem -->
+          <div class="ruler ruler-corner no-print" [class.hide-in-preview]="isPreviewMode()"></div>
+          <div
+            class="ruler ruler-top no-print"
+            [class.hide-in-preview]="isPreviewMode()"
+            [style.width.mm]="sheetWidthMm()"
+          >
+            <div class="r-zone zone-offset" [style.left]="'0'" [style.width.mm]="offsetMm()"></div>
+            <div
+              class="r-zone zone-margin"
+              [style.left.mm]="offsetMm()"
+              [style.width.mm]="template().marginLeftMm"
+            ></div>
+            <div
+              class="r-zone zone-margin"
+              [style.right.mm]="offsetMm()"
+              [style.width.mm]="template().marginRightMm"
+            ></div>
+            <div class="r-zone zone-offset" [style.right]="'0'" [style.width.mm]="offsetMm()"></div>
+            @for (mm of rulerTicksX(); track mm) {
+              <span class="r-num" [style.left.mm]="mm">{{ mm }}</span>
+            }
+          </div>
+          <div
+            class="ruler ruler-left no-print"
+            [class.hide-in-preview]="isPreviewMode()"
+            [style.height]="'100%'"
+          >
+            <div class="r-zone zone-offset" [style.top]="'0'" [style.height.mm]="offsetMm()"></div>
+            <div
+              class="r-zone zone-margin"
+              [style.top.mm]="offsetMm()"
+              [style.height.mm]="template().marginTopMm"
+            ></div>
+            <div
+              class="r-zone zone-margin"
+              [style.bottom.mm]="offsetMm()"
+              [style.height.mm]="template().marginBottomMm"
+            ></div>
+            <div class="r-zone zone-offset" [style.bottom]="'0'" [style.height.mm]="offsetMm()"></div>
+            @for (mm of rulerTicksY(); track mm) {
+              <span class="r-num" [style.top.mm]="mm">{{ mm }}</span>
+            }
+          </div>
+
+          <div class="paper-sheet" [ngStyle]="sheetStyle()">
+            <div class="offset-guide no-print" [style.inset.mm]="offsetMm()"></div>
+            <div
+              #editorContainer
+              class="tiptap-content-host"
+              [class.host-hidden]="isPreviewMode()"
+            ></div>
+            @if (isPreviewMode()) {
+              <div class="preview-content-host" [innerHTML]="previewHtml()"></div>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Page & Layout Properties -->
+    <aside class="panel right-panel no-print">
+      <h3 class="panel-title">Propriedades da Página</h3>
+
+      <div class="form-group">
+        <label class="form-label">Formato do Papel</label>
+        <select
+          class="form-select"
+          [ngModel]="template().pageFormat"
+          (ngModelChange)="setPageFormat($event)"
+        >
+          <option value="A4">Folha A4 (210 x 297 mm)</option>
+          <option value="THERMAL_80MM">Bobina Térmica 80 mm (PDV)</option>
+          <option value="THERMAL_58MM">Bobina Térmica 58 mm (POS)</option>
+          <option value="CUSTOM">Customizado (Livre)</option>
+        </select>
+      </div>
+
+      @if (template().pageFormat === 'A4' || template().pageFormat === 'CUSTOM') {
+        <div class="form-group">
+          <label class="form-label">Orientação</label>
+          <div class="btn-group-toggle">
+            <button
+              type="button"
+              class="btn-toggle"
+              [class.active]="template().orientation === 'PORTRAIT'"
+              (click)="setOrientation('PORTRAIT')"
+            >
+              📄 Retrato
+            </button>
+            <button
+              type="button"
+              class="btn-toggle"
+              [class.active]="template().orientation === 'LANDSCAPE'"
+              (click)="setOrientation('LANDSCAPE')"
+            >
+              📃 Paisagem
+            </button>
+          </div>
+        </div>
+      }
+
+      @if (template().pageFormat === 'CUSTOM') {
+        <div class="form-row">
+          <div class="form-group col">
+            <label class="form-label">Largura (mm)</label>
+            <input
+              type="number"
+              class="form-input"
+              [ngModel]="template().pageWidthMm"
+              (ngModelChange)="updateTemplate({ pageWidthMm: $event })"
+              min="30"
+              max="500"
+            />
+          </div>
+          <div class="form-group col">
+            <label class="form-label">Altura (mm)</label>
+            <input
+              type="number"
+              class="form-input"
+              [ngModel]="template().pageHeightMm"
+              (ngModelChange)="updateTemplate({ pageHeightMm: $event })"
+              min="30"
+              max="1000"
+            />
+          </div>
+        </div>
+      }
+
+      <div class="form-section-title">Margens da Página (mm)</div>
+      <div class="form-row">
+        <div class="form-group col">
+          <label class="form-label">Superior</label>
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginTopMm"
+            (ngModelChange)="updateTemplate({ marginTopMm: $event })"
+            min="0"
+            max="100"
+          />
+        </div>
+        <div class="form-group col">
+          <label class="form-label">Inferior</label>
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginBottomMm"
+            (ngModelChange)="updateTemplate({ marginBottomMm: $event })"
+            min="0"
+            max="100"
+          />
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group col">
+          <label class="form-label">Esquerda</label>
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginLeftMm"
+            (ngModelChange)="updateTemplate({ marginLeftMm: $event })"
+            min="0"
+            max="100"
+          />
+        </div>
+        <div class="form-group col">
+          <label class="form-label">Direita</label>
+          <input
+            type="number"
+            class="form-input"
+            [ngModel]="template().marginRightMm"
+            (ngModelChange)="updateTemplate({ marginRightMm: $event })"
+            min="0"
+            max="100"
+          />
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">
+          Offset da impressora (mm)
+          <span class="hint-badge" title="Borda física não-imprimível do papel">dead zone</span>
+        </label>
+        <input
+          type="number"
+          class="form-input"
+          [ngModel]="offsetMm()"
+          (ngModelChange)="updateTemplate({ printOffsetMm: $event })"
+          min="0"
+          max="30"
+        />
+        <small class="form-hint">
+          Zona vermelha na régua — borda que a impressora não alcança. Somada às margens no papel.
+        </small>
+      </div>
+
+      <div class="form-section-title">Classificação do Template</div>
+      <div class="form-group">
+        <label class="form-label">Tipo de Documento</label>
+        <select
+          class="form-select"
+          [ngModel]="template().templateType"
+          (ngModelChange)="updateTemplate({ templateType: $event })"
+        >
+          <option value="RENTAL_CONTRACT">Contrato de Locação</option>
+          <option value="RENTAL_CANCELLATION">Termo de Desistência</option>
+          <option value="FISCAL_RECEIPT_80MM">Cupom Fiscal NFC-e (80mm)</option>
+          <option value="FISCAL_RECEIPT_58MM">Cupom Fiscal NFC-e (58mm)</option>
+          <option value="CUSTOM">Customizado / Outro</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Descrição</label>
+        <textarea
+          class="form-textarea"
+          rows="3"
+          [ngModel]="template().description"
+          (ngModelChange)="updateTemplate({ description: $event })"
+          placeholder="Ex: Contrato de locação com 11 cláusulas e termo de imagem..."
+        ></textarea>
+      </div>
+
+      <div class="form-group checkbox-group">
+        <label class="checkbox-label">
+          <input
+            type="checkbox"
+            [ngModel]="template().isDefault"
+            (ngModelChange)="updateTemplate({ isDefault: $event })"
+          />
+          <span>Definir como Template Padrão deste tipo</span>
+        </label>
+      </div>
+    </aside>
+  </main>
+</div>
