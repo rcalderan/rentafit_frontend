@@ -29,6 +29,10 @@ export interface IRentalContractCreateRequest {
 
 export type IRentalContractUpdateRequest = IRentalContractCreateRequest;
 
+export interface IRentalContractSignRequest {
+  printTemplateId: string;
+}
+
 export interface IProcessReturnRequest {
   actualReturnDate: string;
   returnedByEmployeeId: string;

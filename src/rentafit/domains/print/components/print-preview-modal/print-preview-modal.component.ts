@@ -1,4 +1,5 @@
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   OnDestroy,
@@ -28,22 +29,25 @@ import {
   styleUrl: './print-preview-modal.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PrintPreviewModalComponent implements OnDestroy {
+export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
   private readonly storageService = inject(PrintTemplateStorageService);
   private readonly interpolationService = inject(TemplateInterpolationService);
   private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
   private readonly subcomponentStyleService = inject(PrintSubcomponentStyleService);
   private readonly subcomponentStyleElement = document.createElement('style');
+  private destroyed = false;
 
   templateId = input<string | null>(null);
   templateType = input<TemplateType | null>(null);
   customData = input<Partial<InterpolationContext> | null>(null);
   isOpen = input<boolean>(true);
   aboveSystemMenu = input<boolean>(false);
+  printImmediately = input<boolean>(false);
 
   close = output<void>();
 
   constructor() {
+    void this.storageService.initialize();
     effect(() => {
       const template = this.resolvedTemplate();
       if (!this.isOpen() || !template) {
@@ -51,14 +55,28 @@ export class PrintPreviewModalComponent implements OnDestroy {
         return;
       }
       const scope = this.subcomponentStyleService.scopeToken(template.id);
-      this.subcomponentStyleElement.textContent = this.subcomponentStyleService.compile(
-        template.cssStyles,
-        scope,
-      );
+      const isLandscape = template.orientation === 'LANDSCAPE' && template.pageHeightMm !== null;
+      const width = isLandscape ? template.pageHeightMm! : template.pageWidthMm;
+      const height = isLandscape ? template.pageWidthMm : template.pageHeightMm;
+      const size = height ? `${width}mm ${height}mm` : `${width}mm auto`;
+      const componentStyles = this.subcomponentStyleService.compile(template.cssStyles, scope);
+      this.subcomponentStyleElement.textContent = `@page { size: ${size}; margin: 0; }\n${componentStyles}`;
       if (!this.subcomponentStyleElement.isConnected) {
         document.head.append(this.subcomponentStyleElement);
       }
     });
+  }
+
+  ngAfterViewInit(): void {
+    if (!this.isOpen() || !this.printImmediately()) return;
+    void this.printAfterTemplateReady();
+  }
+
+  private async printAfterTemplateReady(): Promise<void> {
+    await this.storageService.initialize();
+    if (this.destroyed || !this.isOpen() || !this.resolvedTemplate()) return;
+    window.print();
+    this.close.emit();
   }
 
   protected readonly resolvedTemplate = computed(() => {
@@ -87,6 +105,7 @@ export class PrintPreviewModalComponent implements OnDestroy {
   });
 
   ngOnDestroy(): void {
+    this.destroyed = true;
     this.subcomponentStyleElement.remove();
   }
 

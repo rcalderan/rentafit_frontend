@@ -426,6 +426,16 @@ select {
     color: var(--primary-color);
 }
 
+.btn-print-contract {
+    background-color: var(--success-color, #16794c);
+    color: #ffffff;
+}
+
+.btn-print-contract:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
 .uppercase {
     text-transform: uppercase;
 }
@@ -777,6 +787,10 @@ select {
 
 .modal-payment {
     max-width: 420px;
+}
+
+.modal-print-confirmation {
+    max-width: 440px;
 }
 
 .modal-header {

@@ -264,6 +264,12 @@
             } @else if (autosaveStatus === 'error') {
                 <span class="autosave-indicator autosave-error" [title]="autosaveError ?? ''">⚠️ Erro ao salvar</span>
             }
+            @if (contractId) {
+                <button class="btn btn-print-contract" (click)="requestContractPrint()"
+                        [disabled]="isSaving || isPreparingContractPrint()">
+                    {{ isPreparingContractPrint() ? 'Preparando impressão…' : 'Imprimir contrato' }}
+                </button>
+            }
             @if (stepperStep === 0) {
                 <button class="btn btn-update" (click)="salvarProposta()" [disabled]="isSaving">
                     {{ isSaving ? '⏳ Salvando…' : '💾 Salvar Proposta' }}
@@ -314,6 +320,35 @@
     }
 
 </div>
+
+@if (showPrintConfirmation()) {
+    <div class="modal-backdrop print-confirmation-backdrop" (click)="cancelContractPrint()"></div>
+    <section class="modal modal-print-confirmation" role="dialog" aria-modal="true"
+             aria-labelledby="print-confirmation-title" (click)="$event.stopPropagation()">
+        <header class="modal-header">
+            <h2 id="print-confirmation-title" class="modal-title">Imprimir contrato de locação?</h2>
+            <button type="button" class="modal-close" aria-label="Cancelar" (click)="cancelContractPrint()">×</button>
+        </header>
+        <div class="modal-body">
+            <p>Proposta salva {{ contract.legacyId ? 'nº ' + contract.legacyId : '' }}. Deseja imprimir usando {{ contractPrintTemplateId ? 'o modelo registrado na assinatura' : 'o template padrão atual' }}?</p>
+        </div>
+        <footer class="modal-footer">
+            <button type="button" class="btn btn-update" (click)="cancelContractPrint()">Cancelar</button>
+            <button type="button" class="btn btn-save" (click)="confirmContractPrint()">Confirmar</button>
+        </footer>
+    </section>
+}
+
+@if (showContractPrintModal()) {
+    <rentafit-print-preview-modal
+        [templateId]="contractPrintTemplateId"
+        templateType="RENTAL_CONTRACT"
+        [customData]="contractPrintData()"
+        [isOpen]="true"
+        [printImmediately]="true"
+        (close)="closeContractPrintPreview()"
+    />
+}
 
 <!-- ══════════════ Employee Verify Modal ══════════════ -->
 @if (showEmployeeVerify) {

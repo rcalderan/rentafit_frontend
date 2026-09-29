@@ -1,11 +1,15 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PrintTemplate, TemplateType } from '../../data/print-template.model';
 import { DEFAULT_RENTAL_CONTRACT_TEMPLATE } from '../../data/default-templates';
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
 import { PrintPreviewModalComponent } from './print-preview-modal.component';
 
 class FakePrintTemplateStorage {
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+
   getById(id: string): PrintTemplate | undefined {
     return id === DEFAULT_RENTAL_CONTRACT_TEMPLATE.id ? DEFAULT_RENTAL_CONTRACT_TEMPLATE : undefined;
   }
@@ -28,7 +32,10 @@ describe('PrintPreviewModalComponent template overlay', () => {
     fixture.detectChanges();
   });
 
-  afterEach(() => fixture.destroy());
+  afterEach(() => {
+    fixture.destroy();
+    vi.restoreAllMocks();
+  });
 
   it('elevates only instances explicitly opened from the template list', () => {
     const backdrop = fixture.nativeElement.querySelector('.modal-backdrop') as HTMLElement;
@@ -42,5 +49,24 @@ describe('PrintPreviewModalComponent template overlay', () => {
 
     expect(backdrop.classList.contains('template-print-overlay')).toBe(true);
     expect(dialog.classList.contains('template-print-overlay')).toBe(true);
+  });
+
+  it('prints immediately, uses the template page size and closes afterward', async () => {
+    fixture.destroy();
+    fixture = TestBed.createComponent(PrintPreviewModalComponent);
+    const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
+    const closeSpy = vi.fn();
+    fixture.componentRef.setInput('templateId', DEFAULT_RENTAL_CONTRACT_TEMPLATE.id);
+    fixture.componentRef.setInput('printImmediately', true);
+    fixture.componentInstance.close.subscribe(closeSpy);
+    fixture.detectChanges();
+    await vi.waitFor(() => {
+      expect(printSpy).toHaveBeenCalledOnce();
+      expect(closeSpy).toHaveBeenCalledOnce();
+    });
+
+    expect([...document.head.querySelectorAll('style')].some((style) =>
+      style.textContent?.includes('@page { size: 210mm 297mm; margin: 0; }'),
+    )).toBe(true);
   });
 });
