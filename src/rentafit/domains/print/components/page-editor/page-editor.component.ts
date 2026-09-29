@@ -13,7 +13,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Editor } from '@tiptap/core';
+import { Editor, findParentNode } from '@tiptap/core';
 import { SafeHtml } from '@angular/platform-browser';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
@@ -39,16 +39,23 @@ import { DEFAULT_CUSTOM_TEMPLATE } from '../../data/default-templates';
 import {
   PrintBlockSpacing,
   PrintImage,
+  PrintSignatureBlock,
   PrintTable,
   PrintTableCell,
   PrintTableHeader,
 } from '../../data/print-editor.extensions';
+import {
+  PrintSubcomponentStyle,
+  PrintSubcomponentType,
+} from '../../data/print-subcomponent-style.model';
+import { PrintSubcomponentStyleService } from '../../services/print-subcomponent-style.service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
+import { SubcomponentStyleModalComponent } from '../subcomponent-style-modal/subcomponent-style-modal.component';
 
 @Component({
   selector: 'rentafit-page-editor',
   standalone: true,
-  imports: [CommonModule, FormsModule, EditorToolbarComponent],
+  imports: [CommonModule, FormsModule, EditorToolbarComponent, SubcomponentStyleModalComponent],
   templateUrl: './page-editor.component.html',
   styleUrl: './page-editor.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -57,6 +64,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   private readonly storageService = inject(PrintTemplateStorageService);
   private readonly interpolationService = inject(TemplateInterpolationService);
   private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
+  private readonly subcomponentStyleService = inject(PrintSubcomponentStyleService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -72,6 +80,18 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   protected readonly zoomLevel = signal<number>(100);
   protected readonly leftTab = signal<'blocks' | 'variables'>('variables');
   protected readonly saveSuccessMsg = signal<string | null>(null);
+  protected readonly activeSubcomponentStyle = signal<PrintSubcomponentType | null>(null);
+
+  protected readonly activeSubcomponentStyleConfig = computed(() => {
+    const type = this.activeSubcomponentStyle();
+    return type ? this.subcomponentStyleService.read(this.template().cssStyles)[type] : null;
+  });
+  protected readonly subcomponentStyleScope = computed(() =>
+    this.subcomponentStyleService.scopeToken(this.template().id),
+  );
+  protected readonly subcomponentCss = computed(() =>
+    this.subcomponentStyleService.compile(this.template().cssStyles, this.subcomponentStyleScope()),
+  );
 
   protected readonly categories = VARIABLE_CATEGORIES;
   protected readonly formatPresets = PAGE_FORMAT_PRESETS;
@@ -110,6 +130,9 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     return {
       width: `${this.sheetWidthMm()}mm`,
       minHeight: height ? `${height}mm` : '160mm',
+      fontFamily: t.templateType === 'RENTAL_CONTRACT' ? 'Arial, sans-serif' : null,
+      fontSize: t.templateType === 'RENTAL_CONTRACT' ? '9pt' : null,
+      lineHeight: t.templateType === 'RENTAL_CONTRACT' ? '1.12' : null,
       // Offset = zona física morta da impressora; margem = área reservada do layout.
       // Ambos viram padding para que preview e impressão batam 1:1 (@page margin 0).
       paddingTop: `${offset + t.marginTopMm}mm`,
@@ -137,7 +160,8 @@ export class PageEditorComponent implements OnInit, OnDestroy {
       const width = this.sheetWidthMm();
       const height = this.sheetHeightMm();
       const size = height ? `size: ${width}mm ${height}mm;` : `size: ${width}mm auto;`;
-      this.printPageStyleEl.textContent = `@page { ${size} margin: 0; }`;
+      const components = this.subcomponentCss();
+      this.printPageStyleEl.textContent = `@page { ${size} margin: 0; }\n${components}`;
     });
   }
 
@@ -195,6 +219,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
           PrintTableHeader,
           PrintTableCell,
           PrintBlockSpacing,
+          PrintSignatureBlock,
           PrintImage,
           // marca o nó em foco com .has-focus (feedback visual do elemento ativo)
           Focus.configure({ className: 'has-focus', mode: 'deepest' }),
@@ -230,6 +255,19 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     this.template.update((t) => ({ ...t, orientation }));
   }
 
+  protected openSubcomponentStyle(type: PrintSubcomponentType): void {
+    this.activeSubcomponentStyle.set(type);
+  }
+
+  protected saveSubcomponentStyle(style: PrintSubcomponentStyle): void {
+    const type = this.activeSubcomponentStyle();
+    if (!type) return;
+    const styles = this.subcomponentStyleService.read(this.template().cssStyles);
+    styles[type] = style;
+    this.updateTemplate({ cssStyles: this.subcomponentStyleService.write(styles) });
+    this.activeSubcomponentStyle.set(null);
+  }
+
   protected togglePreview(): void {
     const willBePreview = !this.isPreviewMode();
     this.isPreviewMode.set(willBePreview);
@@ -259,14 +297,23 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   }
 
   protected insertSimpleTable(): void {
-    this.editor()?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+    const ed = this.editor();
+    if (!ed) return;
+    ed.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: false }).run();
+    const { state, view } = ed;
+    const table = findParentNode((node) => node.type.name === 'table')(state.selection);
+    if (!table) return;
+    view.dispatch(state.tr.setNodeMarkup(table.pos, undefined, {
+      ...table.node.attrs,
+      printComponent: 'common-table',
+    }));
   }
 
   protected insertContractItemsTable(): void {
     const ed = this.editor();
     if (!ed) return;
     const tableHtml = `
-      <table class="print-table contract-items-table" style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; border: 1px solid #ccc;">
+      <table class="print-table contract-items-table" data-print-component="contract-items" style="width: 100%;">
         <thead>
           <tr style="background: #f2f2f2; font-weight: bold;">
             <th style="padding: 4px 6px; border: 1px solid #ccc; width: 15%;">Código</th>
@@ -296,23 +343,21 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     const ed = this.editor();
     if (!ed) return;
     const tableHtml = `
-      <table class="print-table contract-payments-table" style="width: 100%; border-collapse: collapse; font-size: 11px; margin: 8px 0; border: 1px solid #ccc;">
+      <p style="margin: 10px 0 2px; text-align: center; font-size: 9pt; font-weight: bold;">PAGAMENTO</p>
+      <table class="print-table contract-payments-table" data-print-component="contract-payments" style="width: 100%;">
         <thead>
-          <tr style="background: #f2f2f2; font-weight: bold;">
-            <th style="padding: 4px 6px; border: 1px solid #ccc;">Parcela</th>
-            <th style="padding: 4px 6px; border: 1px solid #ccc;">Forma</th>
-            <th style="padding: 4px 6px; border: 1px solid #ccc;">Vencimento</th>
-            <th style="padding: 4px 6px; border: 1px solid #ccc; text-align: right;">Valor</th>
-            <th style="padding: 4px 6px; border: 1px solid #ccc; text-align: center;">Carimbo / Visto</th>
-          </tr>
+          <tr><th>Pagamento</th><th>Data</th><th>Situação</th></tr>
         </thead>
         <tbody>
           <tr>
-            <td style="padding: 4px 6px; border: 1px solid #ccc;">1 / 2</td>
-            <td style="padding: 4px 6px; border: 1px solid #ccc;">DINHEIRO / PIX</td>
-            <td style="padding: 4px 6px; border: 1px solid #ccc;">{{contrato.dataEmissao}}</td>
-            <td style="padding: 4px 6px; border: 1px solid #ccc; text-align: right;">R$ 350,00</td>
-            <td style="padding: 4px 6px; border: 1px solid #ccc; text-align: center;">[QUITADO]</td>
+            <td>Entrada: R$ 300,00</td>
+            <td>14/09/2026</td>
+            <td>PAGO</td>
+          </tr>
+          <tr>
+            <td>Parcela 1: R$ 150,00</td>
+            <td>21/09/2026</td>
+            <td>PAGO</td>
           </tr>
         </tbody>
       </table>
@@ -324,12 +369,9 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     const ed = this.editor();
     if (!ed) return;
     const signatureHtml = `
-      <div style="text-align: center; margin-top: 35px; margin-bottom: 20px;">
-        <div>{{sistema.dataExtenso}}</div>
-        <div style="margin-top: 40px; display: inline-block; width: 65%; border-top: 1px solid #222; padding-top: 6px;">
-          <strong>{{cliente.nome}}</strong><br>
-          CPF: {{cliente.documento}} (Locatário)
-        </div>
+      <div data-print-component="signature">
+        <p>{{sistema.dataExtenso}}</p>
+        <p><strong>{{cliente.nome}}</strong><br>CPF: {{cliente.documento}} (Locatário)</p>
       </div>
     `;
     ed.chain().focus().insertContent(signatureHtml).run();

@@ -1,4 +1,4 @@
-<div class="editor-page-wrapper">
+<div class="editor-page-wrapper" [attr.data-print-style-scope]="subcomponentStyleScope()">
   <!-- Top Navigation & Action Bar -->
   <header class="editor-header no-print">
     <div class="header-left">
@@ -150,28 +150,40 @@
           <section class="block-section">
             <h4 class="section-title">Subcomponentes de Tabela [Array]</h4>
             <div class="btn-stack">
-              <button type="button" class="btn-subcomponent" (click)="insertContractItemsTable()">
-                <div class="sub-title">📦 [Tabela] Itens do Contrato</div>
-                <div class="sub-desc">Código, descrição com medidas/ajustes e valor</div>
-              </button>
-              <button type="button" class="btn-subcomponent" (click)="insertPaymentsTable()">
-                <div class="sub-title">💳 [Tabela] Formas de Pagamento</div>
-                <div class="sub-desc">Parcelas, vencimento, forma e carimbo</div>
-              </button>
-              <button type="button" class="btn-subcomponent" (click)="insertSimpleTable()">
-                <div class="sub-title">📊 Tabela Comum (3x3)</div>
-                <div class="sub-desc">Tabela em branco editável</div>
-              </button>
+              <div class="subcomponent-actions">
+                <button type="button" class="btn-subcomponent" (click)="insertContractItemsTable()">
+                  <div class="sub-title">📦 [Tabela] Itens do Contrato</div>
+                  <div class="sub-desc">Código, descrição com medidas/ajustes e valor</div>
+                </button>
+                <button type="button" class="btn-component-style" aria-label="Estilo dos itens do contrato" (click)="openSubcomponentStyle('contract-items')">Estilo</button>
+              </div>
+              <div class="subcomponent-actions">
+                <button type="button" class="btn-subcomponent" (click)="insertPaymentsTable()">
+                  <div class="sub-title">💳 [Tabela] Formas de Pagamento</div>
+                  <div class="sub-desc">Parcelas, vencimento, forma e carimbo</div>
+                </button>
+                <button type="button" class="btn-component-style" aria-label="Estilo das formas de pagamento" (click)="openSubcomponentStyle('contract-payments')">Estilo</button>
+              </div>
+              <div class="subcomponent-actions">
+                <button type="button" class="btn-subcomponent" (click)="insertSimpleTable()">
+                  <div class="sub-title">📊 Tabela Comum (3x3)</div>
+                  <div class="sub-desc">Sem cabeçalho, fundo transparente e sem bordas</div>
+                </button>
+                <button type="button" class="btn-component-style" aria-label="Estilo da tabela comum" (click)="openSubcomponentStyle('common-table')">Estilo</button>
+              </div>
             </div>
           </section>
 
           <section class="block-section">
             <h4 class="section-title">Fechamento & Autenticação</h4>
             <div class="btn-stack">
-              <button type="button" class="btn-subcomponent" (click)="insertSignatureBlock()">
-                <div class="sub-title">✍️ Bloco de Assinatura</div>
-                <div class="sub-desc">Linha de assinatura com nome do cliente e CPF</div>
-              </button>
+              <div class="subcomponent-actions">
+                <button type="button" class="btn-subcomponent" (click)="insertSignatureBlock()">
+                  <div class="sub-title">✍️ Bloco de Assinatura</div>
+                  <div class="sub-desc">Linha de assinatura com nome do cliente e CPF</div>
+                </button>
+                <button type="button" class="btn-component-style" aria-label="Estilo do bloco de assinatura" (click)="openSubcomponentStyle('signature')">Estilo</button>
+              </div>
               <button type="button" class="btn-subcomponent" (click)="insertQrCodeBlock()">
                 <div class="sub-title">📱 Bloco QR Code NFC-e</div>
                 <div class="sub-desc">Consulta pública da SEFAZ para cupom fiscal</div>
@@ -423,4 +435,13 @@
       </div>
     </aside>
   </main>
+
+  @if (activeSubcomponentStyle(); as componentType) {
+    <rentafit-subcomponent-style-modal
+      [componentType]="componentType"
+      [initialStyle]="activeSubcomponentStyleConfig()!"
+      (cancel)="activeSubcomponentStyle.set(null)"
+      (save)="saveSubcomponentStyle($event)"
+    />
+  }
 </div>

@@ -3,6 +3,7 @@ import QRCode from 'qrcode';
 
 export interface InterpolationContext {
   cliente: {
+    codigo?: string;
     nome: string;
     documento: string;
     rg: string;
@@ -77,6 +78,7 @@ export interface InterpolationContext {
 
 export const DEFAULT_MOCK_CONTEXT: InterpolationContext = {
   cliente: {
+    codigo: '20636',
     nome: 'Mariana Silva Santos',
     documento: '123.456.789-00',
     rg: '45.678.910-1',
@@ -89,24 +91,24 @@ export const DEFAULT_MOCK_CONTEXT: InterpolationContext = {
     email: 'mariana.silva@email.com',
   },
   empresa: {
-    nomeFantasia: 'Noiva Modas & Trajes a Rigor',
-    razaoSocial: 'Noiva Modas Confecções e Aluguel Ltda',
+    nomeFantasia: 'Noiva Modas',
+    razaoSocial: 'C & K LOCACAO DE ROUPAS LTDA-ME',
     cnpj: '08.299.621/0001-20',
-    ie: '637.123.456.789',
-    im: '12345/00',
-    endereco: 'Rua Jesuíno de Arruda, 1837 - Centro - São Carlos/SP - CEP 13560-642',
-    telefone: '(16) 3371-0000',
-    email: 'contato@noivamodas.com.br',
+    ie: '637.287.665.118',
+    im: '51.197',
+    endereco: 'Rua Jesuíno de Arruda, 1837 - Centro - São Carlos/SP CEP 13560-642',
+    telefone: '(16)33722363 ou (16)99702-7631',
+    email: 'noivamodas@live.com',
     cidade: 'São Carlos/SP',
     site: 'www.noivamodas.com.br',
   },
   contrato: {
-    numero: '1044',
-    dataRetirada: '25/09/2026',
-    dataUso: '26/09/2026',
-    dataDevolucao: '28/09/2026',
-    dataEmissao: '24/09/2026',
-    valorTotal: 'R$ 650,00',
+    numero: '36295',
+    dataRetirada: '21/09/2026',
+    dataUso: '23/09/2026',
+    dataDevolucao: '25/09/2026',
+    dataEmissao: '14/09/2026',
+    valorTotal: 'R$ 450,00',
     atendente: 'Cleyton',
     observacoes: 'Cliente prefere retirada no período da manhã.',
   },
@@ -128,30 +130,25 @@ export const DEFAULT_MOCK_CONTEXT: InterpolationContext = {
   },
   itensContrato: [
     {
-      codigo: '1044',
-      descricao: 'IMPERIAL 50, C44, SEM SAPATO, MANGA DIR 49CM, MANGA ESQ 48.5CM, BARRA CALÇA 11 CM',
-      valor: 350.0,
-    },
-    {
-      codigo: '1141',
-      descricao: 'VESTIDO DAMA BRANCO GAZAR DRAPE, SAPATO 31 SONHO, ALMOFADA E CINTO LILAS',
-      valor: 300.0,
+      codigo: '2671',
+      descricao: 'TERNO AZUL NAVY 2 BOTOES SLIM 50 SEM ACESS',
+      valor: 450.0,
     },
   ],
   pagamentosContrato: [
     {
-      parcela: '1 / 2',
-      forma: 'DINHEIRO / PIX',
-      vencimento: '24/09/2026',
-      valor: 350.0,
-      status: '[QUITADO]',
+      parcela: 'Entrada',
+      forma: '',
+      vencimento: '14/09/2026',
+      valor: 300.0,
+      status: 'PAGO',
     },
     {
-      parcela: '2 / 2',
-      forma: 'NA RETIRADA',
-      vencimento: '25/09/2026',
-      valor: 300.0,
-      status: '______________',
+      parcela: 'Parcela 1',
+      forma: '',
+      vencimento: '21/09/2026',
+      valor: 150.0,
+      status: 'PAGO',
     },
   ],
   itensNfce: [
@@ -255,46 +252,63 @@ export class TemplateInterpolationService {
 
   private renderContractItemsTable(html: string, items: Array<{ codigo: string; descricao: string; valor: number }>): string {
     const tbodyRows = items
-      .map(
-        (item) => `
+      .map((item) => `
       <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">${item.codigo}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">${item.descricao}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">${this.formatCurrency(item.valor)}</td>
-      </tr>`
-      )
+        <td>${item.codigo}</td>
+        <td>${item.descricao}</td>
+        <td style="text-align: right;">${this.formatCurrency(item.valor)}</td>
+      </tr>`)
       .join('');
-
-    // Substitui o tbody da contract-items-table se presente
-    const tableRegex = /(<table[^>]*class="[^"]*contract-items-table[^"]*"[^>]*>[\s\S]*?<tbody>)[\s\S]*?(<\/tbody>)/i;
-    if (tableRegex.test(html)) {
-      return html.replace(tableRegex, `$1${tbodyRows}$2`);
-    }
-    return html;
+    return this.replaceRepeatingTableBody(html, 'contract-items', 'contract-items-table', tbodyRows);
   }
 
   private renderContractPaymentsTable(
     html: string,
     payments: Array<{ parcela: string; forma: string; vencimento: string; valor: number; status: string }>
   ): string {
+    const columnCount = this.repeatingTableHeaderCount(html, 'contract-payments', 'contract-payments-table');
     const tbodyRows = payments
-      .map(
-        (p) => `
-      <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">${p.parcela}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">${p.forma}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">${p.vencimento}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">${this.formatCurrency(p.valor)}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: center;">${p.status}</td>
-      </tr>`
-      )
+      .map((payment) => {
+        const cells = columnCount >= 5
+          ? [
+              payment.parcela,
+              payment.forma,
+              payment.vencimento,
+              this.formatCurrency(payment.valor),
+              payment.status,
+            ]
+          : [
+              `${payment.parcela && payment.forma ? `${payment.parcela} — ${payment.forma}` : payment.parcela || payment.forma}: ${this.formatCurrency(payment.valor)}`,
+              payment.vencimento,
+              payment.status,
+            ];
+        return `<tr>${cells.map((cell, index) => `<td${index === cells.length - 1 ? ' style="text-align: right;"' : ''}>${cell}</td>`).join('')}</tr>`;
+      })
       .join('');
+    return this.replaceRepeatingTableBody(html, 'contract-payments', 'contract-payments-table', tbodyRows);
+  }
 
-    const tableRegex = /(<table[^>]*class="[^"]*contract-payments-table[^"]*"[^>]*>[\s\S]*?<tbody>)[\s\S]*?(<\/tbody>)/i;
-    if (tableRegex.test(html)) {
-      return html.replace(tableRegex, `$1${tbodyRows}$2`);
-    }
-    return html;
+  private repeatingTableHeaderCount(html: string, component: string, legacyClass: string): number {
+    const tablePattern = this.repeatingTablePattern(component, legacyClass);
+    const table = tablePattern.exec(html)?.[0];
+    const firstHeaderRow = table?.match(/<thead\b[^>]*>[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/i)?.[1];
+    return firstHeaderRow?.match(/<th\b/gi)?.length ?? 0;
+  }
+
+  private replaceRepeatingTableBody(html: string, component: string, legacyClass: string, rows: string): string {
+    const tablePattern = this.repeatingTablePattern(component, legacyClass);
+    const table = tablePattern.exec(html);
+    if (!table) return html;
+    const bodyPattern = /(<tbody\b[^>]*>)[\s\S]*?(<\/tbody>)/i;
+    const replacedTable = table[0].replace(bodyPattern, `$1${rows}$2`);
+    return html.replace(table[0], replacedTable);
+  }
+
+  private repeatingTablePattern(component: string, legacyClass: string): RegExp {
+    return new RegExp(
+      `<table\\b(?=[^>]*(?:data-print-component=["']${component}["']|class=["'][^"']*${legacyClass}[^"']*["']))[^>]*>[\\s\\S]*?<\\/table>`,
+      'i',
+    );
   }
 
   formatCurrency(val: number): string {

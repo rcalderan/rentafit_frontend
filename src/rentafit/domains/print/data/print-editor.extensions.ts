@@ -1,9 +1,17 @@
-import { Extension } from '@tiptap/core';
+import { Extension, mergeAttributes, Node } from '@tiptap/core';
 import { Table, TableView, type TableOptions } from '@tiptap/extension-table';
 import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import Image from '@tiptap/extension-image';
+import { PrintSubcomponentType } from './print-subcomponent-style.model';
+
+const PRINT_SUBCOMPONENT_TYPES = new Set<PrintSubcomponentType>([
+  'contract-items',
+  'contract-payments',
+  'signature',
+  'common-table',
+]);
 
 /**
  * Extensões de formatação específicas para impressão.
@@ -31,6 +39,12 @@ export class PrintTableView extends TableView {
   private applyPrintAttrs(node: PMNode): void {
     this.table.setAttribute('data-align', (node.attrs['align'] as string) || 'left');
     if (node.attrs['width']) this.table.style.width = node.attrs['width'] as string;
+    const componentType = node.attrs['printComponent'] as PrintSubcomponentType | null;
+    if (componentType && PRINT_SUBCOMPONENT_TYPES.has(componentType)) {
+      this.table.setAttribute('data-print-component', componentType);
+    } else {
+      this.table.removeAttribute('data-print-component');
+    }
     // espaçamento de bloco é aplicado no wrapper — o <table> em si só recebe largura
     this.dom.style.marginTop = (node.attrs['spacingBefore'] as string) || '';
     this.dom.style.marginBottom = (node.attrs['spacingAfter'] as string) || '';
@@ -50,6 +64,20 @@ export const PrintTable = Table.extend({
   addAttributes() {
     return {
       ...this.parent?.(),
+      printComponent: {
+        default: null,
+        parseHTML: (element: HTMLElement) => {
+          const marker = element.getAttribute('data-print-component');
+          if (marker && PRINT_SUBCOMPONENT_TYPES.has(marker as PrintSubcomponentType)) return marker;
+          if (element.classList.contains('contract-items-table')) return 'contract-items';
+          if (element.classList.contains('contract-payments-table')) return 'contract-payments';
+          return null;
+        },
+        renderHTML: (attributes: Record<string, unknown>) =>
+          typeof attributes['printComponent'] === 'string'
+            ? { 'data-print-component': attributes['printComponent'] }
+            : {},
+      },
       // data-align é estilizado via CSS (margin auto) para alinhar a tabela na página
       align: alignmentAttribute(),
       // largura manual em %; null = colwidth/min-width calculados pelo Tiptap
@@ -108,7 +136,15 @@ export const PrintTableCell = TableCell.extend({
 
 export const PrintTableHeader = TableHeader.extend({
   addAttributes() {
-    return { ...this.parent?.(), ...cellPrintAttributes() };
+    return {
+      ...this.parent?.(),
+      ...cellPrintAttributes(),
+      printTableHeader: {
+        default: true,
+        parseHTML: (element: HTMLElement) => element.hasAttribute('data-print-table-header'),
+        renderHTML: () => ({ 'data-print-table-header': 'true' }),
+      },
+    };
   },
 });
 
@@ -146,6 +182,25 @@ export const PrintBlockSpacing = Extension.create({
           blockLineHeight: spacingAttribute('blockLineHeight', 'line-height', 'lineHeight'),
         },
       },
+    ];
+  },
+});
+
+export const PrintSignatureBlock = Node.create({
+  name: 'printSignatureBlock',
+  group: 'block',
+  content: 'block+',
+  defining: true,
+
+  parseHTML() {
+    return [{ tag: 'div[data-print-component="signature"]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, { 'data-print-component': 'signature' }),
+      0,
     ];
   },
 });

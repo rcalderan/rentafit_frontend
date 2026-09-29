@@ -62,6 +62,26 @@ describe('TemplateInterpolationService', () => {
     expect(result).not.toContain('Velho');
   });
 
+  it('mantém a marcação dos subcomponentes ao repetir itens e pagamentos', () => {
+    const template = `
+      <table data-print-component="contract-items"><tbody><tr><td>Antigo</td></tr></tbody></table>
+      <table data-print-component="contract-payments"><caption>PAGAMENTO</caption><thead><tr><th>Pagamento</th><th>Data</th><th>Situação</th></tr></thead><tbody></tbody></table>
+    `;
+
+    const result = service.interpolate(template, {
+      itensContrato: [{ codigo: '1044', descricao: 'Terno azul', valor: 450 }],
+      pagamentosContrato: [{ parcela: 'Entrada', forma: 'DINHEIRO', vencimento: '14/09/2026', valor: 300, status: 'PAGO' }],
+    });
+
+    expect(result).toContain('data-print-component="contract-items"');
+    expect(result).toContain('data-print-component="contract-payments"');
+    expect(result).toContain('Terno azul');
+    expect(result.replace(/\u00a0/g, ' ')).toContain('Entrada — DINHEIRO: R$ 300,00');
+    expect(result).toContain('PAGAMENTO');
+    expect(result).not.toContain('Antigo');
+    expect(result).not.toContain('border: 1px solid');
+  });
+
   it('deve gerar dataURL válida para QR Code', async () => {
     const qrDataUrl = await service.generateQrCodeDataUrl('https://sefaz.sp.gov.br/nfce');
     expect(qrDataUrl).toMatch(/^data:image\/png;base64,/);

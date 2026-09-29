@@ -30,6 +30,16 @@ describe('PrintTemplateStorageService', () => {
     expect(contrato?.pageFormat).toBe('A4');
   });
 
+  it('initializes the legacy contract with repeatable style-aware subcomponents', () => {
+    const contract = service.getDefaultByType('RENTAL_CONTRACT');
+
+    expect(contract?.id).toBe('template-contrato-locacao-legado-v2');
+    expect(contract?.contentHtml).toContain('data-print-component="contract-items"');
+    expect(contract?.contentHtml).toContain('data-print-component="contract-payments"');
+    expect(contract?.contentHtml).toContain('data-print-component="signature"');
+    expect(JSON.parse(contract?.cssStyles ?? '{}').version).toBe(1);
+  });
+
   it('deve salvar um novo template e retornar com id', () => {
     const saved = service.save({
       id: '',

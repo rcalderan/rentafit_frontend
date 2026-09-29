@@ -357,6 +357,32 @@
   gap: 0.5rem;
 }
 
+.subcomponent-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.btn-component-style {
+  flex: 0 0 auto;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 0.4rem 0.55rem;
+  background: #ffffff;
+  color: #334155;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+.btn-component-style:hover {
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.subcomponent-actions .btn-subcomponent {
+  flex: 1;
+}
+
 .btn-subcomponent {
   text-align: left;
   padding: 0.65rem;
@@ -538,7 +564,6 @@
 
 .tiptap-content-host ::ng-deep .tiptap p {
   margin: 0.4rem 0;
-  line-height: 1.45;
 }
 
 .tiptap-content-host ::ng-deep .tiptap h1 {
@@ -636,7 +661,6 @@
 
 .preview-content-host ::ng-deep p {
   margin: 0.4rem 0;
-  line-height: 1.45;
 }
 
 .preview-content-host ::ng-deep table {

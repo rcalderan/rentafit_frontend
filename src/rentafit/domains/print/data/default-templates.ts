@@ -1,151 +1,125 @@
 import { PrintTemplate } from './print-template.model';
+import { DEFAULT_PRINT_SUBCOMPONENT_STYLES } from './print-subcomponent-style.model';
 
 export const DEFAULT_RENTAL_CONTRACT_TEMPLATE: PrintTemplate = {
-  id: 'template-contrato-locacao-default',
-  name: 'Contrato de Locação Padrão (A4)',
-  description: 'Template oficial de locação com itens, pagamentos, cláusulas 1ª a 11ª e termo de cessão de imagem',
+  id: 'template-contrato-locacao-legado-v2',
+  name: 'Contrato de Locação (Legado A4)',
+  description: 'Layout compatível com o contrato impresso legado, incluindo itens, pagamentos, cláusulas, assinatura e autorização de imagem',
   templateType: 'RENTAL_CONTRACT',
   pageFormat: 'A4',
   orientation: 'PORTRAIT',
   pageWidthMm: 210,
   pageHeightMm: 297,
-  marginTopMm: 12,
-  marginBottomMm: 12,
-  marginLeftMm: 14,
-  marginRightMm: 14,
-  printOffsetMm: 5,
+  marginTopMm: 2,
+  marginBottomMm: 2,
+  marginLeftMm: 2,
+  marginRightMm: 2,
+  printOffsetMm: 0,
   contentJson: null,
   contentHtml: `
 <div class="print-contract-container">
-  <div class="contract-header" style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 8px; margin-bottom: 12px;">
-    <h2 style="margin: 0; font-size: 18px; text-transform: uppercase;">{{empresa.nomeFantasia}}</h2>
-    <div style="font-size: 11px; margin-top: 4px; color: #444;">
-      <strong>{{empresa.razaoSocial}}</strong> &bull; CNPJ: {{empresa.cnpj}} &bull; IE: {{empresa.ie}} &bull; IM: {{empresa.im}}<br>
-      Empresa especializada em Aluguéis de Noivas, Trajes a Rigor e Artigos do Vestuário em geral.<br>
-      {{empresa.endereco}} &bull; Tel: {{empresa.telefone}} &bull; E-mail: {{empresa.email}}
-    </div>
-    <div style="margin-top: 6px; font-size: 13px; font-weight: bold; background: #eee; padding: 4px;">
-      CONTRATO DE LOCAÇÃO N.º {{contrato.numero}}
-    </div>
+  <div class="contract-header" style="font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.12; color: #111;">
+    <table class="print-layout-table" data-print-component="common-table" style="width: 100%;">
+      <tbody><tr>
+        <td style="width: 80%; text-align: center; font-weight: bold; font-size: 11pt;">{{empresa.nomeFantasia}}</td>
+        <td style="width: 20%; text-align: right; white-space: nowrap;">N. {{contrato.numero}}</td>
+      </tr></tbody>
+    </table>
+    <hr style="border: 0; border-top: 1px solid #111; margin: 2px 0 8px;">
+    <p style="margin: 0;">{{empresa.razaoSocial}}. CNPJ: {{empresa.cnpj}}, Inscrição Estadual: {{empresa.ie}} e Inscrição Municipal: {{empresa.im}}.</p>
+    <p style="margin: 0;">Empresa especializada em Aluguéis de Noivas, Trajes a Rigor e Artigos do vestuário em geral.</p>
+    <p style="margin: 0;">{{empresa.endereco}}. Telefone: {{empresa.telefone}}, E-Mail: {{empresa.email}}</p>
+    <p style="margin: 0 0 8px;">Acesse: {{empresa.site}}</p>
   </div>
 
-  <table style="width: 100%; font-size: 11px; margin-bottom: 10px; border-collapse: collapse;">
-    <tr>
-      <td style="padding: 2px 0;"><strong>Cliente:</strong> {{cliente.nome}}</td>
-      <td style="padding: 2px 0; text-align: right;"><strong>CPF:</strong> {{cliente.documento}}</td>
-    </tr>
-    <tr>
-      <td style="padding: 2px 0;"><strong>Endereço:</strong> {{cliente.endereco}} - {{cliente.bairro}}</td>
-      <td style="padding: 2px 0; text-align: right;"><strong>Cidade/UF:</strong> {{cliente.cidade}}/{{cliente.uf}}</td>
-    </tr>
-    <tr>
-      <td style="padding: 2px 0;"><strong>Telefone:</strong> {{cliente.telefone}}</td>
-      <td style="padding: 2px 0; text-align: right;"><strong>E-mail:</strong> {{cliente.email}}</td>
-    </tr>
+  <div class="contract-customer" style="font-family: Arial, sans-serif; font-size: 9pt; line-height: 1.12; border-top: 1px solid #111; border-bottom: 1px solid #111; padding: 6px 0; margin-bottom: 4px;">
+    <p style="margin: 0;">Cliente: {{cliente.codigo}} - {{cliente.nome}}</p>
+    <p style="margin: 0;">CPF: {{cliente.documento}}</p>
+    <p style="margin: 0;">Endereço: {{cliente.endereco}}, Bairro: {{cliente.bairro}}</p>
+    <p style="margin: 0;">Cidade: {{cliente.cidade}}/{{cliente.uf}} &nbsp; Telefone: {{cliente.telefone}}</p>
+  </div>
+
+  <table class="print-layout-table contract-dates" data-print-component="common-table" style="width: 100%; margin-bottom: 8px;">
+    <tbody><tr>
+      <td style="width: 33%; text-align: left;">RETIRADA: {{contrato.dataRetirada}}</td>
+      <td style="width: 34%; text-align: center;">USA DIA: {{contrato.dataUso}}</td>
+      <td style="width: 33%; text-align: right;">DEVOLUÇÃO: {{contrato.dataDevolucao}}</td>
+    </tr></tbody>
   </table>
+  <hr style="border: 0; border-top: 1px solid #111; margin: 0 0 4px;">
 
-  <div style="background: #f5f5f5; border: 1px solid #ccc; padding: 6px 10px; font-size: 11px; font-weight: bold; display: flex; justify-content: space-between; margin-bottom: 10px;">
-    <span>RETIRADA: {{contrato.dataRetirada}}</span>
-    <span>USA NO DIA: {{contrato.dataUso}}</span>
-    <span>DEVOLUÇÃO: {{contrato.dataDevolucao}}</span>
-  </div>
-
-  <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">ITENS LOCADOS</div>
-  <table class="print-table contract-items-table" style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 10px; border: 1px solid #ddd;">
+  <table class="print-table contract-items-table" data-print-component="contract-items" style="width: 100%;">
     <thead>
-      <tr style="background: #eee; text-align: left;">
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 12%;">Código</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 68%;">Descrição / Detalhes / Ajustes</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 20%; text-align: right;">Valor</th>
+      <tr>
+        <th style="width: 12%;">Código</th>
+        <th style="width: 68%;">Descrição</th>
+        <th style="width: 20%; text-align: right;">Valor</th>
       </tr>
     </thead>
     <tbody>
       <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">1044</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">IMPERIAL 50, C44, SEM SAPATO, MANGA DIR 49CM, MANGA ESQ 48.5CM, BARRA CALÇA 11 CM</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">R$ 350,00</td>
-      </tr>
-      <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">1141</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">VESTIDO DAMA BRANCO GAZAR DRAPE, SAPATO 31 SONHO, ALMOFADA E CINTO LILAS</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">R$ 300,00</td>
+        <td>2671</td>
+        <td>TERNO AZUL NAVY 2 BOTOES SLIM 50<br>SEM ACESS</td>
+        <td style="text-align: right;">R$ 450,00</td>
       </tr>
     </tbody>
     <tfoot>
-      <tr style="background: #fafafa; font-weight: bold;">
-        <td colspan="2" style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">TOTAL:</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">{{contrato.valorTotal}}</td>
+      <tr>
+        <td colspan="2" style="text-align: right;">Total</td>
+        <td style="text-align: right;">{{contrato.valorTotal}}</td>
       </tr>
     </tfoot>
   </table>
 
-  <div style="font-size: 11px; font-weight: bold; margin-bottom: 4px;">FORMAS DE PAGAMENTO</div>
-  <table class="print-table contract-payments-table" style="width: 100%; border-collapse: collapse; font-size: 10px; margin-bottom: 12px; border: 1px solid #ddd;">
+  <p style="margin: 10px 0 2px; text-align: center; font-size: 9pt; font-weight: bold;">PAGAMENTO</p>
+  <table class="print-table contract-payments-table" data-print-component="contract-payments" style="width: 100%;">
     <thead>
-      <tr style="background: #eee; text-align: left;">
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 15%;">Parcela</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 25%;">Forma</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 20%;">Vencimento</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 20%; text-align: right;">Valor</th>
-        <th style="padding: 4px 6px; border: 1px solid #ddd; width: 20%; text-align: center;">Visto / Carimbo</th>
-      </tr>
+      <tr><th>Pagamento</th><th>Data</th><th>Situação</th></tr>
     </thead>
     <tbody>
-      <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">1 / 2</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">DINHEIRO / PIX</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">{{contrato.dataEmissao}}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">R$ 350,00</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: center;">[QUITADO]</td>
-      </tr>
-      <tr>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">2 / 2</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">NA RETIRADA</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd;">{{contrato.dataRetirada}}</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: right;">R$ 300,00</td>
-        <td style="padding: 4px 6px; border: 1px solid #ddd; text-align: center;">______________</td>
-      </tr>
+      <tr><td>Entrada: R$ 300,00</td><td>14/09/2026</td><td style="text-align: right;">PAGO</td></tr>
+      <tr><td>Parcela 1: R$ 150,00</td><td>21/09/2026</td><td style="text-align: right;">PAGO</td></tr>
     </tbody>
   </table>
 
-  <div style="font-size: 9px; line-height: 1.35; color: #222; border-top: 1px solid #444; padding-top: 6px; margin-bottom: 12px;">
-    <div style="font-weight: bold; text-align: center; margin-bottom: 4px;">LEIA COM ATENÇÃO: CLÁUSULAS E CONDIÇÕES CONTRATUAIS</div>
-    <p style="margin: 2px 0;"><strong>{{empresa.razaoSocial}}</strong> acima identificada, doravante denominada <strong>LOCADORA</strong>, e de outro lado o Cliente <strong>{{cliente.nome}}</strong>, denominado <strong>LOCATÁRIO</strong>, celebram o presente contrato sob as cláusulas abaixo:</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 1ª:</strong> O objeto deste contrato é a Locação dos artigos do vestuário acima especificados.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 2ª:</strong> As datas de retirada, utilização e devolução encontram-se especificadas neste contrato.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 3ª:</strong> A LOCADORA não se responsabiliza pelas mercadorias que não forem retiradas até UM dia antes da data de uso.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 4ª:</strong> A mercadoria deverá ser devolvida até as 18:00h da data prevista, completa e nas mesmas condições em que foi retirada. Parágrafo 1º: Atrasos incorrem em acréscimo de R$ 10,00 por dia útil. Após 7 dias, será cobrada nova taxa integral de locação. Parágrafo 2º: Manchas de gordura, graxa, tinta ou produtos danosos acarretarão taxa de higienização de R$ 30,00.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 5ª:</strong> Trocas podem ser requeridas sem ônus em até 5 dias úteis corridos da data da locação. Após 5 dias, mediante taxa de 20% do valor de locação do item.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 6ª:</strong> Em caso de desistência, o LOCATÁRIO pagará multa de 30% do valor pago pelo item em questão.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 7ª:</strong> As peças locadas não poderão ser emprestadas ou transferidas a terceiros.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 8ª:</strong> O LOCATÁRIO ressarcirá a LOCADORA pelo valor de tabela de mercado vigente pelo extravio, avaria ou dano irreparável na mercadoria.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 9ª:</strong> A LOCADORA se compromete a entregar a mercadoria lavada, passada e com os devidos ajustes solicitados e aprovados na prova.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 10ª:</strong> Constatada avaria no momento da retirada, a LOCADORA fará a substituição imediata ou devolução do valor conforme conveniência.</p>
-    <p style="margin: 2px 0;"><strong>Cláusula 11ª:</strong> Fica eleito o Foro da Comarca de São Carlos/SP para dirimir eventuais litígios oriundos deste contrato.</p>
+  <div class="contract-terms" style="font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.05; color: #111; border-top: 1px solid #111; padding-top: 8px; margin-top: 8px;">
+    <p style="margin: 0 0 2px;"><strong>LEIA COM ATENÇÃO:</strong></p>
+    <p style="margin: 0 0 2px;">{{empresa.razaoSocial}} acima identificada, e a seguir denominada LOCADORA, e de outro lado o Cliente {{cliente.nome}} (acima identificado), e a seguir denominado LOCATÁRIO, celebram o presente contrato de locação mediante as seguintes Cláusulas e Condições:</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 1a -</strong> O objeto do presente contrato é a Locação de artigos do vestuário, acima especificados.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 2a -</strong> As datas, para retirada das mercadorias, bem como da sua utilização e devolução encontram-se acima especificadas.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 3a -</strong> A LOCADORA não se responsabilizará pelas mercadorias que não forem retiradas até UM dia antes da data de uso estabelecida neste contrato.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 4a -</strong> A mercadoria alugada deverá ser devolvida até as 18:00 (Dezoito) horas da data estabelecida neste contrato, completa, tal como foi retirada.</p>
+    <p style="margin: 0 0 2px;"><strong>Parágrafo Primeiro:</strong> Caso as mercadorias não sejam devolvidas na data prevista neste contrato sofrerão um acréscimo de R$ 35,00 (Trinta e Cinco Reais) por dia útil de atraso. Se esta condição perdurar por 03 (três) dias será cobrada uma nova taxa de locação, de acordo com o valor pago pelo LOCATÁRIO.</p>
+    <p style="margin: 0 0 2px;"><strong>Parágrafo Segundo:</strong> Caso as mercadorias sejam devolvidas com manchas de gordura, graxa, tinta ou qualquer outro produto que as danifique, será cobrada uma taxa de R$ 100,00 (Cem Reais).</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 5a -</strong> O LOCATÁRIO poderá requerer TROCA da mercadoria deste contrato nas seguintes condições abaixo.</p>
+    <p style="margin: 0 0 2px;"><strong>Parágrafo Primeiro:</strong> Em até 5 (cinco) dias úteis corridos da data de locação, sem ônus.</p>
+    <p style="margin: 0 0 2px;"><strong>Parágrafo Segundo:</strong> Após 5 (cinco) dias úteis, mediante ao pagamento de ônus de 20% (Vinte Porcento) do valor de locação da referida mercadoria a ser trocada.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 6a -</strong> Em caso de desistência o LOCATÁRIO deverá pagar à LOCADORA multa de 30% do valor total deste contrato.</p>
+    <p style="margin: 0 0 2px;"><strong>Parágrafo primeiro:</strong> Os valores pagos NÃO serão devolvidos em caso de reserva igual ou superior a três meses, ou seja, a data de assinatura menos a data de desistência igual ou superior a três meses.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 7a -</strong> As mercadorias, objeto da referida locação, não poderão ser emprestadas ou transferidas a outras pessoas.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 8a -</strong> O LOCATÁRIO se compromete a ressarcir a LOCADORA pelo valor de tabela de Mercado, vigente na data do evento, pelo extravio ou dano nas mercadorias objeto deste contrato, bem como seu uso indevido.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 9a -</strong> A LOCADORA se compromete a entregar a Mercadoria lavada e passada, com os devidos ajustes solicitados pelo LOCATÁRIO e em perfeito estado de conservação.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 10a -</strong> Caso seja constatada alguma danificação na Mercadoria locada no momento da retirada pelo LOCATÁRIO, a LOCADORA se compromete a efetuar a substituição, troca ou devolução do valor pago, conforme disponibilidade do produto ou conveniência da LOCADORA.</p>
+    <p style="margin: 0 0 2px;"><strong>Cláusula 11a -</strong> E por estarem juntos e acordados, firmam o presente contrato, ficando eleito o Fórum desta Comarca para dirimir quaisquer dúvidas que possam surgir.</p>
   </div>
 
-  <div style="font-size: 10px; margin-top: 14px; text-align: center;">
-    <div>{{sistema.dataExtenso}}</div>
-    <div style="margin-top: 30px; display: inline-block; width: 60%; border-top: 1px solid #333; padding-top: 4px;">
-      <strong>{{cliente.nome}}</strong><br>
-      CPF: {{cliente.documento}} (Locatário)
+  <div style="font-family: Arial, sans-serif; font-size: 9pt; margin-top: 8px;">
+    <p style="margin: 0 0 10px;">São Carlos, {{sistema.dataAtual}}</p>
+    <div data-print-component="signature">
+      <p><strong>{{cliente.nome}}</strong></p>
     </div>
   </div>
 
-  <div style="margin-top: 14px; padding: 6px 10px; background: #fafafa; border: 1px dashed #999; font-size: 9.5px;">
-    <strong>TERMO DE AUTORIZAÇÃO DE USO DE IMAGEM (OPCIONAL):</strong><br>
-    Autorizo a veiculação de fotos do traje locado nas mídias sociais e site da loja para fins de divulgação:
-    &nbsp;&nbsp;&nbsp; ( &nbsp; ) SIM &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; ( &nbsp; ) NÃO
-    <div style="margin-top: 4px; font-weight: bold; color: #900;">
-      * NÃO FAZEMOS PROVAS AOS SÁBADOS &bull; É OBRIGATÓRIA A APRESENTAÇÃO DESTE CONTRATO NA RETIRADA!
-    </div>
+  <div class="contract-notices" style="font-family: Arial, sans-serif; font-size: 8pt; line-height: 1.1; margin-top: 10px;">
+    <strong>Atenção:</strong><br>
+    NÃO FAZEMOS PROVAS AOS SÁBADOS!<br>
+    É OBRIGATÓRIO APRESENTAR ESTE CONTRATO NA RETIRADA!<br><br>
+    Assinalar abaixo se SIM aceita ou NÃO aceita CEDER sua IMAGEM para as veicularmos a mídia (facebook e nosso site) para divulgação de nosso trabalho, desde que não haja desvirtuação destas finalidades (marketing).<br>
+    ( &nbsp; ) SIM &nbsp;&nbsp;&nbsp; ( &nbsp; ) NÃO
   </div>
 </div>
 `,
-  cssStyles: `
-    .print-contract-container { font-family: 'Inter', Arial, sans-serif; color: #111; line-height: 1.3; }
-    .print-table th, .print-table td { border: 1px solid #ccc; }
-  `,
+  cssStyles: JSON.stringify({ version: 1, styles: DEFAULT_PRINT_SUBCOMPONENT_STYLES }),
   isDefault: true,
   isActive: true,
   createdAt: new Date().toISOString(),

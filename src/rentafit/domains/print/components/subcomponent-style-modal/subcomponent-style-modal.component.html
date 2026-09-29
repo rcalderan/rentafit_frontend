@@ -1,0 +1,180 @@
+<div class="subcomponent-style-backdrop" (click)="cancel.emit()">
+  <section
+    class="subcomponent-style-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="subcomponent-style-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="subcomponent-style-header">
+      <div>
+        <h2 id="subcomponent-style-title">Estilo: {{ componentNames[componentType()] }}</h2>
+        <p>Aplica-se a todos os blocos deste tipo no template. Os dados e a repetição permanecem iguais; salve o template para persistir.</p>
+      </div>
+      <button type="button" class="style-close" aria-label="Fechar" (click)="cancel.emit()">×</button>
+    </header>
+
+    <div class="subcomponent-style-form">
+      <div class="style-fields two-columns">
+        <label>
+          <span>Fonte</span>
+          <select [ngModel]="style().fontFamily" (ngModelChange)="update('fontFamily', $event)">
+            @for (font of fontFamilies; track font.value) {
+              <option [value]="font.value">{{ font.label }}</option>
+            }
+          </select>
+        </label>
+        <label>
+          <span>Tamanho da fonte (pt)</span>
+          <input
+            type="number"
+            min="6"
+            max="48"
+            step="0.5"
+            [ngModel]="style().fontSizePt"
+            (ngModelChange)="updateNumber('fontSizePt', $event)"
+          />
+        </label>
+      </div>
+
+      <div class="style-fields two-columns">
+        <label>
+          <span>Cor do texto</span>
+          <input type="color" [ngModel]="style().textColor" (ngModelChange)="update('textColor', $event)" />
+        </label>
+        <label>
+          <span>Alinhamento</span>
+          <select [ngModel]="style().alignment" (ngModelChange)="update('alignment', $event)">
+            <option value="left">Esquerda</option>
+            <option value="center">Centro</option>
+            <option value="right">Direita</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="style-checkbox">
+        <input
+          type="checkbox"
+          [ngModel]="style().backgroundColor === 'transparent'"
+          (ngModelChange)="setBackgroundTransparent($event)"
+        />
+        Fundo das células transparente
+      </label>
+      @if (style().backgroundColor !== 'transparent') {
+        <label>
+          <span>Fundo das células</span>
+          <input type="color" [ngModel]="style().backgroundColor" (ngModelChange)="update('backgroundColor', $event)" />
+        </label>
+      }
+
+      @if (componentType() !== 'signature') {
+        <label class="style-checkbox">
+          <input type="checkbox" [ngModel]="style().showHeader" (ngModelChange)="update('showHeader', $event)" />
+          Exibir cabeçalho da tabela
+        </label>
+        @if (style().showHeader) {
+          <label class="style-checkbox">
+            <input
+              type="checkbox"
+              [ngModel]="style().headerBackgroundColor === 'transparent'"
+              (ngModelChange)="setHeaderBackgroundTransparent($event)"
+            />
+            Cabeçalho transparente
+          </label>
+          @if (style().headerBackgroundColor !== 'transparent') {
+            <label>
+              <span>Fundo do cabeçalho</span>
+              <input
+                type="color"
+                [ngModel]="style().headerBackgroundColor"
+                (ngModelChange)="update('headerBackgroundColor', $event)"
+              />
+            </label>
+          }
+          <label>
+            <span>Texto do cabeçalho</span>
+            <input
+              type="color"
+              [ngModel]="style().headerTextColor"
+              (ngModelChange)="update('headerTextColor', $event)"
+            />
+          </label>
+        }
+        <div class="style-fields two-columns">
+          <label>
+            <span>Preenchimento das células (px)</span>
+            <input
+              type="number"
+              min="0"
+              max="24"
+              step="1"
+              [ngModel]="style().cellPaddingPx"
+              (ngModelChange)="updateNumber('cellPaddingPx', $event)"
+            />
+          </label>
+          <label>
+            <span>Bordas</span>
+            <select [ngModel]="style().borderMode" (ngModelChange)="update('borderMode', $event)">
+              <option value="none">Sem bordas</option>
+              <option value="horizontal">Somente linhas horizontais</option>
+              <option value="all">Grade completa</option>
+            </select>
+          </label>
+        </div>
+      } @else {
+        <label>
+          <span>Largura da linha de assinatura (%)</span>
+          <input
+            type="number"
+            min="10"
+            max="100"
+            step="1"
+            [ngModel]="style().signatureLineWidthPercent"
+            (ngModelChange)="updateNumber('signatureLineWidthPercent', $event)"
+          />
+        </label>
+        <label>
+          <span>Linha de assinatura</span>
+          <select [ngModel]="style().borderMode" (ngModelChange)="update('borderMode', $event)">
+            <option value="none">Sem linha</option>
+            <option value="horizontal">Linha superior</option>
+          </select>
+        </label>
+      }
+
+      @if (style().borderMode !== 'none') {
+        <div class="style-fields two-columns">
+          <label>
+            <span>Estilo da linha</span>
+            <select [ngModel]="style().borderStyle" (ngModelChange)="update('borderStyle', $event)">
+              <option value="solid">Sólida</option>
+              <option value="dashed">Tracejada</option>
+              <option value="dotted">Pontilhada</option>
+              <option value="double">Dupla</option>
+            </select>
+          </label>
+          <label>
+            <span>Espessura (px)</span>
+            <input
+              type="number"
+              min="0.1"
+              max="8"
+              step="0.1"
+              [ngModel]="style().borderWidthPx"
+              (ngModelChange)="updateNumber('borderWidthPx', $event)"
+            />
+          </label>
+        </div>
+        <label>
+          <span>Cor da linha</span>
+          <input type="color" [ngModel]="style().borderColor" (ngModelChange)="update('borderColor', $event)" />
+        </label>
+      }
+    </div>
+
+    <footer class="subcomponent-style-footer">
+      <button type="button" class="style-cancel" (click)="cancel.emit()">Cancelar</button>
+      <button type="button" class="style-apply" (click)="apply()">Aplicar estilo</button>
+    </footer>
+  </section>
+</div>

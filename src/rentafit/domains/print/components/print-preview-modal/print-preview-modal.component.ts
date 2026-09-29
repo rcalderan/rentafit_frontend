@@ -1,7 +1,9 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  OnDestroy,
   computed,
+  effect,
   inject,
   input,
   output,
@@ -12,6 +14,7 @@ import { SafeHtml } from '@angular/platform-browser';
 import { TemplateType } from '../../data/print-template.model';
 import { PrintTemplateStorageService } from '../../services/print-template-storage.service';
 import { PrintHtmlSanitizerService } from '../../services/print-html-sanitizer.service';
+import { PrintSubcomponentStyleService } from '../../services/print-subcomponent-style.service';
 import {
   InterpolationContext,
   TemplateInterpolationService,
@@ -25,10 +28,12 @@ import {
   styleUrl: './print-preview-modal.component.css',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class PrintPreviewModalComponent {
+export class PrintPreviewModalComponent implements OnDestroy {
   private readonly storageService = inject(PrintTemplateStorageService);
   private readonly interpolationService = inject(TemplateInterpolationService);
   private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
+  private readonly subcomponentStyleService = inject(PrintSubcomponentStyleService);
+  private readonly subcomponentStyleElement = document.createElement('style');
 
   templateId = input<string | null>(null);
   templateType = input<TemplateType | null>(null);
@@ -36,6 +41,24 @@ export class PrintPreviewModalComponent {
   isOpen = input<boolean>(true);
 
   close = output<void>();
+
+  constructor() {
+    effect(() => {
+      const template = this.resolvedTemplate();
+      if (!this.isOpen() || !template) {
+        this.subcomponentStyleElement.remove();
+        return;
+      }
+      const scope = this.subcomponentStyleService.scopeToken(template.id);
+      this.subcomponentStyleElement.textContent = this.subcomponentStyleService.compile(
+        template.cssStyles,
+        scope,
+      );
+      if (!this.subcomponentStyleElement.isConnected) {
+        document.head.append(this.subcomponentStyleElement);
+      }
+    });
+  }
 
   protected readonly resolvedTemplate = computed(() => {
     const id = this.templateId();
@@ -57,6 +80,15 @@ export class PrintPreviewModalComponent {
     return this.printHtmlSanitizer.sanitize(html);
   });
 
+  protected readonly styleScope = computed(() => {
+    const template = this.resolvedTemplate();
+    return template ? this.subcomponentStyleService.scopeToken(template.id) : 'print-missing';
+  });
+
+  ngOnDestroy(): void {
+    this.subcomponentStyleElement.remove();
+  }
+
   protected readonly paperStyle = computed(() => {
     const t = this.resolvedTemplate();
     if (!t) return {};
@@ -76,6 +108,9 @@ export class PrintPreviewModalComponent {
     return {
       width: `${width}mm`,
       minHeight: height ? `${height}mm` : '150mm',
+      fontFamily: t.templateType === 'RENTAL_CONTRACT' ? 'Arial, sans-serif' : null,
+      fontSize: t.templateType === 'RENTAL_CONTRACT' ? '9pt' : null,
+      lineHeight: t.templateType === 'RENTAL_CONTRACT' ? '1.12' : null,
       paddingTop: `${t.marginTopMm + offset}mm`,
       paddingBottom: `${t.marginBottomMm + offset}mm`,
       paddingLeft: `${t.marginLeftMm + offset}mm`,

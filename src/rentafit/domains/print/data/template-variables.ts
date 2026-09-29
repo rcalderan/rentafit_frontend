@@ -3,6 +3,13 @@ import { VariableCategory, VariableDefinition } from './print-template.model';
 export const TEMPLATE_VARIABLES: VariableDefinition[] = [
   // Cliente
   {
+    key: 'cliente.codigo',
+    tag: '{{cliente.codigo}}',
+    label: 'Código do Cliente',
+    category: 'cliente',
+    sampleValue: '20636',
+  },
+  {
     key: 'cliente.nome',
     tag: '{{cliente.nome}}',
     label: 'Nome do Cliente',
