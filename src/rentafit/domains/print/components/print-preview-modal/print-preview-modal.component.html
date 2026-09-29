@@ -1,7 +1,11 @@
 @if (isOpen()) {
-  <div class="modal-backdrop no-print" (click)="close.emit()"></div>
+  <div
+    class="modal-backdrop no-print"
+    [class.template-print-overlay]="aboveSystemMenu()"
+    (click)="close.emit()"
+  ></div>
 
-  <div class="modal-dialog">
+  <div class="modal-dialog" [class.template-print-overlay]="aboveSystemMenu()">
     <!-- Modal Toolbar (Hidden on Print) -->
     <header class="modal-header no-print">
       <div class="modal-title-group">

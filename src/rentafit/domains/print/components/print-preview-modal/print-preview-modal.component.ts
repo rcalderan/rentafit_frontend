@@ -39,6 +39,7 @@ export class PrintPreviewModalComponent implements OnDestroy {
   templateType = input<TemplateType | null>(null);
   customData = input<Partial<InterpolationContext> | null>(null);
   isOpen = input<boolean>(true);
+  aboveSystemMenu = input<boolean>(false);
 
   close = output<void>();
 
