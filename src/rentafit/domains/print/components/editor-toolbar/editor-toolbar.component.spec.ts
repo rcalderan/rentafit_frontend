@@ -7,6 +7,7 @@ import StarterKit from '@tiptap/starter-kit';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   PrintBlockSpacing,
+  PrintSignatureBlock,
   PrintTable,
   PrintTableCell,
   PrintTableHeader,
@@ -58,6 +59,13 @@ describe('EditorToolbarComponent block spacing', () => {
     expect(editor.getHTML()).toContain('margin-top: 24pt');
   });
 
+  it('retains the signature subcomponent marker and editable text', () => {
+    createEditor('<div data-print-component="signature"><p>Assinante</p></div>');
+
+    expect(editor.getHTML()).toContain('data-print-component="signature"');
+    expect(editor.getHTML()).toContain('Assinante');
+  });
+
   function createEditor(content: string): void {
     editor = new Editor({
       element: host,
@@ -70,6 +78,7 @@ describe('EditorToolbarComponent block spacing', () => {
         PrintTableHeader,
         PrintTableCell,
         PrintBlockSpacing,
+        PrintSignatureBlock,
       ],
       content,
     });

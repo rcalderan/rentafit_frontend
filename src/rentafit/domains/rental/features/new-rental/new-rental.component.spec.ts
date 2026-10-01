@@ -1,11 +1,16 @@
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
-import { BehaviorSubject, of, throwError } from 'rxjs';
+import { BehaviorSubject, EMPTY, Observable, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
+import { IRentalContractSignRequest } from '../../data/rental-contract-request.interface';
+import { DEFAULT_RENTAL_CONTRACT_TEMPLATE } from '../../../print/data/default-templates';
+import { PrintTemplate, TemplateType } from '../../../print/data/print-template.model';
+import { PrintTemplateStorageService } from '../../../print/services/print-template-storage.service';
 const emptyQueryParams = of({});
 import { EmployeeService } from '../../../admin/service/employee.service';
 import { CustomerService } from '../../../customer/service/customer.service';
+import { ICustomer } from '../../../customer/data/Customer.interface';
 import { ProductService } from '../../../product/service/product.service';
 import { HolidayService } from '../../../../shared/services/holiday.service';
 import { AutosaveService } from '../../service/autosave.service';
@@ -37,7 +42,57 @@ const product: IProductCatalog = {
   tipo: 1,
 };
 
+class FakeCustomerService {
+  readonly requestedIds: string[] = [];
+  readonly customer: ICustomer = {
+    id: 'customer-1',
+    legacyId: '42',
+    name: 'Cliente de teste',
+    document: '00000000000',
+    isAuthenticated: false,
+    email: 'cliente@example.test',
+    notes: '',
+    complement: 'Casa 2',
+    number: '10',
+    phones: ['(11) 1111-1111'],
+    address: {
+      zipCode: '01000-000',
+      street: 'Rua de Teste',
+      neighborhood: 'Centro',
+      city: 'São Paulo',
+      state: 'SP',
+    },
+  };
+
+  getCustomerById(customerId: string): Observable<ICustomer> {
+    this.requestedIds.push(customerId);
+    return of(this.customer);
+  }
+}
+
+class FakePrintTemplateStorage {
+  initialize(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  getDefaultByType(type: TemplateType): PrintTemplate | undefined {
+    return type === 'RENTAL_CONTRACT' ? DEFAULT_RENTAL_CONTRACT_TEMPLATE : undefined;
+  }
+}
+
+class FakeRentalContractService {
+  readonly signRequests: Array<{ contractId: string; request: IRentalContractSignRequest }> = [];
+
+  sign(contractId: string, request: IRentalContractSignRequest): Observable<IRentalContractResponse> {
+    this.signRequests.push({ contractId, request });
+    return EMPTY;
+  }
+}
+
 describe('NewRental item attendant', () => {
+  let customerService: FakeCustomerService;
+  let printTemplateStorage: FakePrintTemplateStorage;
+  let rentalContractService: FakeRentalContractService;
   let employeeService: { listActiveAttendants: ReturnType<typeof vi.fn> };
   let tabServiceMock: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn> };
   let component: NewRental;
@@ -53,15 +108,19 @@ describe('NewRental item attendant', () => {
       ),
     };
     tabServiceMock = { closeActiveIf: vi.fn(), getTabId: vi.fn((path, draftId) => `${path}::${draftId}`), updateTitle: vi.fn() };
+    customerService = new FakeCustomerService();
+    printTemplateStorage = new FakePrintTemplateStorage();
+    rentalContractService = new FakeRentalContractService();
 
     TestBed.configureTestingModule({
       providers: [
         { provide: ActivatedRoute, useValue: { snapshot: { queryParams: {} }, queryParams: emptyQueryParams } },
         { provide: EmployeeService, useValue: employeeService },
-        { provide: CustomerService, useValue: {} },
+        { provide: CustomerService, useValue: customerService },
         { provide: ProductService, useValue: {} },
         { provide: HolidayService, useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) } },
-        { provide: RentalContractService, useValue: {} },
+        { provide: RentalContractService, useValue: rentalContractService },
+        { provide: PrintTemplateStorageService, useValue: printTemplateStorage },
         { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
         { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
         { provide: TabService, useValue: tabServiceMock },
@@ -82,6 +141,76 @@ describe('NewRental item attendant', () => {
     expect(component.itemModalEmployee).toBe('');
     expect(employeeService.listActiveAttendants).toHaveBeenCalledOnce();
     expect(component.activeAttendants).toHaveLength(3);
+  });
+
+  it('opens print confirmation only after the proposal has an ID', () => {
+    component.requestContractPrint();
+    expect(component.showPrintConfirmation()).toBe(false);
+
+    component.contractId = 'saved-contract';
+    component.requestContractPrint();
+    expect(component.showPrintConfirmation()).toBe(true);
+
+    component.cancelContractPrint();
+    expect(component.showPrintConfirmation()).toBe(false);
+  });
+
+  it('opens the rental-contract print preview with saved proposal values after confirmation', () => {
+    component.contractId = 'saved-contract';
+    component.contract.legacyId = '20260929-1';
+    component.contract.clienteNome = 'Cliente de teste';
+    component.contract.clienteCpf = '00000000000';
+    component.contract.retirada = '2026-09-29';
+    component.contract.usa = '2026-10-01';
+    component.contract.devolucao = '2026-10-02';
+    component.contract.itens = [{
+      codigo: '10', descricao: 'Terno', valor: 150, entregue: false, attendantEmployeeId: '', sub: [],
+    }];
+    component.contract.pagamentos = [{
+      parcela: 1, data: '2026-09-29', forma: PaymentMethod.CASH, valor: 150, vezes: 1, status: PaymentStatus.PENDING,
+    }];
+    component.total = 150;
+
+    component.requestContractPrint();
+    component.confirmContractPrint();
+
+    expect(component.showPrintConfirmation()).toBe(false);
+    expect(component.showContractPrintModal()).toBe(true);
+    expect(component.contractPrintData()?.cliente?.nome).toBe('Cliente de teste');
+    expect(component.contractPrintData()?.contrato?.numero).toBe('20260929-1');
+    expect(component.contractPrintData()?.itensContrato).toEqual([
+      { codigo: '10', descricao: 'Terno', valor: 150 },
+    ]);
+    component.closeContractPrintPreview();
+    expect(component.showContractPrintModal()).toBe(false);
+    expect(component.contractPrintData()).toBeNull();
+  });
+
+  it('loads customer address details before opening a saved contract for print', () => {
+    component.contractId = 'saved-contract';
+    component.customerUuid = 'customer-1';
+    component.contract.clienteNome = 'Cliente de teste';
+    component.contract.clienteCpf = '00000000000';
+
+    component.requestContractPrint();
+    component.confirmContractPrint();
+
+    expect(customerService.requestedIds).toEqual(['customer-1']);
+    expect(component.contractPrintData()?.cliente?.endereco).toBe('Rua de Teste, 10, Casa 2');
+    expect(component.showContractPrintModal()).toBe(true);
+  });
+
+  it('sends the active default template ID when signing the proposal', async () => {
+    component.contractId = 'saved-contract';
+    component.employeeVerifyAction = 'sign';
+
+    component.onEmployeeConfirmed({ employeeId: 'employee-1', employeeName: 'Ana' });
+    await vi.waitFor(() => expect(rentalContractService.signRequests).toHaveLength(1));
+
+    expect(rentalContractService.signRequests[0]).toEqual({
+      contractId: 'saved-contract',
+      request: { printTemplateId: DEFAULT_RENTAL_CONTRACT_TEMPLATE.id },
+    });
   });
 
   it('não adiciona novo item sem atendente', () => {
@@ -228,6 +357,7 @@ describe('Home last contract link', () => {
         { provide: ProductService, useValue: {} },
         { provide: HolidayService, useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) } },
         { provide: RentalContractService, useValue: rentalContractService },
+        { provide: PrintTemplateStorageService, useValue: new FakePrintTemplateStorage() },
         { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
         { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
         { provide: TabService, useValue: tabServiceMock },
@@ -244,7 +374,10 @@ describe('Home last contract link', () => {
   });
 
   it('carrega contrato quando queryParam id é emitido após inicialização', () => {
-    const response = buildContractResponse('contract-1', '2024-001');
+    const response = {
+      ...buildContractResponse('contract-1', '2024-001'),
+      printTemplateId: DEFAULT_RENTAL_CONTRACT_TEMPLATE.id,
+    };
     rentalContractService.getById.mockReturnValue(of(response));
 
     component.ngOnInit();
@@ -253,6 +386,7 @@ describe('Home last contract link', () => {
 
     expect(rentalContractService.getById).toHaveBeenCalledWith('contract-1');
     expect(component.contractId).toBe('contract-1');
+    expect(component.contractPrintTemplateId).toBe(DEFAULT_RENTAL_CONTRACT_TEMPLATE.id);
     expect(component.contract.clienteNome).toBe('João Silva');
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/rental/new'),

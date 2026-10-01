@@ -1,7 +1,15 @@
 @if (isOpen()) {
-  <div class="modal-backdrop no-print" (click)="close.emit()"></div>
+  <div
+    class="modal-backdrop no-print"
+    [class.template-print-overlay]="aboveSystemMenu()"
+    (click)="close.emit()"
+  ></div>
 
-  <div class="modal-dialog">
+  <div
+    class="modal-dialog"
+    [class.template-print-overlay]="aboveSystemMenu()"
+    [class.contract-print-target]="isolatePrint()"
+  >
     <!-- Modal Toolbar (Hidden on Print) -->
     <header class="modal-header no-print">
       <div class="modal-title-group">
@@ -21,7 +29,7 @@
 
     <!-- Modal Paper Viewport -->
     <div class="modal-body">
-      <div class="printable-paper" [ngStyle]="paperStyle()">
+      <div class="printable-paper" [ngStyle]="paperStyle()" [attr.data-print-style-scope]="styleScope()">
         <div class="document-content" [innerHTML]="renderedHtml()"></div>
       </div>
     </div>

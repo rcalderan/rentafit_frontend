@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
-import { forkJoin, Subject, Subscription } from 'rxjs';
-import { distinctUntilChanged, finalize, takeUntil } from 'rxjs/operators';
+import { from, forkJoin, Observable, Subject, Subscription, throwError } from 'rxjs';
+import { distinctUntilChanged, finalize, switchMap, takeUntil } from 'rxjs/operators';
 import { CustomerService } from '../../../customer/service/customer.service';
+import { ICustomer } from '../../../customer/data/Customer.interface';
 import { IActiveAttendant } from '../../../admin/data/employee.interface';
 import { EmployeeService } from '../../../admin/service/employee.service';
 import { ProductService } from '../../../product/service/product.service';
@@ -18,6 +19,7 @@ import {
   IItemMetaRequest,
   IRentalContractCreateRequest,
   IRentalContractItemRequest,
+  IRentalContractSignRequest,
   IRentalPaymentRequest,
 } from '../../data/rental-contract-request.interface';
 import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
@@ -35,6 +37,9 @@ import { NfseEmissionComponent } from '../../../finance/features/nfse-emission/n
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
 import { IFiscalContext, IFiscalDocument } from '../../../finance/data/fiscal-document.types';
+import { DEFAULT_MOCK_CONTEXT, InterpolationContext } from '../../../print/services/template-interpolation.service';
+import { PrintPreviewModalComponent } from '../../../print/components/print-preview-modal/print-preview-modal.component';
+import { PrintTemplateStorageService } from '../../../print/services/print-template-storage.service';
 
 export { ContractStatus, PaymentMethod, PaymentStatus };
 export type { IItemMeta, INewRentalContract, IProductCatalog, IRentalContractItem, IRentalPayment };
@@ -43,7 +48,7 @@ export type { IItemMeta, INewRentalContract, IProductCatalog, IRentalContractIte
 
 @Component({
   selector: 'rentafit-new-rental',
-  imports: [CommonModule, FormsModule, EmployeeVerifyComponent, NfseEmissionComponent],
+  imports: [CommonModule, FormsModule, EmployeeVerifyComponent, NfseEmissionComponent, PrintPreviewModalComponent],
   templateUrl: './new-rental.component.html',
   styleUrls: ['./new-rental.component.css'],
   providers: [AutosaveService],
@@ -77,6 +82,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private readonly employeeService = inject(EmployeeService);
   private readonly productService = inject(ProductService);
   private readonly rentalContractService = inject(RentalContractService);
+  private readonly printTemplateStorage = inject(PrintTemplateStorageService);
   private readonly autosaveService = inject(AutosaveService<IRentalContractCreateRequest, IRentalContractResponse>);
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
@@ -111,7 +117,12 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   // ── Backend contract state ──
   /** UUID of the contract saved on the backend; null until first save. */
   contractId: string | null = null;
+  contractPrintTemplateId: string | null = null;
   contractLoaded = false;
+  readonly showPrintConfirmation = signal(false);
+  readonly showContractPrintModal = signal(false);
+  readonly isPreparingContractPrint = signal(false);
+  readonly contractPrintData = signal<Partial<InterpolationContext> | null>(null);
   contractLookupLegacyId = '';
   contractLookupLoading = false;
   contractLookupError = '';
@@ -158,6 +169,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   customerFound = false;
   customerSearchQuery = '';
   customerUuid: string | null = null;
+  private selectedCustomerDetails: ICustomer | null = null;
   customerLoading = false;
   customerError = '';
 
@@ -486,6 +498,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       next: (customer) => {
         const previousCustomerUuid = this.customerUuid;
         this.customerUuid = customer.id ?? null;
+        this.selectedCustomerDetails = customer;
         this.contract.clienteNome = customer.name;
         this.contract.clienteCpf = customer.document;
         this.contract.cliente = customer.legacyId ?? '';
@@ -507,6 +520,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.customerFound = false;
     this.customerSearchQuery = '';
     this.customerUuid = null;
+    this.selectedCustomerDetails = null;
     this.customerError = '';
     this.contract.clienteNome = '';
     this.contract.clienteCpf = '';
@@ -1130,6 +1144,110 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+  requestContractPrint(): void {
+    if (!this.contractId || this.isSaving || this.isPreparingContractPrint()) return;
+    this.showPrintConfirmation.set(true);
+  }
+
+  cancelContractPrint(): void {
+    this.showPrintConfirmation.set(false);
+  }
+
+  confirmContractPrint(): void {
+    if (!this.contractId) return;
+    this.showPrintConfirmation.set(false);
+    const customerId = this.customerUuid;
+    const cachedCustomer = this.selectedCustomerDetails;
+    if (!customerId || cachedCustomer?.id === customerId) {
+      this.openContractPrintPreview(cachedCustomer);
+      return;
+    }
+    this.loadCustomerForPrint(customerId, cachedCustomer);
+  }
+
+  closeContractPrintPreview(): void {
+    this.showContractPrintModal.set(false);
+    this.contractPrintData.set(null);
+  }
+
+  private loadCustomerForPrint(customerId: string, cachedCustomer: ICustomer | null): void {
+    this.isPreparingContractPrint.set(true);
+    this.customerService.getCustomerById(customerId)
+      .pipe(takeUntil(this.destroy$), finalize(() => this.isPreparingContractPrint.set(false)))
+      .subscribe({
+        next: (customer) => {
+          this.selectedCustomerDetails = customer;
+          this.openContractPrintPreview(customer);
+        },
+        error: () => this.openContractPrintPreview(cachedCustomer),
+      });
+  }
+
+  private openContractPrintPreview(customer: ICustomer | null): void {
+    this.contractPrintData.set(this.createContractPrintData(customer));
+    this.showContractPrintModal.set(true);
+  }
+
+  private createContractPrintData(customer: ICustomer | null): Partial<InterpolationContext> {
+    return {
+      cliente: this.createClientPrintData(customer),
+      contrato: this.createContractPrintFields(),
+      itensContrato: this.createPrintItems(),
+      pagamentosContrato: this.createPrintPayments(),
+    };
+  }
+
+  private createClientPrintData(customer: ICustomer | null): InterpolationContext['cliente'] {
+    const address = [customer?.address?.street, customer?.number, customer?.complement]
+      .filter(Boolean)
+      .join(', ');
+    return {
+      codigo: customer?.legacyId ?? '',
+      nome: this.contract.clienteNome || customer?.name || '',
+      documento: this.contract.clienteCpf || customer?.document || '',
+      rg: '',
+      endereco: address,
+      bairro: customer?.address?.neighborhood ?? '',
+      cidade: customer?.address?.city ?? '',
+      uf: customer?.address?.state ?? '',
+      cep: customer?.address?.zipCode ?? '',
+      telefone: (customer?.phones ?? []).join(' / '),
+      email: customer?.email ?? '',
+    };
+  }
+
+  private createContractPrintFields(): InterpolationContext['contrato'] {
+    return {
+      ...DEFAULT_MOCK_CONTEXT.contrato,
+      numero: this.contract.legacyId ?? '',
+      dataRetirada: this.formatDate(this.contract.retirada),
+      dataUso: this.formatDate(this.contract.usa),
+      dataDevolucao: this.formatDate(this.contract.devolucao),
+      dataEmissao: this.formatDate(this.contract.hoje),
+      valorTotal: `R$ ${this.formatCurrency(this.total)}`,
+      atendente: '',
+      observacoes: this.contract.comunicado,
+    };
+  }
+
+  private createPrintItems(): NonNullable<InterpolationContext['itensContrato']> {
+    return this.contract.itens.map((item) => ({
+      codigo: item.codigo,
+      descricao: [item.descricao, ...item.sub.map((meta) => meta.descricao)].filter(Boolean).join(', '),
+      valor: item.valor,
+    }));
+  }
+
+  private createPrintPayments(): NonNullable<InterpolationContext['pagamentosContrato']> {
+    return this.contract.pagamentos.map((payment) => ({
+      parcela: payment.parcela === 1 ? 'Entrada' : `Parcela ${payment.parcela - 1}`,
+      forma: this.paymentMethodLabels[payment.forma] ?? '',
+      vencimento: this.formatDate(payment.data),
+      valor: payment.valor,
+      status: this.paymentStatusLabels[payment.status].toUpperCase(),
+    }));
+  }
+
   assinarContrato(): void {
     if (this.contract.situacao !== ContractStatus.DRAFT) return;
     if (!this.contract.cliente) {
@@ -1164,6 +1282,17 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     }
     this.employeeVerifyAction = 'finalize';
     this.showEmployeeVerify = true;
+  }
+
+  private signContractWithDefaultPrintTemplate(contractId: string): Observable<IRentalContractResponse> {
+    return from(this.printTemplateStorage.initialize()).pipe(
+      switchMap(() => {
+        const template = this.printTemplateStorage.getDefaultByType('RENTAL_CONTRACT');
+        if (!template) return throwError(() => new Error('Template padrão de locação não encontrado.'));
+        const request: IRentalContractSignRequest = { printTemplateId: template.id };
+        return this.rentalContractService.sign(contractId, request);
+      }),
+    );
   }
 
   onEmployeeConfirmed(event: EmployeeConfirmedEvent): void {
@@ -1201,7 +1330,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     const obs =
       action === 'sign'
-        ? this.rentalContractService.sign(this.contractId)
+        ? this.signContractWithDefaultPrintTemplate(this.contractId)
         : this.rentalContractService.finalize(this.contractId);
 
     obs.pipe(finalize(() => (this.isSaving = false))).subscribe({
@@ -1235,6 +1364,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         hoje: this.toDateString(new Date()),
       };
       this.contractId = null;
+      this.contractPrintTemplateId = null;
       this.serverError = '';
       this.serverWarnings = [];
       this.recalculate();
@@ -1249,6 +1379,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       .subscribe({
         next: (response) => {
           this.contractId = response.id;
+          this.contractPrintTemplateId = response.printTemplateId ?? null;
           this.contract.situacao = ContractStatus.DRAFT;
           this.contract.baixa = false;
           this.contract.pagamentos = [];
@@ -1270,6 +1401,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   clearProposal(): void {
     this.contractId = null;
+    this.contractPrintTemplateId = null;
     this.contractLoaded = false;
     this.contractLookupLegacyId = '';
     this.contractLookupLoading = false;
@@ -1278,9 +1410,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.customerFound = false;
     this.customerSearchQuery = '';
     this.customerUuid = null;
+    this.selectedCustomerDetails = null;
     this.customerLoading = false;
     this.customerError = '';
 
+    this.showPrintConfirmation.set(false);
+    this.showContractPrintModal.set(false);
+    this.contractPrintData.set(null);
     this.contract = this.createEmptyContract();
     this.autoFillDates();
     this.itemRentalIds.clear();
@@ -1362,6 +1498,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   private mapResponseToContract(response: IRentalContractResponse): void {
     this.contractId = response.id;
+    this.contractPrintTemplateId = response.printTemplateId ?? null;
     this.contractLoaded = true;
 
     const STATUS_FROM_API: Record<ContractStatusApi, ContractStatus> = {
@@ -1388,6 +1525,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       MULTA: PaymentStatus.MULTA,
     };
 
+    if (this.selectedCustomerDetails?.id !== response.customerId) {
+      this.selectedCustomerDetails = null;
+    }
     this.customerUuid = response.customerId;
     this.customerFound = true;
     this.customerSearchQuery = response.customerDocument;

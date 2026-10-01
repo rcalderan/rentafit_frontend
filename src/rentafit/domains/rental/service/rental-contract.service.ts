@@ -7,6 +7,7 @@ import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messag
 import {
   IProcessReturnRequest,
   IRentalContractCreateRequest,
+  IRentalContractSignRequest,
   IRentalContractUpdateRequest,
   IRentalPaymentRequest,
 } from '../data/rental-contract-request.interface';
@@ -110,9 +111,9 @@ export class RentalContractService {
    * Response may include `warnings[]` for soft conflicts (±3 days).
    * Hard conflicts result in 422 (mapped to error by handleError).
    */
-  sign(id: string): Observable<IRentalContractResponse> {
+  sign(id: string, request: IRentalContractSignRequest): Observable<IRentalContractResponse> {
     return this.http
-      .patch<IRentalContractResponse>(`${this.apiUrl}/${id}/sign`, {})
+      .patch<IRentalContractResponse>(`${this.apiUrl}/${id}/sign`, request)
       .pipe(catchError(this.handleError.bind(this)));
   }
 

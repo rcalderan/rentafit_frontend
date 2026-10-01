@@ -66,6 +66,7 @@ export interface IRentalContractResponse {
   legacyId?: string;
   status: ContractStatusApi;
   statusDescription: string;
+  printTemplateId?: string | null;
   isReturned: boolean;
   contractType: number;
   customerId: string;

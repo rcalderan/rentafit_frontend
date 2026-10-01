@@ -18,6 +18,14 @@
   overflow: hidden;
 }
 
+.modal-backdrop.template-print-overlay {
+  z-index: 3000;
+}
+
+.modal-dialog.template-print-overlay {
+  z-index: 3001;
+}
+
 .modal-header {
   display: flex;
   justify-content: space-between;
