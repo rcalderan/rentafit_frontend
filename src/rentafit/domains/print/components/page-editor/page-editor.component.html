@@ -121,7 +121,7 @@
 
           <div class="variables-list">
             @for (v of filteredVariables(); track v.key) {
-              <div class="variable-item" (click)="insertTag(v)">
+              <div class="variable-item" draggable="true" (click)="insertTag(v)" (dragstart)="startVariableDrag($event, v)">
                 <div class="var-header">
                   <span class="var-label">{{ v.label }}</span>
                   <code class="var-tag">{{ v.tag }}</code>
@@ -148,6 +148,22 @@
           </section>
 
           <section class="block-section">
+            <h4 class="section-title">Imagem / Logo</h4>
+            <input
+              #imageFileInput
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              hidden
+              (change)="insertImageFromFile($event)"
+            />
+            <button type="button" class="btn-block" (click)="imageFileInput.click()">Inserir imagem / logo</button>
+            <small class="form-hint">PNG, JPEG, WebP ou GIF até 512 KB.</small>
+            @if (imageError()) {
+              <div class="image-upload-error">{{ imageError() }}</div>
+            }
+          </section>
+
+          <section class="block-section">
             <h4 class="section-title">Subcomponentes de Tabela [Array]</h4>
             <div class="btn-stack">
               <div class="subcomponent-actions">
@@ -163,6 +179,12 @@
                   <div class="sub-desc">Parcelas, vencimento, forma e carimbo</div>
                 </button>
                 <button type="button" class="btn-component-style" aria-label="Estilo das formas de pagamento" (click)="openSubcomponentStyle('contract-payments')">Estilo</button>
+              </div>
+              <div class="subcomponent-actions">
+                <button type="button" class="btn-subcomponent" (click)="insertNfceItemsTable()">
+                  <div class="sub-title">[Tabela] Itens da NFC-e</div>
+                  <div class="sub-desc">Código, descrição, quantidade, unidade e valores</div>
+                </button>
               </div>
               <div class="subcomponent-actions">
                 <button type="button" class="btn-subcomponent" (click)="insertSimpleTable()">
@@ -250,6 +272,10 @@
               #editorContainer
               class="tiptap-content-host"
               [class.host-hidden]="isPreviewMode()"
+              (dragover)="allowVariableDrop($event)"
+              (drop)="dropVariable($event)"
+              (dragover)="allowVariableDrop($event)"
+              (drop)="dropVariable($event)"
             ></div>
             @if (isPreviewMode()) {
               <div class="preview-content-host" [innerHTML]="previewHtml()"></div>

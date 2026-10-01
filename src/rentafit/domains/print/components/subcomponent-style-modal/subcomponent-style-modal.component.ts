@@ -22,7 +22,7 @@ export class SubcomponentStyleModalComponent implements OnInit {
   readonly save = output<PrintSubcomponentStyle>();
 
   protected readonly fontFamilies = PRINT_COMPONENT_FONT_FAMILIES;
-  protected readonly componentNames = PRINT_SUBCOMPONENTS;
+  protected readonly componentNames: Partial<Record<PrintSubcomponentType, string>> | undefined = PRINT_SUBCOMPONENTS;
   protected readonly style = signal<PrintSubcomponentStyle>({
     ...DEFAULT_PRINT_SUBCOMPONENT_STYLES['common-table'],
   });

@@ -21,6 +21,33 @@ import {
   TemplateInterpolationService,
 } from '../../services/template-interpolation.service';
 
+const CONTRACT_PRINT_SCOPE_CLASS = 'rental-contract-print-active';
+const CONTRACT_PRINT_ISOLATION_STYLES = `
+@media print {
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body * { visibility: hidden !important; }
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body .contract-print-target,
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body .contract-print-target * { visibility: visible !important; }
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body *:not(:has(.contract-print-target)):not(.contract-print-target):not(.contract-print-target *) {
+    display: none !important;
+  }
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body .new-rental-container {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    gap: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  html.${CONTRACT_PRINT_SCOPE_CLASS} body .contract-print-target {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    width: 100% !important;
+    margin: 0 !important;
+  }
+}`;
+
 @Component({
   selector: 'rentafit-print-preview-modal',
   standalone: true,
@@ -36,6 +63,10 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
   private readonly subcomponentStyleService = inject(PrintSubcomponentStyleService);
   private readonly subcomponentStyleElement = document.createElement('style');
   private destroyed = false;
+  private readonly afterPrintListener = (): void => {
+    this.clearPrintIsolation();
+    if (this.printImmediately()) this.close.emit();
+  };
 
   templateId = input<string | null>(null);
   templateType = input<TemplateType | null>(null);
@@ -43,6 +74,7 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
   isOpen = input<boolean>(true);
   aboveSystemMenu = input<boolean>(false);
   printImmediately = input<boolean>(false);
+  isolatePrint = input<boolean>(false);
 
   close = output<void>();
 
@@ -50,6 +82,7 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
     void this.storageService.initialize();
     effect(() => {
       const template = this.resolvedTemplate();
+      const isolatePrint = this.isolatePrint();
       if (!this.isOpen() || !template) {
         this.subcomponentStyleElement.remove();
         return;
@@ -60,7 +93,8 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
       const height = isLandscape ? template.pageWidthMm : template.pageHeightMm;
       const size = height ? `${width}mm ${height}mm` : `${width}mm auto`;
       const componentStyles = this.subcomponentStyleService.compile(template.cssStyles, scope);
-      this.subcomponentStyleElement.textContent = `@page { size: ${size}; margin: 0; }\n${componentStyles}`;
+      const printIsolationStyles = isolatePrint ? CONTRACT_PRINT_ISOLATION_STYLES : '';
+      this.subcomponentStyleElement.textContent = `@page { size: ${size}; margin: 0; }\n${printIsolationStyles}\n${componentStyles}`;
       if (!this.subcomponentStyleElement.isConnected) {
         document.head.append(this.subcomponentStyleElement);
       }
@@ -75,8 +109,7 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
   private async printAfterTemplateReady(): Promise<void> {
     await this.storageService.initialize();
     if (this.destroyed || !this.isOpen() || !this.resolvedTemplate()) return;
-    window.print();
-    this.close.emit();
+    this.print();
   }
 
   protected readonly resolvedTemplate = computed(() => {
@@ -106,7 +139,13 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.destroyed = true;
+    window.removeEventListener('afterprint', this.afterPrintListener);
+    this.clearPrintIsolation();
     this.subcomponentStyleElement.remove();
+  }
+
+  private clearPrintIsolation(): void {
+    if (this.isolatePrint()) document.documentElement.classList.remove(CONTRACT_PRINT_SCOPE_CLASS);
   }
 
   protected readonly paperStyle = computed(() => {
@@ -139,6 +178,10 @@ export class PrintPreviewModalComponent implements AfterViewInit, OnDestroy {
   });
 
   protected print(): void {
+    if (this.isolatePrint()) document.documentElement.classList.add(CONTRACT_PRINT_SCOPE_CLASS);
+    if (this.isolatePrint() || this.printImmediately()) {
+      window.addEventListener('afterprint', this.afterPrintListener, { once: true });
+    }
     window.print();
   }
 }

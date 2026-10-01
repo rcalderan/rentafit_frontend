@@ -8,7 +8,7 @@
   >
     <header class="subcomponent-style-header">
       <div>
-        <h2 id="subcomponent-style-title">Estilo: {{ componentNames[componentType()] }}</h2>
+        <h2 id="subcomponent-style-title">Estilo: {{ componentNames?.[componentType()] ?? componentType() }}</h2>
         <p>Aplica-se a todos os blocos deste tipo no template. Os dados e a repetição permanecem iguais; salve o template para persistir.</p>
       </div>
       <button type="button" class="style-close" aria-label="Fechar" (click)="cancel.emit()">×</button>

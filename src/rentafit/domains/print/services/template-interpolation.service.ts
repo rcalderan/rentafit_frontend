@@ -1,5 +1,5 @@
-import { Injectable } from '@angular/core';
-import QRCode from 'qrcode';
+import { inject, Injectable } from '@angular/core';
+import { NfceQrCodeService } from './nfce-qr-code.service';
 
 export interface InterpolationContext {
   cliente: {
@@ -73,6 +73,10 @@ export interface InterpolationContext {
     un: string;
     valorUnit: number;
     valorTotal: number;
+  }>;
+  pagamentosNfce?: Array<{
+    forma: string;
+    valor: number;
   }>;
 }
 
@@ -171,12 +175,18 @@ export const DEFAULT_MOCK_CONTEXT: InterpolationContext = {
       valorTotal: 300.0,
     },
   ],
+  pagamentosNfce: [
+    { forma: 'PIX', valor: 300 },
+    { forma: 'DINHEIRO', valor: 350 },
+  ],
 };
 
 @Injectable({
   providedIn: 'root',
 })
 export class TemplateInterpolationService {
+  private readonly qrCodeRenderer = inject(NfceQrCodeService);
+
   /**
    * Substitui todas as tags {{categoria.campo}} pelos dados fornecidos.
    */
@@ -198,9 +208,10 @@ export class TemplateInterpolationService {
       itensContrato: customData?.itensContrato ?? DEFAULT_MOCK_CONTEXT.itensContrato,
       pagamentosContrato: customData?.pagamentosContrato ?? DEFAULT_MOCK_CONTEXT.pagamentosContrato,
       itensNfce: customData?.itensNfce ?? DEFAULT_MOCK_CONTEXT.itensNfce,
+      pagamentosNfce: customData?.pagamentosNfce ?? DEFAULT_MOCK_CONTEXT.pagamentosNfce,
     };
 
-    let result = htmlTemplate;
+    let result = this.replaceSystemAliases(htmlTemplate, merged.sistema);
 
     // 1. Substituir tags de objetos planos
     result = this.replaceCategoryTags(result, 'cliente', merged.cliente);
@@ -216,7 +227,25 @@ export class TemplateInterpolationService {
     if (customData?.pagamentosContrato && customData.pagamentosContrato.length > 0) {
       result = this.renderContractPaymentsTable(result, merged.pagamentosContrato || []);
     }
+    const isNfceReceipt = result.includes('DANFE NFC-e');
+    if (
+      customData?.itensNfce !== undefined ||
+      result.includes('thermal-items-table') ||
+      result.includes('data-print-component="nfce-items"') ||
+      isNfceReceipt
+    ) {
+      result = this.renderNfceItemsTable(result, merged.itensNfce ?? [], isNfceReceipt);
+    }
+    if (
+      customData?.pagamentosNfce !== undefined ||
+      result.includes('data-print-component="nfce-payments"') ||
+      result.includes('PIX / DINHEIRO') ||
+      isNfceReceipt
+    ) {
+      result = this.renderNfcePaymentsTable(result, merged.pagamentosNfce ?? []);
+    }
 
+    result = this.qrCodeRenderer.replaceMarkers(result, merged.nfce.urlConsulta);
     return result;
   }
 
@@ -224,19 +253,7 @@ export class TemplateInterpolationService {
    * Gera QR Code real como Data URL (SVG/PNG) assincronamente.
    */
   async generateQrCodeDataUrl(text: string, width = 120): Promise<string> {
-    try {
-      return await QRCode.toDataURL(text, {
-        width,
-        margin: 1,
-        color: {
-          dark: '#000000',
-          light: '#ffffff',
-        },
-      });
-    } catch (e) {
-      console.error('Erro ao gerar QRCode:', e);
-      return '';
-    }
+    return this.qrCodeRenderer.generateDataUrl(text, width);
   }
 
   private replaceCategoryTags(html: string, prefix: string, obj: Record<string, any>): string {
@@ -286,6 +303,115 @@ export class TemplateInterpolationService {
       })
       .join('');
     return this.replaceRepeatingTableBody(html, 'contract-payments', 'contract-payments-table', tbodyRows);
+  }
+
+  private renderNfcePaymentsTable(html: string, payments: NonNullable<InterpolationContext['pagamentosNfce']>): string {
+    const table = this.repeatingTablePattern('nfce-payments', 'nfce-payments-table').exec(html)?.[0];
+    if (table) {
+      const rows = payments.map((payment) => this.renderNfcePaymentRow(payment)).join('');
+      return this.replaceRepeatingTableBody(html, 'nfce-payments', 'nfce-payments-table', rows);
+    }
+    if (html.includes('PIX / DINHEIRO')) return this.replaceLegacyNfcePaymentLabel(html, payments);
+    return this.insertLegacyNfcePayments(html, payments);
+  }
+
+  private renderNfcePaymentRow(payment: NonNullable<InterpolationContext['pagamentosNfce']>[number]): string {
+    return `<tr><td>${this.escapePrintCell(payment.forma)}</td><td style="text-align: right;">${this.formatNfceAmount(payment.valor)}</td></tr>`;
+  }
+
+  private replaceLegacyNfcePaymentLabel(
+    html: string,
+    payments: NonNullable<InterpolationContext['pagamentosNfce']>,
+  ): string {
+    const summary = payments
+      .map((payment) => `${this.escapePrintCell(payment.forma)}: ${this.formatCurrency(payment.valor)}`)
+      .join(' / ');
+    return html.replace('PIX / DINHEIRO', summary);
+  }
+
+  private insertLegacyNfcePayments(
+    html: string,
+    payments: NonNullable<InterpolationContext['pagamentosNfce']>,
+  ): string {
+    const anchor = /<(?:div|p)\b[^>]*>\s*Nº(?=\s|$)/i.exec(html);
+    if (!anchor || payments.length === 0 || !html.includes('Extrato Auxiliar')) return html;
+    const rows = payments.map((payment) =>
+      `<div style="display: flex; justify-content: space-between;"><span>${this.escapePrintCell(payment.forma)}</span><span>${this.formatCurrency(payment.valor)}</span></div>`,
+    ).join('');
+    const section = `<div style="font-size: 7.5px; margin-bottom: 4px;"><strong>FORMAS DE PAGAMENTO</strong>${rows}</div>`;
+    return `${html.slice(0, anchor.index)}${section}${html.slice(anchor.index)}`;
+  }
+
+  private renderNfceItemsTable(
+    html: string,
+    items: NonNullable<InterpolationContext['itensNfce']>,
+    allowLegacyTable: boolean,
+  ): string {
+    const table = this.findNfceItemsTable(html, allowLegacyTable);
+    if (!table) return html;
+    const columnCount = this.tableHeaderCount(table);
+    const rows = items.map((item) => this.renderNfceItemRow(item, columnCount)).join('');
+    const replaced = table.replace(/(<tbody\b[^>]*>)[\s\S]*?(<\/tbody>)/i, `$1${rows}$2`);
+    return html.replace(table, replaced);
+  }
+
+  private findNfceItemsTable(html: string, allowLegacyTable: boolean): string | null {
+    const markedTable = this.repeatingTablePattern('nfce-items', 'thermal-items-table').exec(html)?.[0];
+    if (markedTable || !allowLegacyTable) return markedTable ?? null;
+    const tables = html.match(/<table\b[^>]*>[\s\S]*?<\/table>/gi) ?? [];
+    return tables.find((table) => {
+      const header = this.tableHeaderContent(table);
+      return /\bItem\b/i.test(header) && /(Qtd|Vl\.)/i.test(header);
+    }) ?? null;
+  }
+
+  private tableHeaderCount(table: string): number {
+    return this.tableHeaderContent(table).match(/<th\b/gi)?.length ?? 0;
+  }
+
+  private tableHeaderContent(table: string): string {
+    return table.match(/<thead\b[^>]*>[\s\S]*?<tr\b[^>]*>([\s\S]*?)<\/tr>/i)?.[1] ?? '';
+  }
+
+  private renderNfceItemRow(
+    item: NonNullable<InterpolationContext['itensNfce']>[number],
+    columnCount: number,
+  ): string {
+    const label = [String(item.item).padStart(3, '0'), item.codigo, item.descricao]
+      .map((value) => this.escapePrintCell(value))
+      .join(' ');
+    const quantity = `${this.formatNfceQuantity(item.qtd)} ${this.escapePrintCell(item.un)}`;
+    const unitValue = this.formatNfceAmount(item.valorUnit);
+    const totalValue = this.formatNfceAmount(item.valorTotal);
+    if (columnCount >= 4) return this.renderNfceDetailedItemRows(label, quantity, unitValue, totalValue);
+    const details = `${label} — ${quantity} × ${unitValue}`;
+    return `<tr><td style="padding: 1px 0;">${details}</td><td style="text-align: right;">${totalValue}</td></tr>`;
+  }
+
+  private renderNfceDetailedItemRows(label: string, quantity: string, unitValue: string, totalValue: string): string {
+    const descriptionRow = `<tr><td colspan="4" style="padding-top: 3px;">${label}</td></tr>`;
+    const valuesRow = `<tr style="border-bottom: 1px dotted #ccc;"><td></td><td style="text-align: center;">${quantity}</td><td style="text-align: right;">${unitValue}</td><td style="text-align: right;">${totalValue}</td></tr>`;
+    return descriptionRow + valuesRow;
+  }
+
+  private formatNfceAmount(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+  }
+
+  private formatNfceQuantity(value: number): string {
+    return new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 3 }).format(value);
+  }
+
+  private escapePrintCell(value: string | number): string {
+    const entities: Record<string, string> = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+    return String(value).replace(/[&<>"']/g, (character) => entities[character]);
+  }
+
+  private replaceSystemAliases(html: string, system: InterpolationContext['sistema']): string {
+    return html
+      .replace(/\{\{dataAtual\}\}/g, () => system.dataAtual)
+      .replace(/\{\{horaAtual\}\}/g, () => system.horaAtual)
+      .replace(/\{\{cidadeDataExtenso\}\}/g, () => system.dataExtenso);
   }
 
   private repeatingTableHeaderCount(html: string, component: string, legacyClass: string): number {

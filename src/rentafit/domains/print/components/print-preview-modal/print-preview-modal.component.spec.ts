@@ -51,22 +51,31 @@ describe('PrintPreviewModalComponent template overlay', () => {
     expect(dialog.classList.contains('template-print-overlay')).toBe(true);
   });
 
-  it('prints immediately, uses the template page size and closes afterward', async () => {
+  it('keeps isolated contract content mounted until printing finishes', async () => {
     fixture.destroy();
     fixture = TestBed.createComponent(PrintPreviewModalComponent);
     const printSpy = vi.spyOn(window, 'print').mockImplementation(() => undefined);
     const closeSpy = vi.fn();
     fixture.componentRef.setInput('templateId', DEFAULT_RENTAL_CONTRACT_TEMPLATE.id);
     fixture.componentRef.setInput('printImmediately', true);
+    fixture.componentRef.setInput('isolatePrint', true);
     fixture.componentInstance.close.subscribe(closeSpy);
     fixture.detectChanges();
-    await vi.waitFor(() => {
-      expect(printSpy).toHaveBeenCalledOnce();
-      expect(closeSpy).toHaveBeenCalledOnce();
-    });
+    await vi.waitFor(() => expect(printSpy).toHaveBeenCalledOnce());
 
-    expect([...document.head.querySelectorAll('style')].some((style) =>
-      style.textContent?.includes('@page { size: 210mm 297mm; margin: 0; }'),
-    )).toBe(true);
+    const dialog = fixture.nativeElement.querySelector('.modal-dialog') as HTMLElement;
+    const printStyles = [...document.head.querySelectorAll('style')]
+      .map((style) => style.textContent ?? '')
+      .join('\n');
+    expect(dialog.classList.contains('contract-print-target')).toBe(true);
+    expect(document.documentElement.classList.contains('rental-contract-print-active')).toBe(true);
+    expect(closeSpy).not.toHaveBeenCalled();
+    expect(printStyles).toContain('display: none !important');
+    expect(printStyles).toContain('@page { size: 210mm 297mm; margin: 0; }');
+
+    window.dispatchEvent(new Event('afterprint'));
+
+    expect(closeSpy).toHaveBeenCalledOnce();
+    expect(document.documentElement.classList.contains('rental-contract-print-active')).toBe(false);
   });
 });

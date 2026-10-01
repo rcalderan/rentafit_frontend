@@ -290,6 +290,27 @@ export const TEMPLATE_VARIABLES: VariableDefinition[] = [
     category: 'sistema',
     sampleValue: 'São Carlos, 24 de setembro de 2026',
   },
+  {
+    key: 'dataAtual',
+    tag: '{{dataAtual}}',
+    label: 'Data Atual (atalho)',
+    category: 'sistema',
+    sampleValue: '24/09/2026',
+  },
+  {
+    key: 'horaAtual',
+    tag: '{{horaAtual}}',
+    label: 'Hora Atual (atalho)',
+    category: 'sistema',
+    sampleValue: '15:30',
+  },
+  {
+    key: 'cidadeDataExtenso',
+    tag: '{{cidadeDataExtenso}}',
+    label: 'Cidade e Data por Extenso (atalho)',
+    category: 'sistema',
+    sampleValue: 'São Carlos, 24 de setembro de 2026',
+  },
 ];
 
 export const VARIABLE_CATEGORIES: VariableCategory[] = [

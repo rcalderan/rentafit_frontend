@@ -14,6 +14,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Editor, findParentNode } from '@tiptap/core';
+import { TextSelection } from '@tiptap/pm/state';
 import { SafeHtml } from '@angular/platform-browser';
 import StarterKit from '@tiptap/starter-kit';
 import TextAlign from '@tiptap/extension-text-align';
@@ -39,6 +40,7 @@ import { DEFAULT_CUSTOM_TEMPLATE } from '../../data/default-templates';
 import {
   PrintBlockSpacing,
   PrintImage,
+  PrintQrCodeBlock,
   PrintSignatureBlock,
   PrintTable,
   PrintTableCell,
@@ -49,8 +51,11 @@ import {
   PrintSubcomponentType,
 } from '../../data/print-subcomponent-style.model';
 import { PrintSubcomponentStyleService } from '../../services/print-subcomponent-style.service';
+import { PrintImageUploadService } from '../../services/print-image-upload.service';
 import { EditorToolbarComponent } from '../editor-toolbar/editor-toolbar.component';
 import { SubcomponentStyleModalComponent } from '../subcomponent-style-modal/subcomponent-style-modal.component';
+
+const VARIABLE_DRAG_DATA_TYPE = 'application/x-rentafit-template-variable';
 
 @Component({
   selector: 'rentafit-page-editor',
@@ -65,6 +70,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   private readonly interpolationService = inject(TemplateInterpolationService);
   private readonly printHtmlSanitizer = inject(PrintHtmlSanitizerService);
   private readonly subcomponentStyleService = inject(PrintSubcomponentStyleService);
+  private readonly imageUploadService = inject(PrintImageUploadService);
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
 
@@ -80,6 +86,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   protected readonly zoomLevel = signal<number>(100);
   protected readonly leftTab = signal<'blocks' | 'variables'>('variables');
   protected readonly saveSuccessMsg = signal<string | null>(null);
+  protected readonly imageError = signal<string | null>(null);
   protected readonly activeSubcomponentStyle = signal<PrintSubcomponentType | null>(null);
 
   protected readonly activeSubcomponentStyleConfig = computed(() => {
@@ -220,7 +227,8 @@ export class PageEditorComponent implements OnInit, OnDestroy {
           PrintTableCell,
           PrintBlockSpacing,
           PrintSignatureBlock,
-          PrintImage,
+          PrintQrCodeBlock,
+          PrintImage.configure({ allowBase64: true }),
           // marca o nó em foco com .has-focus (feedback visual do elemento ativo)
           Focus.configure({ className: 'has-focus', mode: 'deepest' }),
           Placeholder.configure({
@@ -281,6 +289,36 @@ export class PageEditorComponent implements OnInit, OnDestroy {
 
   protected insertTag(v: VariableDefinition): void {
     this.editor()?.chain().focus().insertContent(` ${v.tag} `).run();
+  }
+
+  protected startVariableDrag(event: DragEvent, variable: VariableDefinition): void {
+    const transfer = event.dataTransfer;
+    if (!transfer) return;
+    transfer.setData(VARIABLE_DRAG_DATA_TYPE, variable.tag);
+    transfer.effectAllowed = 'copy';
+  }
+
+  protected allowVariableDrop(event: DragEvent): void {
+    if (!event.dataTransfer?.types.includes(VARIABLE_DRAG_DATA_TYPE)) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  }
+
+  protected dropVariable(event: DragEvent): void {
+    const editor = this.editor();
+    const tag = event.dataTransfer?.getData(VARIABLE_DRAG_DATA_TYPE);
+    if (!editor || !tag || !this.isKnownVariableTag(tag)) return;
+    const position = editor.view.posAtCoords({ left: event.clientX, top: event.clientY });
+    if (!position) return;
+    const selection = TextSelection.near(editor.state.doc.resolve(position.pos), 1);
+    event.preventDefault();
+    editor.view.dispatch(editor.state.tr.setSelection(selection));
+    editor.chain().focus().insertContent(` ${tag} `).run();
+  }
+
+  private isKnownVariableTag(tag: string): boolean {
+    const isKnown = TEMPLATE_VARIABLES.some((variable) => variable.tag === tag);
+    return isKnown;
   }
 
   protected insertText(type: 'p' | 'h1' | 'h2' | 'h3'): void {
@@ -365,6 +403,18 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     ed.chain().focus().insertContent(tableHtml).run();
   }
 
+  protected insertNfceItemsTable(): void {
+    const editor = this.editor();
+    if (!editor) return;
+    const tableHtml = `
+      <table class="thermal-items-table" data-print-component="nfce-items" style="width: 100%; border-collapse: collapse;">
+        <thead><tr><th>Item / Descrição</th><th>Qtd</th><th>Vl.Unit</th><th>Total</th></tr></thead>
+        <tbody><tr><td colspan="4">001 1044 IMPERIAL 50</td></tr><tr><td></td><td>1 UN</td><td>350,00</td><td>350,00</td></tr></tbody>
+      </table>
+    `;
+    editor.chain().focus().insertContent(tableHtml).run();
+  }
+
   protected insertSignatureBlock(): void {
     const ed = this.editor();
     if (!ed) return;
@@ -378,31 +428,22 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   }
 
   protected insertQrCodeBlock(): void {
-    const ed = this.editor();
-    if (!ed) return;
-    const qrHtml = `
-      <div style="text-align: center; margin: 12px 0;" data-qrcode-container="true">
-        <div style="font-size: 10px; margin-bottom: 4px;">Consulta via QR Code SEFAZ:</div>
-        <div style="display: inline-block; padding: 4px; border: 1px solid #ccc; background: #fff;">
-          <svg width="100" height="100" viewBox="0 0 100 100">
-            <rect width="100" height="100" fill="#fff" />
-            <rect x="10" y="10" width="30" height="30" fill="#000" />
-            <rect x="15" y="15" width="20" height="20" fill="#fff" />
-            <rect x="20" y="20" width="10" height="10" fill="#000" />
-            <rect x="60" y="10" width="30" height="30" fill="#000" />
-            <rect x="65" y="15" width="20" height="20" fill="#fff" />
-            <rect x="70" y="20" width="10" height="10" fill="#000" />
-            <rect x="10" y="60" width="30" height="30" fill="#000" />
-            <rect x="15" y="65" width="20" height="20" fill="#fff" />
-            <rect x="20" y="70" width="10" height="10" fill="#000" />
-            <rect x="45" y="45" width="12" height="12" fill="#000" />
-            <rect x="65" y="65" width="25" height="25" fill="#000" />
-          </svg>
-        </div>
-        <div style="font-size: 9px; color: #555; margin-top: 2px;">{{nfce.urlConsulta}}</div>
-      </div>
-    `;
-    ed.chain().focus().insertContent(qrHtml).run();
+    this.editor()?.chain().focus().insertContent('<div data-print-qrcode-block="true"></div>').run();
+  }
+
+  protected async insertImageFromFile(event: Event): Promise<void> {
+    const editor = this.editor();
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!editor || !file) return;
+    try {
+      const src = await this.imageUploadService.readAsDataUrl(file);
+      editor.chain().focus().setImage({ src, alt: file.name }).run();
+      this.imageError.set(null);
+    } catch (error) {
+      this.imageError.set(error instanceof Error ? error.message : 'Não foi possível inserir a imagem.');
+    }
   }
 
   protected async saveTemplate(): Promise<void> {

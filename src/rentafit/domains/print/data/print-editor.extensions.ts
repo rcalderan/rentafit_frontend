@@ -4,13 +4,13 @@ import { TableCell } from '@tiptap/extension-table-cell';
 import { TableHeader } from '@tiptap/extension-table-header';
 import type { Node as PMNode } from '@tiptap/pm/model';
 import Image from '@tiptap/extension-image';
-import { PrintSubcomponentType } from './print-subcomponent-style.model';
 
-const PRINT_SUBCOMPONENT_TYPES = new Set<PrintSubcomponentType>([
+const PRINT_TABLE_COMPONENTS = new Set([
   'contract-items',
   'contract-payments',
-  'signature',
   'common-table',
+  'nfce-items',
+  'nfce-payments',
 ]);
 
 /**
@@ -39,8 +39,8 @@ export class PrintTableView extends TableView {
   private applyPrintAttrs(node: PMNode): void {
     this.table.setAttribute('data-align', (node.attrs['align'] as string) || 'left');
     if (node.attrs['width']) this.table.style.width = node.attrs['width'] as string;
-    const componentType = node.attrs['printComponent'] as PrintSubcomponentType | null;
-    if (componentType && PRINT_SUBCOMPONENT_TYPES.has(componentType)) {
+    const componentType = node.attrs['printComponent'] as string | null;
+    if (componentType && PRINT_TABLE_COMPONENTS.has(componentType)) {
       this.table.setAttribute('data-print-component', componentType);
     } else {
       this.table.removeAttribute('data-print-component');
@@ -68,15 +68,20 @@ export const PrintTable = Table.extend({
         default: null,
         parseHTML: (element: HTMLElement) => {
           const marker = element.getAttribute('data-print-component');
-          if (marker && PRINT_SUBCOMPONENT_TYPES.has(marker as PrintSubcomponentType)) return marker;
+          if (marker && PRINT_TABLE_COMPONENTS.has(marker)) return marker;
           if (element.classList.contains('contract-items-table')) return 'contract-items';
           if (element.classList.contains('contract-payments-table')) return 'contract-payments';
-          return null;
+          if (element.classList.contains('thermal-items-table')) return 'nfce-items';
+          const isCompactNfceTable = Boolean(element.closest('.thermal-receipt-58'))
+            && /\bItem\b/i.test(element.querySelector('thead')?.textContent ?? '');
+          return isCompactNfceTable ? 'nfce-items' : null;
         },
-        renderHTML: (attributes: Record<string, unknown>) =>
-          typeof attributes['printComponent'] === 'string'
-            ? { 'data-print-component': attributes['printComponent'] }
-            : {},
+        renderHTML: (attributes: Record<string, unknown>) => {
+          const component = attributes['printComponent'];
+          return typeof component === 'string' && PRINT_TABLE_COMPONENTS.has(component)
+            ? { 'data-print-component': component }
+            : {};
+        },
       },
       // data-align é estilizado via CSS (margin auto) para alinhar a tabela na página
       align: alignmentAttribute(),
@@ -201,6 +206,68 @@ export const PrintSignatureBlock = Node.create({
       'div',
       mergeAttributes(HTMLAttributes, { 'data-print-component': 'signature' }),
       0,
+    ];
+  },
+});
+
+export const PrintQrCodeBlock = Node.create({
+  name: 'printQrCodeBlock',
+  group: 'block',
+  atom: true,
+
+  addAttributes() {
+    return {
+      qrSize: {
+        default: 100,
+        parseHTML: (element: HTMLElement) => Number(element.querySelector('svg')?.getAttribute('width')) || 100,
+        renderHTML: () => ({}),
+      },
+      qrLabel: {
+        default: 'Consulta via QR Code SEFAZ:',
+        parseHTML: (element: HTMLElement) => {
+          const label = element.querySelector('[data-qrcode-label]')?.textContent?.trim()
+            || Array.from(element.children).find((child) => child.tagName.toLowerCase() === 'div')?.textContent?.trim();
+          return label || 'Consulta via QR Code SEFAZ:';
+        },
+        renderHTML: () => ({}),
+      },
+    };
+  },
+
+  parseHTML() {
+    return [{
+      tag: 'div',
+      getAttrs: (element) => {
+        const wrapper = element as HTMLElement;
+        const marked = wrapper.matches('[data-print-qrcode-block="true"], [data-qrcode-container="true"]');
+        const legacyQr = Array.from(wrapper.children).some((child) =>
+          child.tagName.toLowerCase() === 'svg' &&
+          child.querySelector('rect[x="10"][y="10"][width="30"][height="30"]'),
+        );
+        return marked || legacyQr ? {} : false;
+      },
+    }];
+  },
+
+  renderHTML({ node, HTMLAttributes }) {
+    const qrSize = Math.min(240, Math.max(48, Number(node.attrs['qrSize']) || 100));
+    const qrLabel = String(node.attrs['qrLabel'] || 'Consulta via QR Code SEFAZ:');
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, {
+        'data-print-qrcode-block': 'true',
+        'data-qrcode-container': 'true',
+        style: 'text-align: center; margin: 12px 0;',
+      }),
+      ['div', { 'data-qrcode-label': 'true', style: 'font-size: 10px; margin-bottom: 4px;' }, qrLabel],
+      ['div', { 'data-qrcode': 'true', style: 'display: inline-block; padding: 4px; background: #fff;' }, [
+        'svg', { width: qrSize, height: qrSize, viewBox: '0 0 100 100', 'aria-hidden': 'true' },
+        ['rect', { width: '100', height: '100', fill: '#fff' }],
+        ['rect', { x: '10', y: '10', width: '30', height: '30', fill: '#000' }],
+        ['rect', { x: '60', y: '10', width: '30', height: '30', fill: '#000' }],
+        ['rect', { x: '10', y: '60', width: '30', height: '30', fill: '#000' }],
+      ]],
+      ['div', { style: 'font-size: 9px; color: #555; margin-top: 2px; word-break: break-all;' }, '{{nfce.urlConsulta}}'],
     ];
   },
 });

@@ -281,14 +281,31 @@
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 0.5rem 0.65rem;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s;
+}
+
+.variable-item:active {
+  cursor: grabbing;
 }
 
 .variable-item:hover {
   background: #eff6ff;
   border-color: #bfdbfe;
   transform: translateY(-1px);
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.35rem;
+  color: #64748b;
+  font-size: 0.75rem;
+}
+
+.image-upload-error {
+  margin-top: 0.35rem;
+  color: #b91c1c;
+  font-size: 0.78rem;
 }
 
 .var-header {

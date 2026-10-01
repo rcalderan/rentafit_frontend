@@ -224,7 +224,7 @@ export const DEFAULT_NFCE_80MM_TEMPLATE: PrintTemplate = {
     <span style="font-size: 9px; font-weight: normal;">Não permite aproveitamento de crédito de ICMS</span>
   </div>
 
-  <table class="thermal-items-table" style="width: 100%; border-collapse: collapse; font-size: 9.5px; margin-bottom: 6px;">
+  <table class="thermal-items-table" data-print-component="nfce-items" style="width: 100%; border-collapse: collapse; font-size: 9.5px; margin-bottom: 6px;">
     <thead>
       <tr style="border-bottom: 1px solid #000;">
         <th style="text-align: left; width: 45%;">Item / Descrição</th>
@@ -267,11 +267,13 @@ export const DEFAULT_NFCE_80MM_TEMPLATE: PrintTemplate = {
   </div>
 
   <div style="font-size: 9.5px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
-    <div style="font-weight: bold; margin-bottom: 2px;">FORMA DE PAGAMENTO &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; VALOR PAGO</div>
-    <div style="display: flex; justify-content: space-between;">
-      <span>PIX / DINHEIRO</span>
-      <span>{{nfce.valorTotal}}</span>
-    </div>
+    <div style="font-weight: bold; margin-bottom: 2px;">FORMA DE PAGAMENTO</div>
+    <table class="nfce-payments-table" data-print-component="nfce-payments" style="width: 100%; border-collapse: collapse; font-size: 9px;">
+      <tbody>
+        <tr><td>PIX</td><td style="text-align: right;">300,00</td></tr>
+        <tr><td>DINHEIRO</td><td style="text-align: right;">350,00</td></tr>
+      </tbody>
+    </table>
   </div>
 
   <div style="font-size: 9px; margin-bottom: 6px; border-bottom: 1px dashed #000; padding-bottom: 4px;">
@@ -292,7 +294,7 @@ export const DEFAULT_NFCE_80MM_TEMPLATE: PrintTemplate = {
     CPF: {{cliente.documento}}
   </div>
 
-  <div style="text-align: center; margin: 8px 0;" data-qrcode-container="true">
+  <div style="text-align: center; margin: 8px 0;" data-print-qrcode-block="true" data-qrcode-container="true">
     <div style="font-size: 8.5px; margin-bottom: 4px;">Consulta via leitor de QR Code:</div>
     <div class="qr-code-placeholder" data-qrcode="true" style="display: inline-block; padding: 4px; background: #fff;">
       <svg width="120" height="120" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
@@ -354,7 +356,7 @@ export const DEFAULT_NFCE_58MM_TEMPLATE: PrintTemplate = {
     DANFE NFC-e - Extrato Auxiliar
   </div>
 
-  <table style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 4px;">
+  <table class="thermal-items-table" data-print-component="nfce-items" style="width: 100%; border-collapse: collapse; font-size: 8px; margin-bottom: 4px;">
     <thead>
       <tr style="border-bottom: 1px solid #000;">
         <th style="text-align: left;">Item</th>
@@ -378,12 +380,19 @@ export const DEFAULT_NFCE_58MM_TEMPLATE: PrintTemplate = {
     <span>{{nfce.valorTotal}}</span>
   </div>
 
+  <div style="font-size: 7.5px; margin-bottom: 4px;">
+    <strong>FORMAS DE PAGAMENTO</strong>
+    <table class="nfce-payments-table" data-print-component="nfce-payments" style="width: 100%; border-collapse: collapse;">
+      <tbody><tr><td>PIX</td><td style="text-align: right;">300,00</td></tr><tr><td>DINHEIRO</td><td style="text-align: right;">350,00</td></tr></tbody>
+    </table>
+  </div>
+
   <div style="text-align: center; font-size: 7.5px; margin-bottom: 4px;">
     Nº {{nfce.numero}} &bull; Série {{nfce.serie}}<br>
     Chave: {{nfce.chave}}
   </div>
 
-  <div style="text-align: center; margin: 4px 0;">
+  <div style="text-align: center; margin: 4px 0;" data-print-qrcode-block="true" data-qrcode-container="true">
     <svg width="90" height="90" viewBox="0 0 100 100" style="display: block; margin: 0 auto;">
       <rect width="100" height="100" fill="#fff" />
       <rect x="10" y="10" width="30" height="30" fill="#000" />

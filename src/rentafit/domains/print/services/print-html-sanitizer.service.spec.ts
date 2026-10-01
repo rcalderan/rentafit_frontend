@@ -32,6 +32,16 @@ describe('PrintHtmlSanitizerService', () => {
     expect(cell?.style.verticalAlign).toBe('middle');
   });
 
+  it('preserves local raster data URLs used for inserted logos', () => {
+    const imageSource = 'data:image/png;base64,aGVsbG8=';
+    const safeHtml = service.sanitize(`<img src="${imageSource}" alt="Logo">`);
+    const sanitized = domSanitizer.sanitize(SecurityContext.HTML, safeHtml);
+    const container = document.createElement('div');
+    container.innerHTML = sanitized ?? '';
+
+    expect(container.querySelector('img')?.getAttribute('src')).toBe(imageSource);
+  });
+
   it('removes script, event attributes, URL-based CSS and unsafe positioning', () => {
     const safeHtml = service.sanitize(
       '<p style="line-height: 1.8; position: fixed; background-image: url(https://attacker.test/pixel)"><img src="x" onerror="alert(1)"><script>alert(1)</script>Seguro</p><a href="javascript:alert(1)">link</a>',

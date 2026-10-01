@@ -5,7 +5,11 @@
     (click)="close.emit()"
   ></div>
 
-  <div class="modal-dialog" [class.template-print-overlay]="aboveSystemMenu()">
+  <div
+    class="modal-dialog"
+    [class.template-print-overlay]="aboveSystemMenu()"
+    [class.contract-print-target]="isolatePrint()"
+  >
     <!-- Modal Toolbar (Hidden on Print) -->
     <header class="modal-header no-print">
       <div class="modal-title-group">
