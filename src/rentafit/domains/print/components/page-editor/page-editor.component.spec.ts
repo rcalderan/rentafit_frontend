@@ -16,7 +16,7 @@ import { TemplateInterpolationService } from '../../services/template-interpolat
 import { PrintHtmlSanitizerService } from '../../services/print-html-sanitizer.service';
 import { PrintSubcomponentStyleService } from '../../services/print-subcomponent-style.service';
 import { PrintImageUploadService } from '../../services/print-image-upload.service';
-import { VariableDefinition } from '../../data/print-template.model';
+import { PrintTemplate, VariableDefinition } from '../../data/print-template.model';
 import { TEMPLATE_VARIABLES } from '../../data/template-variables';
 import { PrintQrCodeBlock } from '../../data/print-editor.extensions';
 import { PageEditorComponent } from './page-editor.component';
@@ -33,7 +33,25 @@ class FakePrintImageUploadService {
 }
 
 class FakePrintTemplateStorageService {
+  savedCalls: PrintTemplate[] = [];
+  versionCalls: Array<{ id: string; template: PrintTemplate }> = [];
+  persisted: Record<string, PrintTemplate> = {};
+
   initialize(): Promise<void> { return Promise.resolve(); }
+  persistenceMode(): string { return 'local'; }
+  getById(id: string): PrintTemplate | undefined {
+    return this.persisted[id];
+  }
+  async saveAndSync(t: PrintTemplate): Promise<PrintTemplate> {
+    this.savedCalls.push(t);
+    return t;
+  }
+  async createVersionAndSync(id: string, t: PrintTemplate): Promise<PrintTemplate> {
+    this.versionCalls.push({ id, template: t });
+    const created = { ...t, id: `${id}-v2`, version: (t.version ?? 1) + 1 };
+    this.persisted[created.id] = created;
+    return created;
+  }
 }
 
 class FakeTemplateInterpolationService {
@@ -88,6 +106,7 @@ class FakeTiptapEditor {
   readonly selections: number[] = [];
   readonly dispatchedTransactions: unknown[] = [];
   readonly images: Array<{ src: string; alt?: string }> = [];
+  html = '<p>Doc</p>';
   readonly state = {
     doc: FAKE_EDITOR_DOCUMENT,
     tr: { setSelection: (selection: Selection) => { this.selections.push(selection.from); return { selection }; } },
@@ -96,6 +115,10 @@ class FakeTiptapEditor {
     posAtCoords: (_coords: { left: number; top: number }) => ({ pos: 1 }),
     dispatch: (transaction: unknown) => this.dispatchedTransactions.push(transaction),
   };
+
+  getHTML(): string {
+    return this.html;
+  }
 
   chain(): FakeEditorCommandChain {
     return new FakeEditorCommandChainImpl(this);
@@ -122,19 +145,33 @@ interface PageEditorActions {
   insertImageFromFile(event: Event): Promise<void>;
 }
 
+interface PageEditorSaveFlow {
+  template: WritableSignal<PrintTemplate>;
+  showVersionConfirm: WritableSignal<boolean>;
+  loadedContentHtml: string;
+  saveTemplate(): Promise<void>;
+  confirmNewVersion(): Promise<void>;
+  cancelVersionConfirm(): void;
+}
+
 describe('PageEditorComponent insertion actions', () => {
   let injector: EnvironmentInjector;
   let component: PageEditorComponent;
   let actions: PageEditorActions;
+  let saveFlow: PageEditorSaveFlow;
   let fakeEditor: FakeTiptapEditor;
   let imageUpload: FakePrintImageUploadService;
+  let storage: FakePrintTemplateStorageService;
+  let router: { navigate: ReturnType<typeof vi.fn> };
 
   beforeEach(() => {
     imageUpload = new FakePrintImageUploadService();
+    storage = new FakePrintTemplateStorageService();
+    router = { navigate: vi.fn() };
     injector = createEnvironmentInjector([
       { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => null } } } },
-      { provide: Router, useValue: { navigate: vi.fn() } },
-      { provide: PrintTemplateStorageService, useValue: new FakePrintTemplateStorageService() },
+      { provide: Router, useValue: router },
+      { provide: PrintTemplateStorageService, useValue: storage },
       { provide: TemplateInterpolationService, useValue: new FakeTemplateInterpolationService() },
       { provide: PrintHtmlSanitizerService, useValue: new FakePrintHtmlSanitizerService() },
       { provide: PrintSubcomponentStyleService, useValue: new FakePrintSubcomponentStyleService() },
@@ -142,6 +179,7 @@ describe('PageEditorComponent insertion actions', () => {
     ], TestBed.inject(EnvironmentInjector));
     component = runInInjectionContext(injector, () => new PageEditorComponent());
     actions = component as unknown as PageEditorActions;
+    saveFlow = component as unknown as PageEditorSaveFlow;
     fakeEditor = new FakeTiptapEditor();
     actions.editor.set(fakeEditor as unknown as Editor);
   });
@@ -214,5 +252,61 @@ describe('PageEditorComponent insertion actions', () => {
     imageUpload.failure = new Error('Imagem inválida');
     await actions.insertImageFromFile({ target: input } as unknown as Event);
     expect(actions.imageError()).toBe('Imagem inválida');
+  });
+
+  it('salva in-place quando apenas o estilo muda em template persistido', async () => {
+    const persisted: PrintTemplate = {
+      ...saveFlow.template(),
+      id: 'persisted-1',
+      contentHtml: '<p>Doc</p>',
+    };
+    storage.persisted['persisted-1'] = persisted;
+    saveFlow.template.set({ ...persisted });
+    saveFlow.loadedContentHtml = '<p>Doc</p>';
+    fakeEditor.html = '<p>Doc</p>';
+
+    await saveFlow.saveTemplate();
+
+    expect(saveFlow.showVersionConfirm()).toBe(false);
+    expect(storage.savedCalls).toHaveLength(1);
+    expect(storage.versionCalls).toHaveLength(0);
+  });
+
+  it('pede confirmação e cria nova versão quando o conteúdo muda', async () => {
+    const persisted: PrintTemplate = {
+      ...saveFlow.template(),
+      id: 'persisted-2',
+      contentHtml: '<p>Original</p>',
+    };
+    storage.persisted['persisted-2'] = persisted;
+    saveFlow.template.set({ ...persisted });
+    saveFlow.loadedContentHtml = '<p>Original</p>';
+    fakeEditor.html = '<p>Alterado</p>';
+
+    await saveFlow.saveTemplate();
+
+    expect(saveFlow.showVersionConfirm()).toBe(true);
+    expect(storage.savedCalls).toHaveLength(0);
+
+    await saveFlow.confirmNewVersion();
+
+    expect(storage.versionCalls).toHaveLength(1);
+    expect(storage.versionCalls[0].id).toBe('persisted-2');
+    expect(saveFlow.template().id).toBe('persisted-2-v2');
+    expect(saveFlow.template().version).toBe(2);
+    expect(router.navigate).toHaveBeenCalledWith(
+      ['/admin/print-templates/editor', 'persisted-2-v2'],
+      { replaceUrl: true },
+    );
+  });
+
+  it('salva in-place quando o template ainda não existe no storage', async () => {
+    saveFlow.template.update((t) => ({ ...t, id: 'brand-new' }));
+    fakeEditor.html = '<p>Novo</p>';
+
+    await saveFlow.saveTemplate();
+
+    expect(saveFlow.showVersionConfirm()).toBe(false);
+    expect(storage.savedCalls).toHaveLength(1);
   });
 });

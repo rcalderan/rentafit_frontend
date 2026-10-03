@@ -470,4 +470,31 @@
       (save)="saveSubcomponentStyle($event)"
     />
   }
+
+  @if (showVersionConfirm()) {
+    <div class="version-confirm-backdrop" (click)="cancelVersionConfirm()"></div>
+    <section
+      class="version-confirm-modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="version-confirm-title"
+      (click)="$event.stopPropagation()"
+    >
+      <h3 id="version-confirm-title">Conteúdo do documento alterado</h3>
+      <p>
+        Para preservar contratos já assinados com este template, será criada a
+        <strong>nova versão</strong> com suas alterações —
+        ela se tornará o padrão. A versão atual permanece intacta.
+      </p>
+      <p class="version-confirm-hint">
+        Alterações apenas de estilo (bordas, cores, espaçamento de subcomponentes) não geram nova versão.
+      </p>
+      <footer class="version-confirm-actions">
+        <button type="button" class="btn btn-secondary" (click)="cancelVersionConfirm()">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="confirmNewVersion()" [disabled]="savingTemplate()">
+          {{ savingTemplate() ? 'Criando...' : 'Criar nova versão' }}
+        </button>
+      </footer>
+    </section>
+  }
 </div>

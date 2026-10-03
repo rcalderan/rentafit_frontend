@@ -139,6 +139,86 @@ export class PrintTemplateStorageService {
     return saved;
   }
 
+  async createVersionAndSync(sourceId: string, template: PrintTemplate): Promise<PrintTemplate | undefined> {
+    const source = this.getById(sourceId);
+    if (!source) return undefined;
+
+    const http = this.http;
+    if (this.backendAvailable && http) {
+      try {
+        const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, version: _v, previousVersionId: _p, ...body } = template;
+        const created = await firstValueFrom(
+          http.post<PrintTemplate>(`${API_URL}/${encodeURIComponent(sourceId)}/versions`, body),
+        );
+        const list = this.templates().map((item) =>
+          item.templateType === created.templateType && item.id !== created.id
+            ? { ...item, isDefault: false }
+            : item,
+        );
+        list.push(this.normalizeTemplate(created));
+        this.templates.set(list);
+        this.persist();
+        return created;
+      } catch {
+        this.useLocalFallback();
+      }
+    }
+
+    const copy = this.createLocalVersion(source, template);
+    return copy;
+  }
+
+  private createLocalVersion(source: PrintTemplate, edited: PrintTemplate): PrintTemplate {
+    const now = new Date().toISOString();
+    const nextVersion = (source.version ?? 1) + 1;
+    const baseId = source.id.replace(/-v\d+$/, '');
+    let newId = `${baseId}-v${nextVersion}`;
+    let suffix = 2;
+    while (this.getById(newId)) newId = `${baseId}-v${nextVersion}-${suffix++}`;
+
+    const copy: PrintTemplate = {
+      ...JSON.parse(JSON.stringify(edited)),
+      id: newId,
+      version: nextVersion,
+      previousVersionId: source.id,
+      isDefault: true,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    const list = this.templates().map((item) =>
+      item.templateType === copy.templateType ? { ...item, isDefault: false } : item,
+    );
+    list.push(copy);
+    this.templates.set(list);
+    this.persist();
+    return copy;
+  }
+
+  async setDefaultAndSync(id: string): Promise<boolean> {
+    const target = this.getById(id);
+    if (!target) return false;
+
+    const list = this.templates().map((item) => ({
+      ...item,
+      isDefault: item.id === id ? true : item.templateType === target.templateType ? false : item.isDefault,
+      isActive: item.id === id ? true : item.isActive,
+    }));
+    this.templates.set(list);
+    this.persist();
+
+    const http = this.http;
+    if (this.backendAvailable && http) {
+      try {
+        await firstValueFrom(http.post(`${API_URL}/${encodeURIComponent(id)}/default`, {}));
+      } catch {
+        this.useLocalFallback();
+      }
+    }
+    return true;
+  }
+
   async duplicateAndSync(id: string): Promise<PrintTemplate | undefined> {
     const copy = this.duplicate(id);
     if (!copy || !this.backendAvailable) return copy;
@@ -223,7 +303,7 @@ export class PrintTemplateStorageService {
   private async putRemote(template: PrintTemplate): Promise<PrintTemplate> {
     const http = this.http;
     if (!http) throw new Error('Print template API requires HttpClient.');
-    const { id, createdAt: _createdAt, updatedAt: _updatedAt, ...body } = template;
+    const { id, createdAt: _createdAt, updatedAt: _updatedAt, version: _v, previousVersionId: _p, ...body } = template;
     return firstValueFrom(http.put<PrintTemplate>(`${API_URL}/${encodeURIComponent(id)}`, body));
   }
 

@@ -40,6 +40,10 @@ export class TemplateListComponent {
     if (copy) this.editTemplate(copy.id);
   }
 
+  protected async setAsDefault(t: PrintTemplate): Promise<void> {
+    await this.storageService.setDefaultAndSync(t.id);
+  }
+
   protected deleteTemplate(t: PrintTemplate): void {
     if (confirm(`Deseja realmente remover o template "${t.name}"?`)) {
       void this.storageService.deleteAndSync(t.id);

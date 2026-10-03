@@ -33,6 +33,9 @@
             <span class="badge" [ngClass]="getFormatBadgeClass(t.pageFormat)">
               {{ getFormatLabel(t.pageFormat) }}
             </span>
+            @if ((t.version ?? 1) > 1) {
+              <span class="badge badge-version">v{{ t.version }}</span>
+            }
             @if (t.isDefault) {
               <span class="badge badge-default">Padrão Ativo</span>
             }
@@ -84,6 +87,16 @@
             >
               📋 Duplicar
             </button>
+            @if (!t.isDefault) {
+              <button
+                type="button"
+                class="btn-action btn-set-default"
+                (click)="setAsDefault(t)"
+                title="Definir como template padrão deste tipo"
+              >
+                ⭐ Padrão
+              </button>
+            }
             @if (!t.isDefault) {
               <button
                 type="button"
