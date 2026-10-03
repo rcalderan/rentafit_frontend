@@ -88,6 +88,9 @@ export class PageEditorComponent implements OnInit, OnDestroy {
   protected readonly saveSuccessMsg = signal<string | null>(null);
   protected readonly imageError = signal<string | null>(null);
   protected readonly activeSubcomponentStyle = signal<PrintSubcomponentType | null>(null);
+  protected readonly showVersionConfirm = signal<boolean>(false);
+  protected readonly savingTemplate = signal<boolean>(false);
+  private loadedContentHtml = '';
 
   protected readonly activeSubcomponentStyleConfig = computed(() => {
     const type = this.activeSubcomponentStyle();
@@ -242,6 +245,7 @@ export class PageEditorComponent implements OnInit, OnDestroy {
         },
       }),
     );
+    this.loadedContentHtml = this.editor()?.getHTML() ?? '';
   }
 
   protected setPageFormat(format: PageFormat): void {
@@ -450,14 +454,55 @@ export class PageEditorComponent implements OnInit, OnDestroy {
     const html = this.editor()?.getHTML();
     if (html) this.template.update((t) => ({ ...t, contentHtml: html }));
 
-    const saved = await this.storageService.saveAndSync(this.template());
-    this.template.set(saved);
-    this.saveSuccessMsg.set(
-      this.storageService.persistenceMode() === 'backend'
-        ? 'Template salvo no servidor.'
-        : 'API indisponível: template salvo localmente neste navegador.',
-    );
-    setTimeout(() => this.saveSuccessMsg.set(null), 4000);
+    const isPersistedTemplate = this.storageService.getById(this.template().id) !== undefined;
+    const contentChanged = isPersistedTemplate && this.template().contentHtml !== this.loadedContentHtml;
+    if (contentChanged) {
+      this.showVersionConfirm.set(true);
+      return;
+    }
+    await this.persistSave();
+  }
+
+  protected cancelVersionConfirm(): void {
+    this.showVersionConfirm.set(false);
+  }
+
+  protected async confirmNewVersion(): Promise<void> {
+    this.showVersionConfirm.set(false);
+    this.savingTemplate.set(true);
+    try {
+      const created = await this.storageService.createVersionAndSync(this.template().id, this.template());
+      if (!created) {
+        await this.persistSave();
+        return;
+      }
+      this.template.set(created);
+      this.loadedContentHtml = created.contentHtml;
+      this.router.navigate(['/admin/print-templates/editor', created.id], { replaceUrl: true });
+      this.saveSuccessMsg.set(
+        `Nova versão v${created.version ?? 1} criada e definida como padrão. A versão anterior foi preservada.`,
+      );
+      setTimeout(() => this.saveSuccessMsg.set(null), 5000);
+    } finally {
+      this.savingTemplate.set(false);
+    }
+  }
+
+  private async persistSave(): Promise<void> {
+    this.savingTemplate.set(true);
+    try {
+      const saved = await this.storageService.saveAndSync(this.template());
+      this.template.set(saved);
+      this.loadedContentHtml = saved.contentHtml;
+      this.saveSuccessMsg.set(
+        this.storageService.persistenceMode() === 'backend'
+          ? 'Template salvo no servidor.'
+          : 'API indisponível: template salvo localmente neste navegador.',
+      );
+      setTimeout(() => this.saveSuccessMsg.set(null), 4000);
+    } finally {
+      this.savingTemplate.set(false);
+    }
   }
 
   protected printDocument(): void {

@@ -37,6 +37,10 @@ export interface PrintTemplate {
   contentJson: any;
   contentHtml: string;
   cssStyles?: string;
+  /** Versão do documento. Alterações de conteúdo geram nova versão; estilo salva in-place. */
+  version?: number;
+  /** ID da versão anterior quando este template foi criado por versionamento */
+  previousVersionId?: string;
   isDefault: boolean;
   isActive: boolean;
   createdAt: string;

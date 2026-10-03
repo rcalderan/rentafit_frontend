@@ -145,6 +145,11 @@
   color: #15803d;
 }
 
+.badge-version {
+  background: #ede9fe;
+  color: #6d28d9;
+}
+
 .card-type {
   font-size: 0.75rem;
   font-weight: 600;
@@ -236,6 +241,17 @@
 .btn-edit:hover {
   background: #1d4ed8;
   border-color: #1d4ed8;
+}
+
+.btn-set-default {
+  flex: 0 0 auto;
+  color: #b45309;
+  border-color: #fcd34d;
+}
+
+.btn-set-default:hover {
+  background: #fffbeb;
+  border-color: #f59e0b;
 }
 
 .btn-danger {

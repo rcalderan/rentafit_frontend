@@ -190,6 +190,70 @@ describe('PrintTemplateStorageService', () => {
     expect(service.getTemplates()).toHaveLength(5);
   });
 
+  it('cria nova versão via POST /versions e a torna padrão', async () => {
+    const loading = service.initialize();
+    httpMock.expectOne('/api/v1/print-templates').flush(INITIAL_DEFAULT_TEMPLATES);
+    await loading;
+    const source = service.getDefaultByType('RENTAL_CONTRACT')!;
+    const edited = { ...source, contentHtml: '<p>Conteúdo alterado</p>' };
+
+    const creating = service.createVersionAndSync(source.id, edited);
+    const request = httpMock.expectOne(`/api/v1/print-templates/${source.id}/versions`);
+    expect(request.request.method).toBe('POST');
+    expect(request.request.body.contentHtml).toBe('<p>Conteúdo alterado</p>');
+    request.flush({
+      ...request.request.body,
+      id: `${source.id}-v2`,
+      version: 2,
+      previousVersionId: source.id,
+      isDefault: true,
+    });
+    const created = await creating;
+
+    expect(created?.id).toBe(`${source.id}-v2`);
+    expect(created?.version).toBe(2);
+    expect(created?.previousVersionId).toBe(source.id);
+    expect(service.getById(created!.id)?.isDefault).toBe(true);
+    expect(service.getById(source.id)?.isDefault).toBe(false);
+    expect(service.getById(source.id)?.contentHtml).not.toBe('<p>Conteúdo alterado</p>');
+  });
+
+  it('cria nova versão localmente quando o backend está indisponível', async () => {
+    const loading = service.initialize();
+    httpMock.expectOne('/api/v1/print-templates').flush({}, { status: 503, statusText: 'Unavailable' });
+    await loading;
+    const source = service.getDefaultByType('RENTAL_CONTRACT')!;
+
+    const created = await service.createVersionAndSync(source.id, {
+      ...source,
+      contentHtml: '<p>Novo conteúdo</p>',
+    });
+
+    expect(created?.version).toBe(2);
+    expect(created?.previousVersionId).toBe(source.id);
+    expect(created?.isDefault).toBe(true);
+    expect(service.getById(source.id)?.isDefault).toBe(false);
+  });
+
+  it('define um template como padrão via POST /default', async () => {
+    const loading = service.initialize();
+    httpMock.expectOne('/api/v1/print-templates').flush(INITIAL_DEFAULT_TEMPLATES);
+    await loading;
+    const target = service.getTemplates().find((t) => t.templateType === 'CUSTOM')!;
+
+    const setting = service.setDefaultAndSync(target.id);
+    const request = httpMock.expectOne(`/api/v1/print-templates/${target.id}/default`);
+    expect(request.request.method).toBe('POST');
+    request.flush({ ...target, isDefault: true });
+    expect(await setting).toBe(true);
+
+    expect(service.getById(target.id)?.isDefault).toBe(true);
+  });
+
+  it('retorna false ao definir padrão de template inexistente', async () => {
+    expect(await service.setDefaultAndSync('nao-existe')).toBe(false);
+  });
+
   it('deve manter o fallback local se a API estiver indisponível', async () => {
     const loading = service.initialize();
     httpMock.expectOne('/api/v1/print-templates').flush({}, { status: 503, statusText: 'Unavailable' });
