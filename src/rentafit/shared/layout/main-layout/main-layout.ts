@@ -4,6 +4,14 @@ import { filter } from 'rxjs';
 import { CommonModule } from '@angular/common';
 import { AuthService } from '../../../domains/auth/services/auth.service';
 import { UserRole } from '../../../domains/auth/data/user.model';
+import {
+  TerminalOperator,
+  TerminalOperatorService,
+} from '../../../domains/auth/services/terminal-operator.service';
+import {
+  EmployeeConfirmedEvent,
+  EmployeeVerifyComponent,
+} from '../../../domains/rental/features/employee-verify/employee-verify.component';
 import { UiVariantService } from '../../services/ui-variant.service';
 import { TabService } from '../../services/tab.service';
 import { TabGroup } from '../../data/tab.model';
@@ -11,7 +19,7 @@ import { TabGroup } from '../../data/tab.model';
 @Component({
   selector: 'rentafit-main-layout',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule, EmployeeVerifyComponent],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.css'
 })
@@ -19,6 +27,7 @@ export class MainLayout {
   private readonly router = inject(Router);
   private readonly activatedRoute = inject(ActivatedRoute);
   protected readonly authService = inject(AuthService);
+  protected readonly operatorService = inject(TerminalOperatorService);
   protected readonly uiVariant = inject(UiVariantService);
   protected readonly tabService = inject(TabService);
 
@@ -36,6 +45,12 @@ export class MainLayout {
   // Expose tab state for the template.
   protected readonly tabs = this.tabService.tabs;
   protected readonly activeTabId = this.tabService.activeTabId;
+
+  // Operador em comando do terminal.
+  protected readonly operators = this.operatorService.operators;
+  protected readonly currentOperator = this.operatorService.currentOperator;
+  protected readonly operatorRequest = this.operatorService.pendingRequest;
+  protected readonly operatorsOpen = signal(false);
 
   // Expõe UserRole para uso no template
   protected readonly UserRole = UserRole;
@@ -128,6 +143,34 @@ export class MainLayout {
 
   protected logout(): void {
     this.authService.logout();
+  }
+
+  protected toggleOperators(): void {
+    this.operatorService.pruneExpiredOperators();
+    this.operatorsOpen.update(open => !open);
+  }
+
+  protected switchOperator(operator: TerminalOperator): void {
+    this.operatorsOpen.set(false);
+    this.operatorService.requestSwitch(operator.employeeId).subscribe();
+  }
+
+  protected removeOperator(event: MouseEvent, employeeId: string): void {
+    event.stopPropagation();
+    this.operatorService.removeOperator(employeeId);
+  }
+
+  protected authenticateOperator(): void {
+    this.operatorsOpen.set(false);
+    this.operatorService.requestAuthentication().subscribe();
+  }
+
+  protected onOperatorConfirmed(event: EmployeeConfirmedEvent): void {
+    this.operatorService.resolvePending(event);
+  }
+
+  protected onOperatorCancelled(): void {
+    this.operatorService.cancelPending();
   }
 
   protected hasRole(role: UserRole): boolean {

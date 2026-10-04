@@ -37,6 +37,12 @@ export abstract class FiscalEmissionBase implements OnInit {
   /** Documento já existente (ex.: vindo do pedido/contrato persistido). */
   readonly initialDocument = input<IFiscalDocument | null>(null);
 
+  /**
+   * Gate opcional do pai: emit/cancel só executam quando retorna true
+   * (ex.: autorização por PIN do operador em comando).
+   */
+  readonly authorizeAction = input<((action: 'emit' | 'cancel') => Observable<boolean>) | null>(null);
+
   /** Emitido sempre que o documento muda, para o pai persistir o estado. */
   readonly changed = output<IFiscalDocument>();
 
@@ -73,6 +79,10 @@ export abstract class FiscalEmissionBase implements OnInit {
       this.errorMsg.set('O pedido precisa estar pago para emitir a nota fiscal.');
       return;
     }
+    this.withAuthorization('emit', () => this.doEmit());
+  }
+
+  private doEmit(): void {
     try {
       const request = this.buildEmitRequest();
       this.errorMsg.set(null);
@@ -95,7 +105,20 @@ export abstract class FiscalEmissionBase implements OnInit {
     if (!current) return;
     const request: ICancelInvoiceRequest = { reason };
     this.showCancelModal.set(false);
-    this.run(this.fiscalService.cancel(current, request), 'Nota cancelada.');
+    this.withAuthorization('cancel', () => {
+      this.run(this.fiscalService.cancel(current, request), 'Nota cancelada.');
+    });
+  }
+
+  private withAuthorization(action: 'emit' | 'cancel', proceed: () => void): void {
+    const gate = this.authorizeAction();
+    if (!gate) {
+      proceed();
+      return;
+    }
+    gate(action).subscribe(authorized => {
+      if (authorized) proceed();
+    });
   }
 
   protected reemit(): void {

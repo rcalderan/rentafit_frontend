@@ -38,6 +38,36 @@ h1 {
   display: block;
 }
 
+.pin-trust-section {
+  max-width: 480px;
+}
+
+.section-hint {
+  color: var(--text-muted, #888);
+  font-size: 0.85rem;
+  margin: -0.6rem 0 1rem;
+}
+
+.pin-trust-form {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.pin-trust-form label {
+  font-size: 0.9rem;
+  color: var(--text-color);
+}
+
+.pin-trust-form input {
+  width: 5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9rem;
+}
+
 .empty-state {
   color: var(--text-muted, #888);
   font-size: 0.9rem;

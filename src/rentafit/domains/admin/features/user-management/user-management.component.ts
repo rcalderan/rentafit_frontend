@@ -2,9 +2,14 @@ import { Component, OnInit, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { UserAdminService } from '../../service/user-admin.service';
 import { EmployeeService } from '../../service/employee.service';
+import { SettingsService } from '../../service/settings.service';
 import { IUserSummary } from '../../data/user-admin.model';
 import { UserRole } from '../../../auth/data/user.model';
 import { AuthService } from '../../../auth/services/auth.service';
+import {
+  PIN_TRUST_MINUTES_KEY,
+  TerminalOperatorService,
+} from '../../../auth/services/terminal-operator.service';
 
 const ROLE_ORDER: UserRole[] = [UserRole.CUSTOMER, UserRole.EMPLOYEE, UserRole.MANAGER, UserRole.ADMIN];
 const INITIALS_PATTERN = /^[A-Z]{2,10}$/;
@@ -19,6 +24,8 @@ const INITIALS_PATTERN = /^[A-Z]{2,10}$/;
 export class UserManagementComponent implements OnInit {
   private readonly adminService = inject(UserAdminService);
   private readonly employeeService = inject(EmployeeService);
+  private readonly settingsService = inject(SettingsService);
+  private readonly operatorService = inject(TerminalOperatorService);
   private readonly authService = inject(AuthService);
 
   users = signal<IUserSummary[]>([]);
@@ -38,11 +45,38 @@ export class UserManagementComponent implements OnInit {
   initials = signal('');
   initialsError = signal<string | null>(null);
 
+  trustMinutes = signal(5);
+  trustSaving = signal(false);
+  trustFeedback = signal<{ ok: boolean; msg: string } | null>(null);
+
   readonly allRoles: UserRole[] = ROLE_ORDER;
   readonly currentUser = this.authService.getCurrentUser();
 
   ngOnInit(): void {
     this.load();
+    this.settingsService.getNumber(PIN_TRUST_MINUTES_KEY, 5).subscribe(minutes => {
+      this.trustMinutes.set(minutes);
+    });
+  }
+
+  saveTrustWindow(): void {
+    const minutes = this.trustMinutes();
+    if (!Number.isFinite(minutes) || minutes < 1 || minutes > 120) {
+      this.trustFeedback.set({ ok: false, msg: 'Informe um valor entre 1 e 120 minutos.' });
+      return;
+    }
+    this.trustSaving.set(true);
+    this.trustFeedback.set(null);
+    this.operatorService.updateTrustWindow(minutes).subscribe({
+      next: () => {
+        this.trustSaving.set(false);
+        this.trustFeedback.set({ ok: true, msg: 'Janela de confiança atualizada.' });
+      },
+      error: (err: Error) => {
+        this.trustSaving.set(false);
+        this.trustFeedback.set({ ok: false, msg: err.message });
+      },
+    });
   }
 
   load(): void {

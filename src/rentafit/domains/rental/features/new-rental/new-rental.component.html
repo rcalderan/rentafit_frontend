@@ -314,6 +314,7 @@
             <rentafit-nfse-emission
                 [context]="fiscalContext"
                 [initialDocument]="fiscalDocument"
+                [authorizeAction]="authorizeFiscalAction"
                 (changed)="onInvoiceChanged($event)">
             </rentafit-nfse-emission>
         </div>
@@ -349,16 +350,6 @@
         [isolatePrint]="true"
         (close)="closeContractPrintPreview()"
     />
-}
-
-<!-- ══════════════ Employee Verify Modal ══════════════ -->
-@if (showEmployeeVerify) {
-    <rentafit-employee-verify
-        [title]="employeeVerifyTitle"
-        [requirePin]="employeeVerifyRequirePin"
-        (confirmed)="onEmployeeConfirmed($event)"
-        (cancelled)="onEmployeeCancelled()">
-    </rentafit-employee-verify>
 }
 
 <!-- ══════════════ Modal: Adicionar Item ══════════════ -->

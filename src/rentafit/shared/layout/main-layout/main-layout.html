@@ -140,10 +140,54 @@
             </div>
             }
 
+            @if (hasAnyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE])) {
+            <div class="operator-card">
+                <div class="operator-row">
+                    @if (currentOperator(); as operator) {
+                    <button type="button" class="operator-current" (click)="toggleOperators()"
+                            [attr.aria-expanded]="operatorsOpen()" aria-label="Usuário em comando">
+                        <span class="operator-badge">{{ operator.initials || '??' }}</span>
+                        <span class="operator-caret" aria-hidden="true">{{ operatorsOpen() ? '▴' : '▾' }}</span>
+                    </button>
+                    <span class="operator-name" [title]="operator.name">{{ operator.name || 'Usuário' }}</span>
+                    } @else {
+                    <button type="button" class="operator-current empty" (click)="authenticateOperator()"
+                            aria-label="Autenticar usuário">
+                        <span class="operator-badge">?</span>
+                    </button>
+                    <span class="operator-name">Autenticar usuário</span>
+                    }
+                </div>
+
+                @if (operatorsOpen() && currentOperator()) {
+                <div class="operator-list" role="menu">
+                    @for (item of operators(); track item.employeeId) {
+                    <div class="operator-item" role="menuitem"
+                         [class.active]="item.employeeId === operatorService.currentOperatorId()">
+                        <button type="button" class="operator-item-select"
+                                (click)="switchOperator(item)">
+                            <span class="operator-badge sm">{{ item.initials || '??' }}</span>
+                            <span class="operator-item-name">{{ item.name }}</span>
+                        </button>
+                        <button type="button" class="operator-remove"
+                                (click)="removeOperator($event, item.employeeId)"
+                                [attr.aria-label]="'Deslogar ' + item.name" title="Deslogar">⏻</button>
+                    </div>
+                    }
+                    <button type="button" class="operator-item authenticate" role="menuitem"
+                            (click)="authenticateOperator()">
+                        <span class="operator-badge sm">+</span>
+                        <span class="operator-item-name">Autenticar usuário</span>
+                    </button>
+                </div>
+                }
+            </div>
+            } @else {
             <button class="nav-item logout-btn" (click)="logout()" aria-label="Sair">
                 <i class="icon" aria-hidden="true">SA</i>
                 <span class="nav-label">Sair</span>
             </button>
+            }
         </nav>
     </aside>
 
@@ -183,3 +227,14 @@
         <span>Sistema pronto</span>
     </footer>
 </div>
+
+<!-- Modal global de identificação de operador -->
+@if (operatorRequest(); as request) {
+<rentafit-employee-verify
+    [title]="request.title"
+    [mode]="request.mode"
+    [employee]="request.employee"
+    (confirmed)="onOperatorConfirmed($event)"
+    (cancelled)="onOperatorCancelled()">
+</rentafit-employee-verify>
+}

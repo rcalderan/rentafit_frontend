@@ -3,7 +3,7 @@ import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, signal
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { from, forkJoin, Observable, Subject, Subscription, throwError } from 'rxjs';
-import { distinctUntilChanged, finalize, switchMap, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, finalize, map, switchMap, takeUntil } from 'rxjs/operators';
 import { CustomerService } from '../../../customer/service/customer.service';
 import { ICustomer } from '../../../customer/data/Customer.interface';
 import { IActiveAttendant } from '../../../admin/data/employee.interface';
@@ -27,10 +27,7 @@ import { IRentalContractItem } from '../../data/rental-contract-item.interface';
 import { INewRentalContract } from '../../data/rental-contract.interface';
 import { IRentalPayment } from '../../data/rental-payment.interface';
 import { ContractStatusApi, PaymentMethodApi, PaymentStatusApi } from '../../data/rental-api.types';
-import {
-  EmployeeConfirmedEvent,
-  EmployeeVerifyComponent,
-} from '../employee-verify/employee-verify.component';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { RentalContractService } from '../../service/rental-contract.service';
 import { AutosaveService, AutosaveStatus } from '../../service/autosave.service';
 import { NfseEmissionComponent } from '../../../finance/features/nfse-emission/nfse-emission.component';
@@ -48,7 +45,7 @@ export type { IItemMeta, INewRentalContract, IProductCatalog, IRentalContractIte
 
 @Component({
   selector: 'rentafit-new-rental',
-  imports: [CommonModule, FormsModule, EmployeeVerifyComponent, NfseEmissionComponent, PrintPreviewModalComponent],
+  imports: [CommonModule, FormsModule, NfseEmissionComponent, PrintPreviewModalComponent],
   templateUrl: './new-rental.component.html',
   styleUrls: ['./new-rental.component.css'],
   providers: [AutosaveService],
@@ -80,6 +77,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private readonly holidayService = inject(HolidayService);
   private readonly customerService = inject(CustomerService);
   private readonly employeeService = inject(EmployeeService);
+  protected readonly operatorService = inject(TerminalOperatorService);
   private readonly productService = inject(ProductService);
   private readonly rentalContractService = inject(RentalContractService);
   private readonly printTemplateStorage = inject(PrintTemplateStorageService);
@@ -135,35 +133,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   /** UUID of the revision contract created from this one. */
   replacedByContractId: string | null = null;
 
-  // ── Employee verification modal ──
-  showEmployeeVerify = false;
-  /** Which action is pending employee confirmation. */
-  employeeVerifyAction: 'sign' | 'finalize' | 'save' | 'payment' | 'addPayment' | 'chargeBack' | null = null;
+  // ── Operator identification (via TerminalOperatorService + janela de PIN) ──
+  /** Employee ID autorizado pela última confirmação de PIN, usado na requisição seguinte. */
   private pendingPaymentEmployeeId: string | null = null;
   /** Index of the payment pending chargeBack confirmation. */
   private pendingChargeBackIndex: number | null = null;
-
-  get employeeVerifyTitle(): string {
-    switch (this.employeeVerifyAction) {
-      case 'sign':     return 'Identificar Atendente — Assinatura';
-      case 'finalize': return 'Identificar Atendente — Finalização';
-      case 'save':     return 'Validar Atendente — Salvar Proposta';
-      case 'addPayment':  return 'Identificar Atendente — Adicionar Parcela';
-      case 'payment':  return this.paymentModalStatus === PaymentStatus.PAID
-        ? 'Identificar Atendente — Registrar Pagamento'
-        : 'Identificar Atendente — Editar Parcela';
-      case 'chargeBack': return 'Autorizar Extorno de Parcela';
-      default:         return 'Identificar Atendente';
-    }
-  }
-
-  get employeeVerifyRequirePin(): boolean {
-    return this.employeeVerifyAction === 'sign'
-      || this.employeeVerifyAction === 'finalize'
-      || this.employeeVerifyAction === 'payment'
-      || this.employeeVerifyAction === 'addPayment'
-      || this.employeeVerifyAction === 'chargeBack';
-  }
 
   // ── Customer ──
   customerFound = false;
@@ -540,7 +514,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.itemModalName = '';
     this.itemModalMeta = '';
     this.itemModalValor = 0;
-    this.itemModalEmployee = '';
+    this.itemModalEmployee = this.operatorService.currentOperator()?.employeeId ?? '';
     this.itemModalExtras = [];
     this.itemModalNewExtraDesc = '';
     this.itemModalFoundProduct = null;
@@ -798,8 +772,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         (this.paymentModalStatus === PaymentStatus.PAID && existingPayment?.id != null)) &&
       this.pendingPaymentEmployeeId === null
     ) {
-      this.employeeVerifyAction = 'payment';
-      this.showEmployeeVerify = true;
+      const title = this.paymentModalStatus === PaymentStatus.PAID
+        ? 'Identificar Usuário — Registrar Pagamento'
+        : 'Identificar Usuário — Editar Parcela';
+      this.operatorService.authorize({ title, requirePin: true }).subscribe(op => {
+        if (!op) return;
+        this.pendingPaymentEmployeeId = op.employeeId;
+        this.confirmAddPayment();
+      });
       return;
     }
     if (!isEditing) return;
@@ -850,7 +830,10 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     if (this.contractId) {
       this.isSaving = true;
       this.serverError = '';
-      const employeeId = this.pendingPaymentEmployeeId ?? this.itemModalEmployee ?? '';
+      const employeeId = this.pendingPaymentEmployeeId
+        ?? this.operatorService.currentOperator()?.employeeId
+        ?? this.itemModalEmployee
+        ?? '';
       this.pendingPaymentEmployeeId = null;
       const contractId = this.contractId;
       const request = this.buildPaymentRequest(payment, employeeId);
@@ -890,8 +873,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.contract.situacao === ContractStatus.SIGNED &&
       this.pendingPaymentEmployeeId === null
     ) {
-      this.employeeVerifyAction = 'addPayment';
-      this.showEmployeeVerify = true;
+      this.operatorService
+        .authorize({ title: 'Identificar Usuário — Adicionar Parcela', requirePin: true })
+        .subscribe(op => {
+          if (!op) return;
+          this.pendingPaymentEmployeeId = op.employeeId;
+          this.dividePayment();
+        });
       return;
     }
 
@@ -944,7 +932,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     // For SIGNED contracts: persist each new (unsaved) payment to backend
     if (this.contractId && this.contract.situacao === ContractStatus.SIGNED) {
-      const employeeId = this.pendingPaymentEmployeeId ?? '';
+      const employeeId = this.pendingPaymentEmployeeId
+        ?? this.operatorService.currentOperator()?.employeeId
+        ?? '';
       this.pendingPaymentEmployeeId = null;
       const contractId = this.contractId;
       const unsaved = this.contract.pagamentos.filter(p => !p.id);
@@ -1002,8 +992,12 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     );
     if (!confirmed) return;
     this.pendingChargeBackIndex = index;
-    this.employeeVerifyAction = 'chargeBack';
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Autorizar Extorno de Parcela', requirePin: true })
+      .subscribe(op => {
+        if (!op) return;
+        this.executeChargeBack(op.employeeId);
+      });
   }
 
   private executeChargeBack(employeeId: string): void {
@@ -1113,9 +1107,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Adicione pelo menos um item antes de salvar.';
       return;
     }
-    // Require employee identification + PIN before persisting
-    this.employeeVerifyAction = 'save';
-    this.showEmployeeVerify = true;
+    // Require operator PIN before persisting
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Salvar Proposta', requirePin: true })
+      .subscribe(op => {
+        if (!op) return;
+        this.executeSave(op.employeeId);
+      });
   }
 
   private executeSave(employeeId: string): void {
@@ -1262,8 +1260,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Salve a proposta antes de assinar.';
       return;
     }
-    this.employeeVerifyAction = 'sign';    
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Assinatura', requirePin: false })
+      .subscribe(op => {
+        if (op) this.runContractAction('sign', op.name);
+      });
   }
 
   finalizarLocacao(): void {
@@ -1280,8 +1281,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Salve a proposta antes de finalizar.';
       return;
     }
-    this.employeeVerifyAction = 'finalize';
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Finalização', requirePin: false })
+      .subscribe(op => {
+        if (op) this.runContractAction('finalize', op.name);
+      });
   }
 
   private signContractWithDefaultPrintTemplate(contractId: string): Observable<IRentalContractResponse> {
@@ -1295,33 +1299,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     );
   }
 
-  onEmployeeConfirmed(event: EmployeeConfirmedEvent): void {
-    this.showEmployeeVerify = false;
-    const action = this.employeeVerifyAction;
-    this.employeeVerifyAction = null;
-
-    if (action === 'save') {
-      this.executeSave(event.employeeId);
-      return;
-    }
-
-    if (action === 'payment') {
-      this.pendingPaymentEmployeeId = event.employeeId;
-      this.confirmAddPayment();
-      return;
-    }
-
-    if (action === 'chargeBack') {
-      this.executeChargeBack(event.employeeId);
-      return;
-    }
-
-    if (action === 'addPayment') {
-      this.pendingPaymentEmployeeId = event.employeeId;
-      this.dividePayment();
-      return;
-    }
-
+  private runContractAction(action: 'sign' | 'finalize', employeeName: string): void {
     if (!this.contractId) return;
 
     this.isSaving = true;
@@ -1339,7 +1317,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         if (response.warnings?.length) {
           this.serverWarnings = response.warnings;
         }
-        console.log(`Contract ${action} confirmed by employee ${event.employeeName}`);
+        console.log(`Contract ${action} confirmed by employee ${employeeName}`);
       },
       error: (err: Error) => {
         this.serverError = err.message || `Erro ao ${action === 'sign' ? 'assinar' : 'finalizar'} contrato.`;
@@ -1347,12 +1325,24 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  onEmployeeCancelled(): void {
-    this.showEmployeeVerify = false;
-    this.employeeVerifyAction = null;
+  duplicateContract(): void {
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Nova Proposta', requirePin: true })
+      .subscribe(op => {
+        if (op) this.executeDuplicate();
+      });
   }
 
-  duplicateContract(): void {
+  /** Gate de PIN do operador para emitir/cancelar nota fiscal (NFS-e embutida). */
+  protected readonly authorizeFiscalAction = (action: 'emit' | 'cancel'): Observable<boolean> =>
+    this.operatorService
+      .authorize({
+        title: action === 'emit' ? 'Identificar Usuário — Emitir NFS-e' : 'Autorizar Cancelamento de NFS-e',
+        requirePin: true,
+      })
+      .pipe(map(op => op !== null));
+
+  private executeDuplicate(): void {
     if (!this.contractId) {
       // Offline duplicate (no backend contract yet)
       this.contract = {

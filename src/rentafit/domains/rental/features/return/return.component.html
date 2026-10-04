@@ -216,11 +216,3 @@
   }
 }
 
-@if (showEmployeeVerify()) {
-  <rentafit-employee-verify
-    [title]="employeeVerifyMode() === 'confirm' ? 'Confirmar Devolução' : 'Autorizar Fechamento de Contrato'"
-    [requirePin]="true"
-    (confirmed)="onEmployeeConfirmed($event)"
-    (cancelled)="onEmployeeVerifyCancelled()"
-  />
-}

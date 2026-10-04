@@ -1,12 +1,40 @@
 import { inject, Injectable } from '@angular/core';
-import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { HttpBackend, HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { BehaviorSubject, Observable, throwError } from 'rxjs';
+import { BehaviorSubject, Observable, Subject, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { CryptoService } from './crypto.service';
 import { User, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest } from '../data/user.model';
 import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
+
+/** Snapshot da sessão de um usuário autenticado no terminal (multi-operador). */
+export interface StoredSession {
+  accessToken: string;
+  refreshToken: string;
+  user: User;
+}
+
+export interface StoredOperatorSession extends StoredSession {
+  initials: string;
+}
+
+interface UserProfilePayload extends Omit<User, 'role'> {
+  roles: string[];
+}
+
+interface OperatorProfilePayload {
+  user: UserProfilePayload;
+  initials: string;
+}
+
+interface OperatorLoginPayload extends LoginResponse {
+  profile: OperatorProfilePayload;
+}
+
+export function isOperationalUser(user: User): boolean {
+  return user.active === true && [UserRole.EMPLOYEE, UserRole.MANAGER, UserRole.ADMIN].includes(user.role);
+}
 
 @Injectable({
   providedIn: 'root'
@@ -14,8 +42,11 @@ import { APP_CONFIG } from '../../../shared/data/app-config.token';
 export class AuthService {
   private readonly config = inject(APP_CONFIG);
   private readonly apiUrl = `${this.config.apiBaseUrl}/api/auth`;
+  private readonly operatorHttp = new HttpClient(inject(HttpBackend));
   private currentUserSubject = new BehaviorSubject<User | null>(null);
   public currentUser$ = this.currentUserSubject.asObservable();
+  private readonly terminalLoginSubject = new Subject<void>();
+  readonly terminalLogin$ = this.terminalLoginSubject.asObservable();
 
   constructor(
     private http: HttpClient,
@@ -35,14 +66,18 @@ export class AuthService {
    * Realiza o login do usuário
    */
 
-  login(username: string, password: string): Observable<User> {
+  login(username: string, password: string, additionalOperator = false): Observable<User> {
+    if (additionalOperator) return this.loginOperator(username, password).pipe(map(session => session.user));
     const loginRequest: LoginRequest = {
       username,
       password: password
     };
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, loginRequest).pipe(
       tap(response => this.storeTokens(response)),
-      switchMap(() => this.fetchUserProfile()), 
+      switchMap(() => this.fetchUserProfile(() => {
+        sessionStorage.removeItem('rentafit.terminalOperators');
+        this.terminalLoginSubject.next();
+      })),
       catchError(this.handleError.bind(this))
     );
   }
@@ -50,32 +85,69 @@ export class AuthService {
   /**
    * Busca o perfil do usuário após o login
    */
-  private fetchUserProfile(): Observable<User> {
-    return this.http.get<any>(`${this.apiUrl}/me`).pipe(
+  private fetchUserProfile(beforePublish?: () => void): Observable<User> {
+    return this.http.get<UserProfilePayload>(`${this.apiUrl}/me`).pipe(
       catchError(this.handleError.bind(this)),
       map(response => {
-        const role = this.mapRole(response.roles[0]);
-        const user: User = {
-          id: response.id,
-          username: response.username,
-          email: response.email,
-          name: response.name,
-          legacyId: response.legacyId,
-          pinConfigured: response.pinConfigured,
-          role: role,
-          active: response.active,
-          passwordExpired: response.passwordExpired ?? false,
-          issuerCnpj: response.issuerCnpj,
-          createdAt: response.createdAt
-        };
+        const user = this.mapUserProfile(response);
         
         // Persiste o usuário no localStorage    
+        beforePublish?.();
         this.currentUserSubject.next(user);
         localStorage.setItem('currentUser', JSON.stringify(user));    
         
         return user;
       })
     );
+  }
+
+  loginOperator(username: string, password: string): Observable<StoredOperatorSession> {
+    return this.operatorHttp.post<OperatorLoginPayload>(`${this.apiUrl}/operator-login`, { username, password }).pipe(
+      map(response => this.operatorSession(response, response.profile)),
+      catchError(error => this.handleOperatorError(error)),
+    );
+  }
+
+  validateOperatorSession(session: StoredSession): Observable<StoredOperatorSession> {
+    return this.operatorHttp.get<OperatorProfilePayload>(`${this.apiUrl}/operator-profile`, {
+      headers: { Authorization: `Bearer ${session.accessToken}` },
+    }).pipe(
+      map(profile => {
+        const verified = this.operatorSession(session, profile);
+        if (verified.user.id !== session.user.id) throw new Error('A sessão não pertence ao usuário selecionado.');
+        return verified;
+      }),
+      catchError(error => this.handleOperatorError(error)),
+    );
+  }
+
+  private operatorSession(tokens: Pick<StoredSession, 'accessToken' | 'refreshToken'>, profile: OperatorProfilePayload): StoredOperatorSession {
+    const user = this.mapUserProfile(profile.user);
+    if (!isOperationalUser(user) || user.pinConfigured !== true || user.passwordExpired || !profile.initials?.trim()
+        || !tokens.accessToken || !tokens.refreshToken) {
+      throw new Error('Usuário não habilitado: é necessário perfil EMPLOYEE, MANAGER ou ADMIN com credenciais configuradas.');
+    }
+    return { accessToken: tokens.accessToken, refreshToken: tokens.refreshToken, user, initials: profile.initials };
+  }
+
+  private mapUserProfile(profile: UserProfilePayload): User {
+    const role = [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE, UserRole.CUSTOMER]
+      .find(candidate => profile.roles?.some(value => this.mapRole(value) === candidate)) ?? UserRole.CUSTOMER;
+    return {
+      id: profile.id, username: profile.username, email: profile.email, name: profile.name,
+      legacyId: profile.legacyId, pinConfigured: profile.pinConfigured, role, active: profile.active,
+      passwordExpired: profile.passwordExpired ?? false, issuerCnpj: profile.issuerCnpj,
+      createdAt: profile.createdAt,
+    };
+  }
+
+  private handleOperatorError(error: unknown): Observable<never> {
+    const message = error instanceof HttpErrorResponse
+      ? (error.status === 401 || error.status === 403
+        ? 'Credenciais inválidas ou usuário não habilitado para operar.'
+        : HTTP_ERROR_MAP[error.status] ?? ErrorMessages.UNKNOWN_ERROR)
+      : error instanceof Error ? error.message : ErrorMessages.UNKNOWN_ERROR;
+    return throwError(() => new Error(message));
   }
 
   /**
@@ -103,7 +175,12 @@ export class AuthService {
 
     const request: RefreshTokenRequest = { refreshToken };
     return this.http.post<LoginResponse>(`${this.apiUrl}/refresh`, request).pipe(
-      tap(response => this.storeTokens(response)),
+      tap(response => {
+        this.storeTokens(response);
+        // Re-emite o usuário para que o TerminalOperatorService recapture a sessão renovada.
+        const user = this.currentUserSubject.value;
+        if (user) this.currentUserSubject.next(user);
+      }),
       catchError(error => {
         this.logout();
         return throwError(() => error);
@@ -191,6 +268,23 @@ export class AuthService {
    */
   getCurrentUser(): User | null {
     return this.currentUserSubject.value;
+  }
+
+  /** Captura a sessão ativa (tokens + usuário) para troca de operador. */
+  captureSession(): StoredSession | null {
+    const user = this.currentUserSubject.value;
+    const accessToken = this.getAccessToken();
+    const refreshToken = this.getRefreshToken();
+    if (!user || !accessToken || !refreshToken) return null;
+    return { accessToken, refreshToken, user };
+  }
+
+  /** Restaura uma sessão capturada — troca o usuário autenticado sem novo login. */
+  restoreSession(session: StoredSession): void {
+    localStorage.setItem('accessToken', session.accessToken);
+    localStorage.setItem('refreshToken', session.refreshToken);
+    localStorage.setItem('currentUser', JSON.stringify(session.user));
+    this.currentUserSubject.next(session.user);
   }
 
   /**

@@ -22,6 +22,7 @@ import { IProductCatalog } from '../../data/product-catalog.interface';
 import { NewRental } from './new-rental.component';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 
 const product: IProductCatalog = {
@@ -82,6 +83,17 @@ class FakePrintTemplateStorage {
 
 class FakeRentalContractService {
   readonly signRequests: Array<{ contractId: string; request: IRentalContractSignRequest }> = [];
+  readonly saveRequests: unknown[] = [];
+
+  create(request: unknown): Observable<IRentalContractResponse> {
+    this.saveRequests.push(request);
+    return EMPTY;
+  }
+
+  update(_contractId: string, request: unknown): Observable<IRentalContractResponse> {
+    this.saveRequests.push(request);
+    return EMPTY;
+  }
 
   sign(contractId: string, request: IRentalContractSignRequest): Observable<IRentalContractResponse> {
     this.signRequests.push({ contractId, request });
@@ -89,11 +101,19 @@ class FakeRentalContractService {
   }
 }
 
+const AUTHORIZED_OPERATOR = {
+  employeeId: 'employee-1',
+  name: 'Ana',
+  initials: 'AN',
+  pinTrustedUntil: 0,
+};
+
 describe('NewRental item attendant', () => {
   let customerService: FakeCustomerService;
   let printTemplateStorage: FakePrintTemplateStorage;
   let rentalContractService: FakeRentalContractService;
   let employeeService: { listActiveAttendants: ReturnType<typeof vi.fn> };
+  let operatorService: { authorize: ReturnType<typeof vi.fn>; currentOperator: ReturnType<typeof vi.fn> };
   let tabServiceMock: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn> };
   let component: NewRental;
 
@@ -106,6 +126,10 @@ describe('NewRental item attendant', () => {
           { id: 'admin-1', name: 'Carla', role: 'ADMIN' },
         ]),
       ),
+    };
+    operatorService = {
+      authorize: vi.fn().mockReturnValue(of(AUTHORIZED_OPERATOR)),
+      currentOperator: vi.fn().mockReturnValue(null),
     };
     tabServiceMock = { closeActiveIf: vi.fn(), getTabId: vi.fn((path, draftId) => `${path}::${draftId}`), updateTitle: vi.fn() };
     customerService = new FakeCustomerService();
@@ -124,6 +148,7 @@ describe('NewRental item attendant', () => {
         { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
         { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
         { provide: TabService, useValue: tabServiceMock },
+        { provide: TerminalOperatorService, useValue: operatorService },
         { provide: APP_CONFIG, useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' } },
       ],
     });
@@ -137,10 +162,17 @@ describe('NewRental item attendant', () => {
     component.openItemModal();
 
     expect(component.showItemModal).toBe(true);
-    expect(component.showEmployeeVerify).toBe(false);
     expect(component.itemModalEmployee).toBe('');
     expect(employeeService.listActiveAttendants).toHaveBeenCalledOnce();
     expect(component.activeAttendants).toHaveLength(3);
+  });
+
+  it('pré-seleciona o operador em comando como atendente do item', () => {
+    operatorService.currentOperator.mockReturnValue(AUTHORIZED_OPERATOR);
+
+    component.openItemModal();
+
+    expect(component.itemModalEmployee).toBe('employee-1');
   });
 
   it('opens print confirmation only after the proposal has an ID', () => {
@@ -202,15 +234,38 @@ describe('NewRental item attendant', () => {
 
   it('sends the active default template ID when signing the proposal', async () => {
     component.contractId = 'saved-contract';
-    component.employeeVerifyAction = 'sign';
+    component.contract.situacao = ContractStatus.DRAFT;
+    component.contract.cliente = 'Cliente de teste';
+    component.contract.itens = [{
+      codigo: '10', descricao: 'Terno', valor: 150, entregue: false, attendantEmployeeId: 'employee-1', sub: [],
+    }];
 
-    component.onEmployeeConfirmed({ employeeId: 'employee-1', employeeName: 'Ana' });
+    component.assinarContrato();
     await vi.waitFor(() => expect(rentalContractService.signRequests).toHaveLength(1));
 
+    expect(operatorService.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ requirePin: false }),
+    );
     expect(rentalContractService.signRequests[0]).toEqual({
       contractId: 'saved-contract',
       request: { printTemplateId: DEFAULT_RENTAL_CONTRACT_TEMPLATE.id },
     });
+  });
+
+  it('exige PIN do operador ao salvar proposta', () => {
+    component.customerUuid = 'customer-1';
+    component.contract.pagamentos = [{
+      parcela: 1, data: '2026-09-29', forma: PaymentMethod.CASH, valor: 150, vezes: 1, status: PaymentStatus.PENDING,
+    }];
+    component.contract.itens = [{
+      codigo: '10', descricao: 'Terno', valor: 150, entregue: false, attendantEmployeeId: 'employee-1', sub: [],
+    }];
+
+    component.salvarProposta();
+
+    expect(operatorService.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ requirePin: true }),
+    );
   });
 
   it('não adiciona novo item sem atendente', () => {
@@ -361,6 +416,7 @@ describe('Home last contract link', () => {
         { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
         { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
         { provide: TabService, useValue: tabServiceMock },
+        { provide: TerminalOperatorService, useValue: { authorize: vi.fn(), currentOperator: vi.fn().mockReturnValue(null) } },
         { provide: APP_CONFIG, useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' } },
       ],
     });
