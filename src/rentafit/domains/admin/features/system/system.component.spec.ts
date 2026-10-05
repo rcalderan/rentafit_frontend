@@ -1,3 +1,5 @@
+import { of } from 'rxjs';
+import { SettingsService } from '../../service/settings.service';
 import { TestBed } from '@angular/core/testing';
 import { vi } from 'vitest';
 import { SystemComponent } from './system.component';
@@ -7,7 +9,7 @@ import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { UserRole } from '../../../auth/data/user.model';
 
 describe('SystemComponent', () => {
-  let authService: { hasRole: ReturnType<typeof vi.fn> };
+  let authService: { hasRole: ReturnType<typeof vi.fn>; hasAnyRole: ReturnType<typeof vi.fn> };
   let migrationService: { createSession: ReturnType<typeof vi.fn> };
 
   const makeFixture = () => {
@@ -17,13 +19,17 @@ describe('SystemComponent', () => {
   };
 
   beforeEach(async () => {
-    authService = { hasRole: vi.fn().mockReturnValue(false) };
+    authService = {
+      hasRole: vi.fn().mockReturnValue(false),
+      hasAnyRole: vi.fn().mockReturnValue(false),
+    };
     migrationService = { createSession: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [SystemComponent],
       providers: [
         { provide: AuthService, useValue: authService },
+        { provide: SettingsService, useValue: { getNumber: () => of(2) } },
         { provide: MigrationService, useValue: migrationService },
         { provide: APP_CONFIG, useValue: { apiBaseUrl: '' } },
       ],
@@ -36,7 +42,9 @@ describe('SystemComponent', () => {
 
   it('renderiza os cards de estatísticas e preços', () => {
     const element: HTMLElement = makeFixture().nativeElement;
-    const titles = Array.from(element.querySelectorAll('.section-title')).map(t => t.textContent?.trim());
+    const titles = Array.from(element.querySelectorAll('.section-title')).map((t) =>
+      t.textContent?.trim(),
+    );
     expect(titles).toEqual(['Estatísticas de Uso', 'Configuração de Preços']);
     expect(element.querySelector('rentafit-ui-variant-selector')).toBeTruthy();
   });

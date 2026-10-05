@@ -145,6 +145,16 @@ describe('AuthService terminal login', () => {
     expectCurrentSessionUnchanged();
   });
 
+  it('explica a retirada do ADMIN provisório sem afetar a sessão definitiva', async () => {
+    keepCurrentSession();
+    const session = { ...candidateTokens, user: { id: '0194269a-0000-7000-8000-000000000001',
+      username: 'admin', role: UserRole.ADMIN, active: true } };
+    const result = lastValueFrom(auth.validateOperatorSession(session));
+    http.expectOne('/api/auth/operator-profile').flush({}, { status: 403, statusText: 'Forbidden' });
+    await expect(result).rejects.toThrow('administrador definitivo');
+    expectCurrentSessionUnchanged();
+  });
+
   it('revalidação rejeitada não usa refresh do usuário ativo', async () => {
     keepCurrentSession();
     const session = { ...candidateTokens, user: { id: 'operator-1', username: 'operator',

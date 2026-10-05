@@ -1,4 +1,9 @@
-﻿import { ContractStatusApi, ItemMetaTypeApi, PaymentMethodApi, PaymentStatusApi } from './rental-api.types';
+﻿import {
+  ContractStatusApi,
+  ItemMetaTypeApi,
+  PaymentMethodApi,
+  PaymentStatusApi,
+} from './rental-api.types';
 import { InvoiceStatusApi } from '../../finance/data/fiscal-document.types';
 
 export interface IPageResponse<T> {
@@ -68,6 +73,10 @@ export interface IRentalContractResponse {
   statusDescription: string;
   printTemplateId?: string | null;
   isReturned: boolean;
+  returned?: boolean;
+  revisedByAccountId?: string | null;
+  confirmedByAccountId?: string | null;
+  revisionConfirmedAt?: string | null;
   contractType: number;
   customerId: string;
   customerName: string;

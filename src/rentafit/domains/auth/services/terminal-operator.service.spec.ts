@@ -82,6 +82,15 @@ describe('TerminalOperatorService', () => {
     return op;
   }
 
+  it('retira a sessão provisória após revalidação recusada', () => {
+    const bootstrapId = '0194269a-0000-7000-8000-000000000001';
+    setup(makeUser(bootstrapId));
+    authService.validateOperatorSession.mockReturnValue(throwError(() => new Error('Conta retirada')));
+    currentUser$.next(makeUser(bootstrapId));
+    expect(service.operators()).toEqual([]);
+    expect(authService.logout).toHaveBeenCalledOnce();
+  });
+
   it('adiciona o usuário logado como operador quando é funcionário', () => {
     setup(makeUser('emp-1'));
 

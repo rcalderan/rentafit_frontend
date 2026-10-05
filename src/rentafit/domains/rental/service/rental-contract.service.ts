@@ -35,7 +35,10 @@ export class RentalContractService {
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('RentalContractService error:', error);
     const msg =
-      HTTP_ERROR_MAP[error.status] ?? error.error?.message ?? ErrorMessages.UNKNOWN_ERROR;
+      (error.status === 422 ? error.error?.message : null) ??
+      HTTP_ERROR_MAP[error.status] ??
+      error.error?.message ??
+      ErrorMessages.UNKNOWN_ERROR;
     return throwError(() => new Error(msg));
   }
 
@@ -85,10 +88,9 @@ export class RentalContractService {
     if (params?.size != null) httpParams = httpParams.set('size', params.size);
 
     return this.http
-      .get<IPageResponse<IRentalContractResponse>>(
-        `${this.apiUrl}/byCustomer/${customerId}`,
-        { params: httpParams },
-      )
+      .get<
+        IPageResponse<IRentalContractResponse>
+      >(`${this.apiUrl}/byCustomer/${customerId}`, { params: httpParams })
       .pipe(catchError(this.handleError.bind(this)));
   }
 
@@ -128,10 +130,7 @@ export class RentalContractService {
   }
 
   /** Register physical return of all items. */
-  processReturn(
-    id: string,
-    request: IProcessReturnRequest,
-  ): Observable<IRentalContractResponse> {
+  processReturn(id: string, request: IProcessReturnRequest): Observable<IRentalContractResponse> {
     return this.http
       .patch<IRentalContractResponse>(`${this.apiUrl}/${id}/return`, request)
       .pipe(catchError(this.handleError.bind(this)));
@@ -140,10 +139,7 @@ export class RentalContractService {
   /** Mark a single item as delivered (RESERVED → RENTED). */
   deliverItem(contractId: string, itemId: string): Observable<IRentalContractResponse> {
     return this.http
-      .patch<IRentalContractResponse>(
-        `${this.apiUrl}/${contractId}/items/${itemId}/deliver`,
-        {},
-      )
+      .patch<IRentalContractResponse>(`${this.apiUrl}/${contractId}/items/${itemId}/deliver`, {})
       .pipe(catchError(this.handleError.bind(this)));
   }
 
@@ -158,6 +154,12 @@ export class RentalContractService {
   revise(id: string): Observable<IRentalContractResponse> {
     return this.http
       .post<IRentalContractResponse>(`${this.apiUrl}/${id}/revise`, {})
+      .pipe(catchError(this.handleError.bind(this)));
+  }
+
+  restartRevision(id: string): Observable<IRentalContractResponse> {
+    return this.http
+      .post<IRentalContractResponse>(`${this.apiUrl}/${id}/revision-restart`, {})
       .pipe(catchError(this.handleError.bind(this)));
   }
 
@@ -184,10 +186,7 @@ export class RentalContractService {
     request: IRentalPaymentRequest,
   ): Observable<IRentalPaymentResponse> {
     return this.http
-      .put<IRentalPaymentResponse>(
-        `${this.apiUrl}/${contractId}/payments/${paymentId}`,
-        request,
-      )
+      .put<IRentalPaymentResponse>(`${this.apiUrl}/${contractId}/payments/${paymentId}`, request)
       .pipe(catchError(this.handleError.bind(this)));
   }
 

@@ -117,7 +117,13 @@ export class AuthService {
         if (verified.user.id !== session.user.id) throw new Error('A sessão não pertence ao usuário selecionado.');
         return verified;
       }),
-      catchError(error => this.handleOperatorError(error)),
+      catchError(error => {
+        if (session.user.id === '0194269a-0000-7000-8000-000000000001'
+            && error instanceof HttpErrorResponse && [401, 403].includes(error.status)) {
+          return throwError(() => new Error('Conta provisória indisponível. Autentique-se com o administrador definitivo.'));
+        }
+        return this.handleOperatorError(error);
+      }),
     );
   }
 

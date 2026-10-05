@@ -121,7 +121,7 @@ export class UserManagementComponent implements OnInit {
     this.pendingRole.set(newRole);
     this.pendingInitials.set(null);
 
-    if (newRole === UserRole.EMPLOYEE || newRole === UserRole.MANAGER) {
+    if (newRole === UserRole.EMPLOYEE || newRole === UserRole.MANAGER || newRole === UserRole.ADMIN) {
       this.checkEmployeeBeforePin(user, newRole);
       return;
     }

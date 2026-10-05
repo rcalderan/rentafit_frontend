@@ -110,6 +110,35 @@ describe('MainLayout', () => {
     uiVariant = TestBed.inject(UiVariantService) as unknown as MockUiVariantService;
   });
 
+  it('dismisses menus on outside pointer, focus and Escape', () => {
+    fixture.detectChanges();
+    component['toggleProductSubmenu']();
+    fixture.nativeElement
+      .querySelector('main')
+      .dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+    component['toggleProductSubmenu']();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+    component['toggleProductSubmenu']();
+    fixture.nativeElement
+      .querySelector('main')
+      .dispatchEvent(new Event('focusin', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+  });
+
+  it('keeps menu open when interacting within its active container', () => {
+    fixture.detectChanges();
+    component['toggleProductSubmenu']();
+    const container: HTMLDivElement = document.createElement('div');
+    container.className = 'nav-item-container open';
+    const option: HTMLButtonElement = document.createElement('button');
+    container.append(option);
+    fixture.nativeElement.append(container);
+    option.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(true);
+  });
+
   it('should create', () => {
     fixture.detectChanges();
     expect(component).toBeTruthy();

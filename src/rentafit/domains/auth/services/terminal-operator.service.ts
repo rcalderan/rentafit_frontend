@@ -303,6 +303,10 @@ export class TerminalOperatorService {
       error: () => {
         if (this.authService.captureSession()?.accessToken !== session?.accessToken) return;
         this.operators.update(operators => operators.filter(operator => operator.employeeId !== userId));
+        if (userId === '0194269a-0000-7000-8000-000000000001') {
+          this.removeOperator(userId);
+          return;
+        }
         this.pruneExpiredOperators();
       },
     });
