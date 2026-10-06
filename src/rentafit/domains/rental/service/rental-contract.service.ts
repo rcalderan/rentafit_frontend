@@ -12,6 +12,7 @@ import {
   IRentalPaymentRequest,
 } from '../data/rental-contract-request.interface';
 import {
+  IItemReservationResponse,
   IPageResponse,
   IRentalContractResponse,
   IRentalContractSummaryResponse,
@@ -91,6 +92,26 @@ export class RentalContractService {
       .get<
         IPageResponse<IRentalContractResponse>
       >(`${this.apiUrl}/byCustomer/${customerId}`, { params: httpParams })
+      .pipe(catchError(this.handleError.bind(this)));
+  }
+
+  /**
+   * Reservas ativas do item (SIGNED/FINALIZED, eventDate >= hoje).
+   * Chamado ao carregar um item na proposta para alertar reservas existentes.
+   */
+  getItemReservations(
+    rentalItemId: string,
+    excludeContractId?: string,
+  ): Observable<IItemReservationResponse[]> {
+    let httpParams = new HttpParams();
+    if (excludeContractId) {
+      httpParams = httpParams.set('excludeContractId', excludeContractId);
+    }
+
+    return this.http
+      .get<IItemReservationResponse[]>(`${this.apiUrl}/byItem/${rentalItemId}`, {
+        params: httpParams,
+      })
       .pipe(catchError(this.handleError.bind(this)));
   }
 

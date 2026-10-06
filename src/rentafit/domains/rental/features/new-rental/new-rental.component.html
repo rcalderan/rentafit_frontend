@@ -601,6 +601,71 @@
   </div>
 }
 
+<!-- ══════════════ Modal: Reservas do Item ══════════════ -->
+@if (showReservationsModal) {
+  <div class="modal-backdrop" (click)="closeReservationsModal()"></div>
+  <div
+    class="modal modal-reservations"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="item-reservations-title"
+  >
+    <div class="modal-header">
+      <span class="modal-title" id="item-reservations-title">Item já reservado</span>
+      <button class="modal-close" (click)="closeReservationsModal()" aria-label="Fechar">
+        <i aria-hidden="true">✕</i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="reservations-hint">
+        Este item já está reservado nos contratos abaixo. Confira as datas antes de
+        adicioná-lo à proposta.
+      </p>
+      <table class="reservations-table">
+        <thead>
+          <tr>
+            <th>Nº</th>
+            <th>Cliente</th>
+            <th>Evento</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (reservation of itemReservations; track reservation.contractId) {
+            <tr>
+              <td class="reservation-legacy-id">{{ reservation.legacyId || '—' }}</td>
+              <td>
+                {{ reservation.customerName }}
+                @if (reservation.customerLegacyId) {
+                  <span class="customer-legacy">#{{ reservation.customerLegacyId }}</span>
+                }
+              </td>
+              <td>{{ formatDate(reservation.eventDate) }}</td>
+              <td>{{ reservation.statusDescription }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="btn-link"
+                  (click)="openReservationContract(reservation)"
+                  title="Abrir contrato"
+                >
+                  Abrir →
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-save" (click)="closeReservationsModal()">
+        Entendi
+      </button>
+    </div>
+  </div>
+}
+
 <!-- ══════════════ Modal: Adicionar Pagamento ══════════════ -->
 @if (showPaymentModal) {
   <div class="modal-backdrop" (click)="closePaymentModal()"></div>

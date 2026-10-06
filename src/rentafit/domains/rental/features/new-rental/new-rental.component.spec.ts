@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, EMPTY, Observable, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
-import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
+import {
+  IItemReservationResponse,
+  IRentalContractResponse,
+} from '../../data/rental-contract-response.interface';
 import { IRentalContractSignRequest } from '../../data/rental-contract-request.interface';
 import { DEFAULT_RENTAL_CONTRACT_TEMPLATE } from '../../../print/data/default-templates';
 import { PrintTemplate, TemplateType } from '../../../print/data/print-template.model';
@@ -85,6 +88,8 @@ class FakePrintTemplateStorage {
 class FakeRentalContractService {
   readonly signRequests: Array<{ contractId: string; request: IRentalContractSignRequest }> = [];
   readonly saveRequests: unknown[] = [];
+  readonly reservationCalls: Array<{ rentalItemId: string; excludeContractId?: string }> = [];
+  itemReservations: IItemReservationResponse[] = [];
 
   create(request: unknown): Observable<IRentalContractResponse> {
     this.saveRequests.push(request);
@@ -103,7 +108,38 @@ class FakeRentalContractService {
     this.signRequests.push({ contractId, request });
     return EMPTY;
   }
+
+  getItemReservations(
+    rentalItemId: string,
+    excludeContractId?: string,
+  ): Observable<IItemReservationResponse[]> {
+    this.reservationCalls.push({ rentalItemId, excludeContractId });
+    return of(this.itemReservations);
+  }
 }
+
+const rentalItemResult = {
+  id: 'item-uuid-1',
+  legacyId: '001',
+  name: 'Vestido Longo',
+  notes: '',
+  value: 300,
+  size: 'M',
+  color: 'Preto',
+};
+
+const itemReservation: IItemReservationResponse = {
+  contractId: 'contract-uuid-1',
+  legacyId: '251006-1',
+  customerId: 'customer-uuid-1',
+  customerName: 'Ana Lima',
+  customerLegacyId: 101,
+  eventDate: '2026-10-12',
+  pickupDate: '2026-10-10',
+  returnDate: '2026-10-14',
+  status: 'SIGNED',
+  statusDescription: 'Assinado',
+};
 
 const AUTHORIZED_OPERATOR = {
   employeeId: 'employee-1',
@@ -127,6 +163,7 @@ describe('NewRental item attendant', () => {
     getTabId: ReturnType<typeof vi.fn>;
     updateTitle: ReturnType<typeof vi.fn>;
   };
+  let productService: { getRentalItemByLegacyId: ReturnType<typeof vi.fn> };
   let component: NewRental;
 
   beforeEach(() => {
@@ -152,6 +189,7 @@ describe('NewRental item attendant', () => {
     customerService = new FakeCustomerService();
     printTemplateStorage = new FakePrintTemplateStorage();
     rentalContractService = new FakeRentalContractService();
+    productService = { getRentalItemByLegacyId: vi.fn() };
 
     TestBed.configureTestingModule({
       providers: [
@@ -161,7 +199,7 @@ describe('NewRental item attendant', () => {
         },
         { provide: EmployeeService, useValue: employeeService },
         { provide: CustomerService, useValue: customerService },
-        { provide: ProductService, useValue: {} },
+        { provide: ProductService, useValue: productService },
         {
           provide: HolidayService,
           useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) },
@@ -533,6 +571,79 @@ describe('NewRental item attendant', () => {
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/rental/new'),
       'Nova Locação',
+    );
+  });
+
+  // ── Reservas do item ──
+
+  it('abre o modal de reservas quando o item já está reservado em outro contrato', () => {
+    rentalContractService.itemReservations = [itemReservation];
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: undefined },
+    ]);
+    expect(component.showReservationsModal).toBe(true);
+    expect(component.itemReservations).toHaveLength(1);
+    expect(component.itemReservations[0].customerName).toBe('Ana Lima');
+  });
+
+  it('não abre o modal de reservas quando o item não tem reservas', () => {
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toHaveLength(1);
+    expect(component.showReservationsModal).toBe(false);
+  });
+
+  it('exclui o contrato em edição da consulta de reservas', () => {
+    component.contractId = 'contract-em-edicao';
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: 'contract-em-edicao' },
+    ]);
+  });
+
+  it('consulta reservas ao editar item vinculado ao catálogo', () => {
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
+    component['itemRentalIds'].set('10', 'item-uuid-1');
+
+    component.openEditItemModal(0);
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: undefined },
+    ]);
+  });
+
+  it('abre o contrato da reserva em outra aba ao clicar em Abrir', () => {
+    component.openReservationContract(itemReservation);
+
+    expect(tabServiceMock.open).toHaveBeenCalledWith(
+      '/rental/new',
+      'Contrato 251006-1',
+      'rental',
+      'contract-uuid-1',
+      { id: 'contract-uuid-1' },
     );
   });
 });

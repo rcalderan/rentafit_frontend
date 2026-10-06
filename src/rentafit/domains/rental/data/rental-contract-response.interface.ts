@@ -37,6 +37,24 @@ export interface IRentalContractSummaryResponse {
   createdAt: string;
 }
 
+/**
+ * Reserva ativa de um item (ItemReservationDTO) — endpoint
+ * GET /api/v1/rental/contracts/byItem/{rentalItemId}.
+ * Contratos SIGNED/FINALIZED com eventDate futuro que contêm o item.
+ */
+export interface IItemReservationResponse {
+  contractId: string;
+  legacyId?: string;
+  customerId: string;
+  customerName: string;
+  customerLegacyId?: number;
+  eventDate: string;
+  pickupDate: string;
+  returnDate: string;
+  status: string;
+  statusDescription: string;
+}
+
 export interface IItemMetaResponse {
   id: string;
   type: ItemMetaTypeApi;

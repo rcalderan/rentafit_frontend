@@ -34,7 +34,10 @@ import {
   IRentalContractSignRequest,
   IRentalPaymentRequest,
 } from '../../data/rental-contract-request.interface';
-import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
+import {
+  IItemReservationResponse,
+  IRentalContractResponse,
+} from '../../data/rental-contract-response.interface';
 import { IRentalContractItem } from '../../data/rental-contract-item.interface';
 import { INewRentalContract } from '../../data/rental-contract.interface';
 import { IRentalPayment } from '../../data/rental-payment.interface';
@@ -199,6 +202,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   itemModalFoundProductUuid: string | null = null;
   itemModalError = '';
   itemSearchLoading = false;
+
+  // ── Item reservations modal ──
+  /** Reservas ativas (outros contratos SIGNED/FINALIZED) do item carregado. */
+  itemReservations: IItemReservationResponse[] = [];
+  showReservationsModal = false;
 
   /** Maps item legacyCode → rental item UUID from the backend. */
   private itemRentalIds = new Map<string, string>();
@@ -619,11 +627,51 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.itemModalNewExtraType = 'observacao';
     this.itemModalError = '';
     this.showItemModal = true;
+    const editingRentalItemId = this.itemRentalIds.get(item.codigo);
+    if (editingRentalItemId) {
+      this.checkItemReservations(editingRentalItemId);
+    }
     setTimeout(() => this.itemCodeInput()?.nativeElement.focus(), 0);
   }
 
   closeItemModal(): void {
     this.showItemModal = false;
+  }
+
+  /**
+   * Consulta reservas ativas do item recém-carregado; se houver, abre o modal
+   * de alerta com os contratos que já reservam o item.
+   *
+   * A consulta é apenas informativa — uma falha não impede adicionar o item,
+   * pois o backend bloqueia conflitos reais no salvar/assinar.
+   */
+  private checkItemReservations(rentalItemId: string): void {
+    this.rentalContractService
+      .getItemReservations(rentalItemId, this.contractId ?? undefined)
+      .subscribe({
+        next: (reservations) => {
+          if (reservations.length === 0) return;
+          this.itemReservations = reservations;
+          this.showReservationsModal = true;
+          this.view?.markForCheck();
+        },
+        error: (err: Error) =>
+          console.warn('Falha ao consultar reservas do item:', err.message),
+      });
+  }
+
+  closeReservationsModal(): void {
+    this.showReservationsModal = false;
+  }
+
+  /** Abre o contrato da reserva em outra aba (mesmo padrão de "Últimos Contratos"). */
+  openReservationContract(reservation: IItemReservationResponse): void {
+    const label = reservation.legacyId
+      ? `Contrato ${reservation.legacyId}`
+      : 'Contrato';
+    this.tabService.open('/rental/new', label, 'rental', reservation.contractId, {
+      id: reservation.contractId,
+    });
   }
 
   searchItemByCode(): void {
@@ -666,6 +714,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
             .filter(Boolean)
             .join(' | ');
           this.itemModalValor = item.value;
+          if (item.id) this.checkItemReservations(item.id);
         },
         error: (err: Error) => {
           this.itemModalError = err.message || 'Produto não encontrado.';
