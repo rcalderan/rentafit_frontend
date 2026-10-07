@@ -3,18 +3,27 @@
     "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
+    "headers": {
+      "Origin": "http://localhost"
+    },
     "logLevel": "debug"
   },
   "/nfe-api": {
     "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
+    "headers": {
+      "Origin": "http://localhost"
+    },
     "logLevel": "debug"
   },
   "/nfse-api": {
     "target": "http://127.0.0.1:80",
     "secure": false,
     "changeOrigin": true,
+    "headers": {
+      "Origin": "http://localhost"
+    },
     "logLevel": "debug"
   }
 }

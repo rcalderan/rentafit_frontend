@@ -1,6 +1,26 @@
 <div class="user-management-container">
     <h1>Gerenciamento de Usuários</h1>
 
+    <div class="section-card pin-trust-section">
+        <span class="section-title">Identificação do terminal</span>
+        <p class="section-hint">
+            Tempo em que o PIN do operador fica confiado para ações sensíveis. Vale para todos os terminais.
+        </p>
+        <div class="pin-trust-form">
+            <label for="pin-trust-minutes">Janela de confiança (minutos)</label>
+            <input id="pin-trust-minutes" type="number" min="1" max="120" step="1"
+                [ngModel]="trustMinutes()" (ngModelChange)="trustMinutes.set(+$event)" />
+            <button type="button" class="btn btn-update" [disabled]="trustSaving()" (click)="saveTrustWindow()">
+                {{ trustSaving() ? 'Salvando…' : 'Salvar' }}
+            </button>
+        </div>
+        @if (trustFeedback(); as feedback) {
+        <div class="alert" [class.alert-success]="feedback.ok" [class.alert-error]="!feedback.ok">
+            {{ feedback.msg }}
+        </div>
+        }
+    </div>
+
     <div class="admin-grid">
         <div class="section-card roles-section">
             <span class="section-title">Gerenciar Papéis</span>

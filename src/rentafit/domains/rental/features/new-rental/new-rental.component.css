@@ -1030,3 +1030,54 @@ select {
     color: var(--danger-color, #ef4444);
     cursor: help;
 }
+
+/* ── Modal: reservas do item ── */
+.modal-reservations {
+    max-width: 620px;
+}
+
+.reservations-hint {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.reservations-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.82rem;
+}
+
+.reservations-table th {
+    text-align: left;
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--input-bg);
+}
+
+.reservations-table td {
+    padding: 0.55rem 0.5rem;
+    border-bottom: 1px solid var(--input-bg);
+    color: var(--text-color);
+    vertical-align: middle;
+}
+
+.reservations-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.reservation-legacy-id {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+.customer-legacy {
+    color: var(--text-muted);
+    font-size: 0.72rem;
+    margin-left: 0.25rem;
+}

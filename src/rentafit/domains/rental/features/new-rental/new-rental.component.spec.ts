@@ -2,7 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { BehaviorSubject, EMPTY, Observable, of, throwError } from 'rxjs';
 import { vi } from 'vitest';
-import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
+import {
+  IItemReservationResponse,
+  IRentalContractResponse,
+} from '../../data/rental-contract-response.interface';
 import { IRentalContractSignRequest } from '../../data/rental-contract-request.interface';
 import { DEFAULT_RENTAL_CONTRACT_TEMPLATE } from '../../../print/data/default-templates';
 import { PrintTemplate, TemplateType } from '../../../print/data/print-template.model';
@@ -20,8 +23,10 @@ import { PaymentMethod } from '../../data/payment-method.enum';
 import { PaymentStatus } from '../../data/payment-status.enum';
 import { IProductCatalog } from '../../data/product-catalog.interface';
 import { NewRental } from './new-rental.component';
+import { copyUnsavedRentalProposal } from '../../service/rental-proposal-copy';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 
 const product: IProductCatalog = {
@@ -82,19 +87,83 @@ class FakePrintTemplateStorage {
 
 class FakeRentalContractService {
   readonly signRequests: Array<{ contractId: string; request: IRentalContractSignRequest }> = [];
+  readonly saveRequests: unknown[] = [];
+  readonly reservationCalls: Array<{ rentalItemId: string; excludeContractId?: string }> = [];
+  itemReservations: IItemReservationResponse[] = [];
 
-  sign(contractId: string, request: IRentalContractSignRequest): Observable<IRentalContractResponse> {
+  create(request: unknown): Observable<IRentalContractResponse> {
+    this.saveRequests.push(request);
+    return EMPTY;
+  }
+
+  update(_contractId: string, request: unknown): Observable<IRentalContractResponse> {
+    this.saveRequests.push(request);
+    return EMPTY;
+  }
+
+  sign(
+    contractId: string,
+    request: IRentalContractSignRequest,
+  ): Observable<IRentalContractResponse> {
     this.signRequests.push({ contractId, request });
     return EMPTY;
   }
+
+  getItemReservations(
+    rentalItemId: string,
+    excludeContractId?: string,
+  ): Observable<IItemReservationResponse[]> {
+    this.reservationCalls.push({ rentalItemId, excludeContractId });
+    return of(this.itemReservations);
+  }
 }
+
+const rentalItemResult = {
+  id: 'item-uuid-1',
+  legacyId: '001',
+  name: 'Vestido Longo',
+  notes: '',
+  value: 300,
+  size: 'M',
+  color: 'Preto',
+};
+
+const itemReservation: IItemReservationResponse = {
+  contractId: 'contract-uuid-1',
+  legacyId: '251006-1',
+  customerId: 'customer-uuid-1',
+  customerName: 'Ana Lima',
+  customerLegacyId: 101,
+  eventDate: '2026-10-12',
+  pickupDate: '2026-10-10',
+  returnDate: '2026-10-14',
+  status: 'SIGNED',
+  statusDescription: 'Assinado',
+};
+
+const AUTHORIZED_OPERATOR = {
+  employeeId: 'employee-1',
+  name: 'Ana',
+  initials: 'AN',
+  pinTrustedUntil: 0,
+};
 
 describe('NewRental item attendant', () => {
   let customerService: FakeCustomerService;
   let printTemplateStorage: FakePrintTemplateStorage;
   let rentalContractService: FakeRentalContractService;
   let employeeService: { listActiveAttendants: ReturnType<typeof vi.fn> };
-  let tabServiceMock: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn> };
+  let operatorService: {
+    authorize: ReturnType<typeof vi.fn>;
+    currentOperator: ReturnType<typeof vi.fn>;
+  };
+  let tabServiceMock: {
+    open: ReturnType<typeof vi.fn>;
+    closeActiveIf: ReturnType<typeof vi.fn>;
+    getTabId: ReturnType<typeof vi.fn>;
+    updateTitle: ReturnType<typeof vi.fn>;
+  };
+  let productService: { getRentalItemByLegacyId: ReturnType<typeof vi.fn> };
   let component: NewRental;
 
   beforeEach(() => {
@@ -107,28 +176,150 @@ describe('NewRental item attendant', () => {
         ]),
       ),
     };
-    tabServiceMock = { closeActiveIf: vi.fn(), getTabId: vi.fn((path, draftId) => `${path}::${draftId}`), updateTitle: vi.fn() };
+    operatorService = {
+      authorize: vi.fn().mockReturnValue(of(AUTHORIZED_OPERATOR)),
+      currentOperator: vi.fn().mockReturnValue(null),
+    };
+    tabServiceMock = {
+      open: vi.fn(),
+      closeActiveIf: vi.fn(),
+      getTabId: vi.fn((path, draftId) => `${path}::${draftId}`),
+      updateTitle: vi.fn(),
+    };
     customerService = new FakeCustomerService();
     printTemplateStorage = new FakePrintTemplateStorage();
     rentalContractService = new FakeRentalContractService();
+    productService = { getRentalItemByLegacyId: vi.fn() };
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: ActivatedRoute, useValue: { snapshot: { queryParams: {} }, queryParams: emptyQueryParams } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParams: {} }, queryParams: emptyQueryParams },
+        },
         { provide: EmployeeService, useValue: employeeService },
         { provide: CustomerService, useValue: customerService },
-        { provide: ProductService, useValue: {} },
-        { provide: HolidayService, useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) } },
+        { provide: ProductService, useValue: productService },
+        {
+          provide: HolidayService,
+          useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) },
+        },
         { provide: RentalContractService, useValue: rentalContractService },
         { provide: PrintTemplateStorageService, useValue: printTemplateStorage },
-        { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
-        { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
+        {
+          provide: AutosaveService,
+          useValue: { status$: of('idle'), lastError: null, reset: vi.fn() },
+        },
+        {
+          provide: SessionFormStorageService,
+          useValue: {
+            saveDraft: vi.fn(),
+            loadDraft: vi.fn().mockReturnValue(null),
+            clearDraft: vi.fn(),
+          },
+        },
         { provide: TabService, useValue: tabServiceMock },
-        { provide: APP_CONFIG, useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' } },
+        { provide: TerminalOperatorService, useValue: operatorService },
+        {
+          provide: APP_CONFIG,
+          useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' },
+        },
       ],
     });
 
     component = TestBed.runInInjectionContext(() => new NewRental());
+  });
+
+  it('restores the revision draft and catalog UUIDs when returning from a copied tab', () => {
+    component.contractId = 'revision';
+    component.parentContractId = 'original';
+    component.contractLoaded = true;
+    component.contract.situacao = ContractStatus.REVISION;
+    component.contract.itens = [
+      {
+        codigo: '42',
+        descricao: 'Vestido',
+        valor: 100,
+        entregue: false,
+        attendantEmployeeId: 'employee',
+        sub: [],
+      },
+    ];
+    component['itemRentalIds'].set('42', 'catalog-uuid');
+    const origin = component['createDraftSnapshot']();
+    const copy = copyUnsavedRentalProposal(origin, '2026-10-04');
+    const params = new BehaviorSubject({ draftId: 'origin-tab', id: 'original' });
+    Object.assign(TestBed.inject(ActivatedRoute), { queryParams: params.asObservable() });
+    const storage = TestBed.inject(SessionFormStorageService);
+    vi.mocked(storage.loadDraft).mockImplementation((_type, id) =>
+      id === 'origin-tab' ? origin : copy,
+    );
+    component.ngOnInit();
+    params.next({ draftId: 'copied-tab', id: '' });
+    expect(component.contractId).toBeNull();
+    params.next({ draftId: 'origin-tab', id: 'original' });
+    expect(component.contractId).toBe('revision');
+    expect(component['itemRentalIds'].get('42')).toBe('catalog-uuid');
+    component.ngOnDestroy();
+  });
+
+  it('keeps paid installment numbers when planning the remaining revision balance', () => {
+    component.contractId = 'revision';
+    component.contract.situacao = ContractStatus.REVISION;
+    component.contract.pagamentos = [1, 3].map((parcela) => ({
+      parcela,
+      data: '2026-10-01',
+      forma: PaymentMethod.PIX,
+      valor: 50,
+      vezes: 1,
+      status: PaymentStatus.PAID,
+    }));
+    component.total = 150;
+    component.paymentModalValor = 50;
+    component.paymentModalData = '2026-10-01';
+    component.dividePayment();
+    expect(component.contract.pagamentos.map((payment) => payment.parcela)).toEqual([1, 3, 4]);
+    expect(
+      component.contract.pagamentos.filter((payment) => payment.status === PaymentStatus.PAID),
+    ).toHaveLength(2);
+  });
+
+  it('copies into another draft tab without saving or changing the origin', () => {
+    component.contractId = 'original';
+    component.contract.situacao = ContractStatus.FINALIZED;
+    component.duplicateContract();
+    expect(tabServiceMock.open).toHaveBeenCalledWith(
+      '/rental/new',
+      'Nova proposta não salva',
+      'rental',
+      expect.any(String),
+    );
+    expect(component.contractId).toBe('original');
+    expect(component.contract.situacao).toBe(ContractStatus.FINALIZED);
+    expect(rentalContractService.saveRequests).toHaveLength(0);
+  });
+
+  it('preserves copied dates when holidays are resolved after restoring a draft', () => {
+    component.contract.usa = '2026-12-24';
+    component.contract.retirada = '2026-12-22';
+    component.contract.devolucao = '2026-12-26';
+    component.autoFillDates();
+    expect(component.contract.usa).toBe('2026-12-24');
+    expect(component.contract.retirada).toBe('2026-12-22');
+    expect(component.contract.devolucao).toBe('2026-12-26');
+  });
+
+  it('locks customer and paid value while allowing dates/items in a revision', () => {
+    component.contractId = 'revision';
+    component.contract.situacao = ContractStatus.REVISION;
+    component.customerUuid = 'original-customer';
+    component.customerFound = true;
+    component.clearCustomer();
+    expect(component.customerUuid).toBe('original-customer');
+    expect(component.isEditable()).toBe(true);
+    component.paymentModalStatus = PaymentStatus.PAID;
+    component.confirmAddPayment();
+    expect(component.paymentModalError).toContain('preserva o valor pago');
   });
 
   it('carrega atendentes uma vez na inicialização e abre Adicionar Item desmarcado', () => {
@@ -137,10 +328,17 @@ describe('NewRental item attendant', () => {
     component.openItemModal();
 
     expect(component.showItemModal).toBe(true);
-    expect(component.showEmployeeVerify).toBe(false);
     expect(component.itemModalEmployee).toBe('');
     expect(employeeService.listActiveAttendants).toHaveBeenCalledOnce();
     expect(component.activeAttendants).toHaveLength(3);
+  });
+
+  it('pré-seleciona o operador em comando como atendente do item', () => {
+    operatorService.currentOperator.mockReturnValue(AUTHORIZED_OPERATOR);
+
+    component.openItemModal();
+
+    expect(component.itemModalEmployee).toBe('employee-1');
   });
 
   it('opens print confirmation only after the proposal has an ID', () => {
@@ -163,12 +361,26 @@ describe('NewRental item attendant', () => {
     component.contract.retirada = '2026-09-29';
     component.contract.usa = '2026-10-01';
     component.contract.devolucao = '2026-10-02';
-    component.contract.itens = [{
-      codigo: '10', descricao: 'Terno', valor: 150, entregue: false, attendantEmployeeId: '', sub: [],
-    }];
-    component.contract.pagamentos = [{
-      parcela: 1, data: '2026-09-29', forma: PaymentMethod.CASH, valor: 150, vezes: 1, status: PaymentStatus.PENDING,
-    }];
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: '',
+        sub: [],
+      },
+    ];
+    component.contract.pagamentos = [
+      {
+        parcela: 1,
+        data: '2026-09-29',
+        forma: PaymentMethod.CASH,
+        valor: 150,
+        vezes: 1,
+        status: PaymentStatus.PENDING,
+      },
+    ];
     component.total = 150;
 
     component.requestContractPrint();
@@ -202,15 +414,59 @@ describe('NewRental item attendant', () => {
 
   it('sends the active default template ID when signing the proposal', async () => {
     component.contractId = 'saved-contract';
-    component.employeeVerifyAction = 'sign';
+    component.contract.situacao = ContractStatus.DRAFT;
+    component.contract.cliente = 'Cliente de teste';
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
 
-    component.onEmployeeConfirmed({ employeeId: 'employee-1', employeeName: 'Ana' });
+    component.assinarContrato();
     await vi.waitFor(() => expect(rentalContractService.signRequests).toHaveLength(1));
 
+    expect(operatorService.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ requirePin: false }),
+    );
     expect(rentalContractService.signRequests[0]).toEqual({
       contractId: 'saved-contract',
       request: { printTemplateId: DEFAULT_RENTAL_CONTRACT_TEMPLATE.id },
     });
+  });
+
+  it('exige PIN do operador ao salvar proposta', () => {
+    component.customerUuid = 'customer-1';
+    component.contract.pagamentos = [
+      {
+        parcela: 1,
+        data: '2026-09-29',
+        forma: PaymentMethod.CASH,
+        valor: 150,
+        vezes: 1,
+        status: PaymentStatus.PENDING,
+      },
+    ];
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
+
+    component.salvarProposta();
+
+    expect(operatorService.authorize).toHaveBeenCalledWith(
+      expect.objectContaining({ requirePin: true }),
+    );
   });
 
   it('não adiciona novo item sem atendente', () => {
@@ -269,14 +525,16 @@ describe('NewRental item attendant', () => {
   });
 
   it('usa dinheiro como forma padrão da primeira parcela', () => {
-    component.contract.itens = [{
-      codigo: '10',
-      descricao: 'Terno',
-      valor: 150,
-      entregue: false,
-      attendantEmployeeId: 'employee-1',
-      sub: [],
-    }];
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
 
     component.openPaymentModal();
 
@@ -302,7 +560,7 @@ describe('NewRental item attendant', () => {
 
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/rental/new'),
-      'Contrato 2024-001'
+      'Contrato 2024-001',
     );
   });
 
@@ -312,7 +570,80 @@ describe('NewRental item attendant', () => {
 
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/rental/new'),
-      'Nova Locação'
+      'Nova Locação',
+    );
+  });
+
+  // ── Reservas do item ──
+
+  it('abre o modal de reservas quando o item já está reservado em outro contrato', () => {
+    rentalContractService.itemReservations = [itemReservation];
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: undefined },
+    ]);
+    expect(component.showReservationsModal).toBe(true);
+    expect(component.itemReservations).toHaveLength(1);
+    expect(component.itemReservations[0].customerName).toBe('Ana Lima');
+  });
+
+  it('não abre o modal de reservas quando o item não tem reservas', () => {
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toHaveLength(1);
+    expect(component.showReservationsModal).toBe(false);
+  });
+
+  it('exclui o contrato em edição da consulta de reservas', () => {
+    component.contractId = 'contract-em-edicao';
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.itemModalCode = '001';
+    component.searchItemByCode();
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: 'contract-em-edicao' },
+    ]);
+  });
+
+  it('consulta reservas ao editar item vinculado ao catálogo', () => {
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
+    component['itemRentalIds'].set('10', 'item-uuid-1');
+
+    component.openEditItemModal(0);
+
+    expect(rentalContractService.reservationCalls).toEqual([
+      { rentalItemId: 'item-uuid-1', excludeContractId: undefined },
+    ]);
+  });
+
+  it('abre o contrato da reserva em outra aba ao clicar em Abrir', () => {
+    component.openReservationContract(itemReservation);
+
+    expect(tabServiceMock.open).toHaveBeenCalledWith(
+      '/rental/new',
+      'Contrato 251006-1',
+      'rental',
+      'contract-uuid-1',
+      { id: 'contract-uuid-1' },
     );
   });
 });
@@ -320,7 +651,12 @@ describe('NewRental item attendant', () => {
 describe('Home last contract link', () => {
   let queryParams$: BehaviorSubject<Record<string, string>>;
   let rentalContractService: { getById: ReturnType<typeof vi.fn> };
-  let tabServiceMock: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn> };
+  let tabServiceMock: {
+    open: ReturnType<typeof vi.fn>;
+    closeActiveIf: ReturnType<typeof vi.fn>;
+    getTabId: ReturnType<typeof vi.fn>;
+    updateTitle: ReturnType<typeof vi.fn>;
+  };
   let component: NewRental;
 
   const buildContractResponse = (id: string, legacyId: string): IRentalContractResponse => ({
@@ -347,21 +683,52 @@ describe('Home last contract link', () => {
   beforeEach(() => {
     queryParams$ = new BehaviorSubject<Record<string, string>>({});
     rentalContractService = { getById: vi.fn() };
-    tabServiceMock = { closeActiveIf: vi.fn(), getTabId: vi.fn((path, draftId) => `${path}::${draftId}`), updateTitle: vi.fn() };
+    tabServiceMock = {
+      open: vi.fn(),
+      closeActiveIf: vi.fn(),
+      getTabId: vi.fn((path, draftId) => `${path}::${draftId}`),
+      updateTitle: vi.fn(),
+    };
 
     TestBed.configureTestingModule({
       providers: [
-        { provide: ActivatedRoute, useValue: { snapshot: { queryParams: {} }, queryParams: queryParams$.asObservable() } },
-        { provide: EmployeeService, useValue: { listActiveAttendants: vi.fn().mockReturnValue(of([])) } },
+        {
+          provide: ActivatedRoute,
+          useValue: { snapshot: { queryParams: {} }, queryParams: queryParams$.asObservable() },
+        },
+        {
+          provide: EmployeeService,
+          useValue: { listActiveAttendants: vi.fn().mockReturnValue(of([])) },
+        },
         { provide: CustomerService, useValue: {} },
         { provide: ProductService, useValue: {} },
-        { provide: HolidayService, useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) } },
+        {
+          provide: HolidayService,
+          useValue: { getHolidays: vi.fn().mockReturnValue(of(new Set<string>())) },
+        },
         { provide: RentalContractService, useValue: rentalContractService },
         { provide: PrintTemplateStorageService, useValue: new FakePrintTemplateStorage() },
-        { provide: AutosaveService, useValue: { status$: of('idle'), lastError: null } },
-        { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
+        {
+          provide: AutosaveService,
+          useValue: { status$: of('idle'), lastError: null, reset: vi.fn() },
+        },
+        {
+          provide: SessionFormStorageService,
+          useValue: {
+            saveDraft: vi.fn(),
+            loadDraft: vi.fn().mockReturnValue(null),
+            clearDraft: vi.fn(),
+          },
+        },
         { provide: TabService, useValue: tabServiceMock },
-        { provide: APP_CONFIG, useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' } },
+        {
+          provide: TerminalOperatorService,
+          useValue: { authorize: vi.fn(), currentOperator: vi.fn().mockReturnValue(null) },
+        },
+        {
+          provide: APP_CONFIG,
+          useValue: { appName: 'RentAFit Test', apiBaseUrl: '', s3BucketUrl: '' },
+        },
       ],
     });
 
@@ -390,7 +757,7 @@ describe('Home last contract link', () => {
     expect(component.contract.clienteNome).toBe('João Silva');
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/rental/new'),
-      'Contrato 2024-001'
+      'Contrato 2024-001',
     );
   });
 

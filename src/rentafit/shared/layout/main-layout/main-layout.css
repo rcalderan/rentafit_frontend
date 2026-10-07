@@ -581,6 +581,298 @@
   font-size: 0.72rem;
 }
 
+/* ── Operator card — barra horizontal (legacy) ─────────────────── */
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-card {
+  flex-direction: row;
+  align-items: center;
+  margin-left: auto;
+  height: 26px;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-row {
+  flex-wrap: nowrap;
+  gap: 0.35rem;
+  height: 26px;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-current {
+  height: 26px;
+  padding: 0 0.4rem;
+  border-radius: 0;
+  color: var(--text-color);
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-current:hover {
+  background: #316ac5;
+  color: #ffffff;
+  transform: none;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-badge {
+  width: 18px;
+  height: 18px;
+  font-size: 0.55rem;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-badge.sm {
+  width: 16px;
+  height: 16px;
+  font-size: 0.5rem;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-name {
+  order: 0;
+  flex-basis: auto;
+  max-width: 110px;
+  font-size: 0.78rem;
+  font-family: var(--ui-font);
+  color: var(--text-color);
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-caret {
+  font-size: 0.6rem;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-list {
+  top: 26px;
+  left: auto;
+  right: 0;
+  min-width: 190px;
+  gap: 0;
+  padding: 2px;
+  border: 1px solid var(--control-border-color);
+  border-radius: 0;
+  box-shadow: 2px 2px 4px #00000055;
+  background: #f0f0f0;
+  animation: none;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item {
+  justify-content: flex-start;
+  gap: 0;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-color);
+  font-size: 0.78rem;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item:hover,
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item.active {
+  color: #ffffff;
+  background: #316ac5;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item-select {
+  gap: 0.5rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-remove {
+  width: 22px;
+  height: 22px;
+  margin-right: 2px;
+  border-radius: 0;
+  color: inherit;
+  opacity: 1;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-remove:hover {
+  background: #ffffff;
+  color: #316ac5;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item.authenticate {
+  gap: 0.5rem;
+  padding: 0.35rem 1rem;
+  border-top: 1px solid var(--control-border-color);
+  border-radius: 0;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+:host-context([data-ui='legacy']) .layout-container:not(.mobile-view) .operator-item.authenticate:hover {
+  color: #ffffff;
+  background: #316ac5;
+}
+
+/* ── Operator card (terminal operator) ─────────────────────────── */
+.operator-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.operator-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.2rem;
+}
+
+.operator-current {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  padding: 0.25rem;
+  background: none;
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.3s ease;
+}
+
+.operator-current:hover {
+  background-color: var(--input-bg);
+  color: var(--primary-color);
+  transform: translateY(-2px);
+}
+
+.operator-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+
+.operator-badge.sm {
+  width: 24px;
+  height: 24px;
+  font-size: 0.62rem;
+  flex-shrink: 0;
+}
+
+.operator-current.empty .operator-badge {
+  background: var(--input-bg);
+  color: var(--text-muted);
+}
+
+.operator-name {
+  order: 3;
+  flex-basis: 100%;
+  font-size: 0.6rem;
+  font-weight: 500;
+  max-width: 80px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.1;
+  color: var(--text-muted);
+}
+
+.operator-caret {
+  font-size: 0.55rem;
+}
+
+.operator-list {
+  position: absolute;
+  left: 70px;
+  top: 0;
+  z-index: 21;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 190px;
+  padding: 0.5rem;
+  background-color: var(--card-bg);
+  border-radius: 20px;
+  box-shadow: 10px 10px 30px rgba(154, 185, 235, 0.15);
+  animation: slideRight 0.2s ease-out;
+}
+
+.operator-item {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  width: 100%;
+  padding: 0.2rem 0.3rem;
+  background: none;
+  border: none;
+  border-radius: 12px;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.operator-item:hover {
+  background-color: var(--input-bg);
+  color: var(--primary-color);
+}
+
+.operator-item.active {
+  background-color: var(--input-bg);
+  color: var(--primary-color);
+}
+
+.operator-item-select {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  padding: 0.25rem 0.3rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: inherit;
+  font-size: inherit;
+  text-align: left;
+}
+
+.operator-item.active .operator-item-select {
+  font-weight: 600;
+}
+
+.operator-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.operator-remove:hover {
+  background: #ff4444;
+  color: #fff;
+  opacity: 1;
+}
+
+.operator-item.authenticate {
+  border-top: 1px solid var(--input-bg);
+  border-radius: 0 0 12px 12px;
+  color: var(--primary-color);
+  cursor: pointer;
+  padding: 0.45rem 0.6rem;
+}
+
+.operator-item-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* ── Print ─────────────────────────────────────────────────── */
 @media print {
   :host {

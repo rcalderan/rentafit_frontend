@@ -487,6 +487,94 @@ button {
     text-transform: uppercase;
 }
 
+/* ── Operator card — barra horizontal (atelier) ───────────────── */
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-card {
+    flex-direction: row;
+    align-items: center;
+    margin-left: auto;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-row {
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-current {
+    height: 40px;
+    padding: 0 0.6rem;
+    border-radius: 10px;
+    gap: 0.3rem;
+    color: #55474f;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-current:hover {
+    background: #f4e7ed;
+    color: var(--primary-color);
+    transform: none;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-name {
+    order: 0;
+    flex-basis: auto;
+    max-width: 140px;
+    font-size: 0.76rem;
+    font-weight: 600;
+    color: #55474f;
+    text-align: left;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-list {
+    top: 48px;
+    left: auto;
+    right: 0;
+    min-width: 220px;
+    gap: 0.2rem;
+    padding: 0.5rem;
+    border: var(--surface-border);
+    border-radius: 14px;
+    background: rgba(255, 254, 253, 0.98);
+    box-shadow: 0 20px 45px rgba(36, 31, 35, 0.2);
+    animation: fadeIn 120ms ease-out;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-item {
+    justify-content: flex-start;
+    gap: 0.2rem;
+    padding: 0.15rem;
+    border-radius: 9px;
+    color: var(--text-color);
+    font-size: 0.8rem;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-item-select {
+    gap: 0.5rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: 8px;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-remove {
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-remove:hover {
+    background: #ff4444;
+    color: #fff;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-item:hover,
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-item.active {
+    background: var(--selected-bg);
+    color: var(--primary-color);
+    box-shadow: none;
+}
+
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-item.authenticate {
+    border-radius: 9px;
+    color: var(--primary-color);
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

@@ -9,6 +9,7 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { ReturnSummaryModel, ReturnFormState } from './data/return.model';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { TabService } from '../../../../shared/services/tab.service';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 
 const buildReturnSummary = (overrides: Partial<ReturnSummaryModel> = {}): ReturnSummaryModel => ({
   contractId: 'contract-123',
@@ -111,6 +112,14 @@ describe('ReturnComponent', () => {
           },
         },
         { provide: TabService, useValue: tabServiceMock },
+        {
+          provide: TerminalOperatorService,
+          useValue: {
+            authorize: vi.fn().mockReturnValue(
+              of({ employeeId: 'emp-1', name: 'Operador', initials: 'OP', pinTrustedUntil: 0 }),
+            ),
+          },
+        },
       ],
     });
 

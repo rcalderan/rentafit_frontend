@@ -240,6 +240,7 @@
       <rentafit-nfe-emission
         [context]="fiscalContext()"
         [initialDocument]="initialFiscalDocument()"
+        [authorizeAction]="authorizeFiscalAction"
         (changed)="onInvoiceChanged($event)"
       />
     </section>
@@ -353,19 +354,6 @@
       </div>
     </div>
   </div>
-}
-
-<!-- ═══════════════════ EMPLOYEE VERIFY ═══════════════════ -->
-@if (showEmployeeVerify()) {
-  <rentafit-employee-verify
-    [title]="employeeVerifyAction === 'confirm' ? 'Identificar Atendente — Confirmação'
-           : employeeVerifyAction === 'deliver' ? 'Identificar Atendente — Entrega'
-           : employeeVerifyAction === 'ready'   ? 'Identificar Atendente — Pronto para Entrega'
-           : 'Identificar Atendente — Pagamento'"
-    [requirePin]="true"
-    (confirmed)="onEmployeeConfirmed($event)"
-    (cancelled)="onEmployeeCancelled()"
-  />
 }
 
 <!-- ═══════════════════ CANCEL MODAL ═══════════════════ -->

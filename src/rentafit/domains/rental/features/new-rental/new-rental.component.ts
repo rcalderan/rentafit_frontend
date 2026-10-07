@@ -1,9 +1,21 @@
-import { CommonModule } from '@angular/common';
-import { AfterViewInit, Component, ElementRef, inject, OnDestroy, OnInit, signal, ViewChild } from '@angular/core';
+import { RentalDraftSnapshot } from '../../data/rental-draft-snapshot';
+import { copyUnsavedRentalProposal } from '../../service/rental-proposal-copy';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  ChangeDetectorRef,
+  Component,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  viewChild,
+} from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 import { from, forkJoin, Observable, Subject, Subscription, throwError } from 'rxjs';
-import { distinctUntilChanged, finalize, switchMap, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, finalize, map, switchMap, takeUntil } from 'rxjs/operators';
 import { CustomerService } from '../../../customer/service/customer.service';
 import { ICustomer } from '../../../customer/data/Customer.interface';
 import { IActiveAttendant } from '../../../admin/data/employee.interface';
@@ -22,22 +34,25 @@ import {
   IRentalContractSignRequest,
   IRentalPaymentRequest,
 } from '../../data/rental-contract-request.interface';
-import { IRentalContractResponse } from '../../data/rental-contract-response.interface';
+import {
+  IItemReservationResponse,
+  IRentalContractResponse,
+} from '../../data/rental-contract-response.interface';
 import { IRentalContractItem } from '../../data/rental-contract-item.interface';
 import { INewRentalContract } from '../../data/rental-contract.interface';
 import { IRentalPayment } from '../../data/rental-payment.interface';
 import { ContractStatusApi, PaymentMethodApi, PaymentStatusApi } from '../../data/rental-api.types';
-import {
-  EmployeeConfirmedEvent,
-  EmployeeVerifyComponent,
-} from '../employee-verify/employee-verify.component';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { RentalContractService } from '../../service/rental-contract.service';
 import { AutosaveService, AutosaveStatus } from '../../service/autosave.service';
 import { NfseEmissionComponent } from '../../../finance/features/nfse-emission/nfse-emission.component';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
 import { IFiscalContext, IFiscalDocument } from '../../../finance/data/fiscal-document.types';
-import { DEFAULT_MOCK_CONTEXT, InterpolationContext } from '../../../print/services/template-interpolation.service';
+import {
+  DEFAULT_MOCK_CONTEXT,
+  InterpolationContext,
+} from '../../../print/services/template-interpolation.service';
 import { PrintPreviewModalComponent } from '../../../print/components/print-preview-modal/print-preview-modal.component';
 import { PrintTemplateStorageService } from '../../../print/services/print-template-storage.service';
 
@@ -48,23 +63,28 @@ export type { IItemMeta, INewRentalContract, IProductCatalog, IRentalContractIte
 
 @Component({
   selector: 'rentafit-new-rental',
-  imports: [CommonModule, FormsModule, EmployeeVerifyComponent, NfseEmissionComponent, PrintPreviewModalComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [FormsModule, NfseEmissionComponent, PrintPreviewModalComponent],
   templateUrl: './new-rental.component.html',
   styleUrls: ['./new-rental.component.css'],
   providers: [AutosaveService],
 })
 export class NewRental implements OnInit, AfterViewInit, OnDestroy {
-
-  @ViewChild('contractLookupInput') private contractLookupInput?: ElementRef<HTMLInputElement>;
-  @ViewChild('itemCodeInput') private itemCodeInput?: ElementRef<HTMLInputElement>;
-  @ViewChild('paymentValorInput') private paymentValorInput?: ElementRef<HTMLInputElement>;
+  private readonly contractLookupInput =
+    viewChild<ElementRef<HTMLInputElement>>('contractLookupInput');
+  private readonly itemCodeInput = viewChild<ElementRef<HTMLInputElement>>('itemCodeInput');
+  private readonly paymentValorInput = viewChild<ElementRef<HTMLInputElement>>('paymentValorInput');
 
   // Expose enums to template
   ContractStatus = ContractStatus;
   PaymentStatus = PaymentStatus;
   PaymentMethod = PaymentMethod;
-  paymentMethodLabels = PAYMENT_METHOD_LABELS;
-  paymentMethodKeys = Object.values(PaymentMethod).filter(v => typeof v === 'number') as PaymentMethod[];
+  get paymentMethodLabels(): Record<PaymentMethod, string> {
+    return PAYMENT_METHOD_LABELS;
+  }
+  paymentMethodKeys = Object.values(PaymentMethod).filter(
+    (v) => typeof v === 'number',
+  ) as PaymentMethod[];
   paymentStatusLabels: Record<PaymentStatus, string> = {
     [PaymentStatus.PENDING]: 'Pendente',
     [PaymentStatus.PAID]: 'Pago',
@@ -73,17 +93,21 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   };
   // CANCELLED is set only via chargeBack; MULTA remains unavailable until its workflow is implemented.
   paymentStatusKeys = Object.values(PaymentStatus).filter(
-    v => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA
+    (v) => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA,
   ) as PaymentStatus[];
 
   // ── Services ──
+  private readonly view = inject(ChangeDetectorRef, { optional: true });
   private readonly holidayService = inject(HolidayService);
   private readonly customerService = inject(CustomerService);
   private readonly employeeService = inject(EmployeeService);
+  protected readonly operatorService = inject(TerminalOperatorService);
   private readonly productService = inject(ProductService);
   private readonly rentalContractService = inject(RentalContractService);
   private readonly printTemplateStorage = inject(PrintTemplateStorageService);
-  private readonly autosaveService = inject(AutosaveService<IRentalContractCreateRequest, IRentalContractResponse>);
+  private readonly autosaveService = inject(
+    AutosaveService<IRentalContractCreateRequest, IRentalContractResponse>,
+  );
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
   private readonly route = inject(ActivatedRoute);
@@ -97,6 +121,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private autosaveEmployeeId: string | null = null;
   private autosaveSubscription?: Subscription;
   private destroy$ = new Subject<void>();
+  private readonly draftChanged$ = new Subject<void>();
 
   // ── Enum → API string maps (used by buildPaymentRequest & buildCreateRequest) ──
   private readonly METHOD_MAP: Record<PaymentMethod, PaymentMethodApi> = {
@@ -134,36 +159,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   parentContractId: string | null = null;
   /** UUID of the revision contract created from this one. */
   replacedByContractId: string | null = null;
+  protected readonly revisionAudit = signal('');
 
-  // ── Employee verification modal ──
-  showEmployeeVerify = false;
-  /** Which action is pending employee confirmation. */
-  employeeVerifyAction: 'sign' | 'finalize' | 'save' | 'payment' | 'addPayment' | 'chargeBack' | null = null;
+  // ── Operator identification (via TerminalOperatorService + janela de PIN) ──
+  /** Employee ID autorizado pela última confirmação de PIN, usado na requisição seguinte. */
   private pendingPaymentEmployeeId: string | null = null;
   /** Index of the payment pending chargeBack confirmation. */
   private pendingChargeBackIndex: number | null = null;
-
-  get employeeVerifyTitle(): string {
-    switch (this.employeeVerifyAction) {
-      case 'sign':     return 'Identificar Atendente — Assinatura';
-      case 'finalize': return 'Identificar Atendente — Finalização';
-      case 'save':     return 'Validar Atendente — Salvar Proposta';
-      case 'addPayment':  return 'Identificar Atendente — Adicionar Parcela';
-      case 'payment':  return this.paymentModalStatus === PaymentStatus.PAID
-        ? 'Identificar Atendente — Registrar Pagamento'
-        : 'Identificar Atendente — Editar Parcela';
-      case 'chargeBack': return 'Autorizar Extorno de Parcela';
-      default:         return 'Identificar Atendente';
-    }
-  }
-
-  get employeeVerifyRequirePin(): boolean {
-    return this.employeeVerifyAction === 'sign'
-      || this.employeeVerifyAction === 'finalize'
-      || this.employeeVerifyAction === 'payment'
-      || this.employeeVerifyAction === 'addPayment'
-      || this.employeeVerifyAction === 'chargeBack';
-  }
 
   // ── Customer ──
   customerFound = false;
@@ -186,8 +188,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   showItemModal = false;
   itemModalCode = '';
   itemModalName = '';
-  itemModalMeta = '';   // e.g. "TAM: 42 | COR: PRETO"
-  itemModalValor = 0;  
+  itemModalMeta = ''; // e.g. "TAM: 42 | COR: PRETO"
+  itemModalValor = 0;
   itemModalEmployee = '';
   activeAttendants: IActiveAttendant[] = [];
   attendantsLoading = false;
@@ -200,6 +202,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   itemModalFoundProductUuid: string | null = null;
   itemModalError = '';
   itemSearchLoading = false;
+
+  // ── Item reservations modal ──
+  /** Reservas ativas (outros contratos SIGNED/FINALIZED) do item carregado. */
+  itemReservations: IItemReservationResponse[] = [];
+  showReservationsModal = false;
 
   /** Maps item legacyCode → rental item UUID from the backend. */
   private itemRentalIds = new Map<string, string>();
@@ -219,26 +226,28 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private holidays = new Set<string>();
 
   ngAfterViewInit(): void {
-    setTimeout(() => this.contractLookupInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.contractLookupInput()?.nativeElement.focus(), 0);
   }
 
   ngOnInit(): void {
     this.route.queryParams
       .pipe(
         takeUntil(this.destroy$),
-        distinctUntilChanged((a, b) => a['draftId'] === b['draftId'] && a['id'] === b['id'])
+        distinctUntilChanged((a, b) => a['draftId'] === b['draftId'] && a['id'] === b['id']),
       )
-      .subscribe(params => {
+      .subscribe((params) => {
         const newDraftId = params['draftId'];
         const newId = params['id'];
 
         if (newDraftId && newDraftId !== this.draftId) {
+          if (this.contractLoaded) this.persistDraft();
+          this.clearProposal();
           this.draftId = newDraftId;
           this.contract = this.createEmptyContract();
-          if (newId) {
+          if (newId && !this.restoreDraft(newId)) {
             this.loadContractById(newId);
           } else {
-            this.restoreDraft();
+            if (!newId) this.restoreDraft();
             this.updateTabTitle();
           }
           return;
@@ -258,16 +267,17 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     this.loadActiveAttendants();
     // Subscribe to autosave status changes for UI feedback
-    this.autosaveSubscription = this.autosaveService.status$.subscribe(status => {
+    this.autosaveSubscription = this.autosaveService.status$.subscribe((status) => {
       this.autosaveStatus = status;
       this.autosaveError = this.autosaveService.lastError;
+      this.view?.markForCheck();
     });
 
     const currentYear = new Date().getFullYear();
     const years = [currentYear - 1, currentYear, currentYear + 1];
-    forkJoin(years.map(y => this.holidayService.getHolidays(y))).subscribe({
-      next: sets => {
-        sets.forEach(set => set.forEach(d => this.holidays.add(d)));
+    forkJoin(years.map((y) => this.holidayService.getHolidays(y))).subscribe({
+      next: (sets) => {
+        sets.forEach((set) => set.forEach((d) => this.holidays.add(d)));
         this.autoFillDates();
         this.persistDraftAfterRestore();
       },
@@ -282,6 +292,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.draftInterval = setInterval(() => this.persistDraft(), 3000);
   }
 
+  private refreshView(complete: () => void): () => void {
+    return () => {
+      complete();
+      this.view?.markForCheck();
+    };
+  }
+
   private generateDraftId(): string {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
       return crypto.randomUUID();
@@ -289,9 +306,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 9)}`;
   }
 
-  private createDraftSnapshot(): object {
+  private createDraftSnapshot(): RentalDraftSnapshot {
     return {
-      contract: this.contract,
+      contract: structuredClone(this.contract),
+      itemRentalIds: [...this.itemRentalIds],
+      contractLoaded: this.contractLoaded,
+      contractPrintTemplateId: this.contractPrintTemplateId,
+      fiscalDocument: this.fiscalDocument,
+      revisionAudit: this.revisionAudit(),
       customerUuid: this.customerUuid,
       customerFound: this.customerFound,
       customerSearchQuery: this.customerSearchQuery,
@@ -303,16 +325,24 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  private applyDraftSnapshot(draft: any): void {
+  private applyDraftSnapshot(draft: RentalDraftSnapshot): void {
     if (!draft || typeof draft !== 'object') return;
+    this.itemRentalIds = new Map(draft.itemRentalIds ?? []);
+    this.contractLoaded = draft.contractLoaded ?? !!draft.contractId;
+    this.contractPrintTemplateId = draft.contractPrintTemplateId ?? null;
+    this.fiscalDocument = draft.fiscalDocument ?? null;
+    this.revisionAudit.set(draft.revisionAudit ?? '');
     if (draft.contract) this.contract = { ...this.createEmptyContract(), ...draft.contract };
     if (draft.customerUuid !== undefined) this.customerUuid = draft.customerUuid;
     if (draft.customerFound !== undefined) this.customerFound = draft.customerFound;
-    if (draft.customerSearchQuery !== undefined) this.customerSearchQuery = draft.customerSearchQuery;
-    if (draft.contractLookupLegacyId !== undefined) this.contractLookupLegacyId = draft.contractLookupLegacyId;
+    if (draft.customerSearchQuery !== undefined)
+      this.customerSearchQuery = draft.customerSearchQuery;
+    if (draft.contractLookupLegacyId !== undefined)
+      this.contractLookupLegacyId = draft.contractLookupLegacyId;
     if (draft.contractId !== undefined) this.contractId = draft.contractId;
     if (draft.parentContractId !== undefined) this.parentContractId = draft.parentContractId;
-    if (draft.replacedByContractId !== undefined) this.replacedByContractId = draft.replacedByContractId;
+    if (draft.replacedByContractId !== undefined)
+      this.replacedByContractId = draft.replacedByContractId;
     if (draft.autosaveEmployeeId !== undefined) this.autosaveEmployeeId = draft.autosaveEmployeeId;
   }
 
@@ -326,15 +356,21 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.formStorage.saveDraft(this.formType, this.draftId, this.createDraftSnapshot());
   }
 
-  private restoreDraft(): void {
-    const draft = this.formStorage.loadDraft<object>(this.formType, this.draftId);
-    if (draft) {
-      this.applyDraftSnapshot(draft);
-    }
+  private restoreDraft(requestedId?: string): boolean {
+    const draft = this.formStorage.loadDraft<RentalDraftSnapshot>(this.formType, this.draftId);
+    if (
+      !draft ||
+      (requestedId && draft.contractId !== requestedId && draft.parentContractId !== requestedId)
+    )
+      return false;
+    this.applyDraftSnapshot(draft);
+    this.recalculate();
+    return true;
   }
 
   /** Persist the draft once after holidays/dates are resolved so the snapshot is fresh. */
   private persistDraftAfterRestore(): void {
+    this.view?.markForCheck();
     this.persistDraft();
   }
 
@@ -401,7 +437,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     const day = d.getDay(); // 0=Sun,6=Sat
-    const daysUntilSat = day === 6 ? 7 : (6 - day);
+    const daysUntilSat = day === 6 ? 7 : 6 - day;
     d.setDate(d.getDate() + daysUntilSat);
     return d;
   }
@@ -409,6 +445,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   // ==================== Date auto-fill ====================
 
   autoFillDates(): void {
+    if (this.contract.usa || this.contract.retirada || this.contract.devolucao) return;
     const uso = this.getNextSaturday();
 
     // Devolução: next business day (Monday or later, skip holidays)
@@ -470,19 +507,25 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     this.rentalContractService
       .getByLegacyId(legacyId)
-      .pipe(finalize(() => (this.contractLookupLoading = false)))
+      .pipe(
+        takeUntil(this.draftChanged$),
+        takeUntil(this.destroy$),
+        finalize(this.refreshView(() => (this.contractLookupLoading = false))),
+      )
       .subscribe({
         next: (response) => {
           this.mapResponseToContract(response);
           this.contractLoaded = true;
         },
         error: (err: unknown) => {
-          this.contractLookupError = err instanceof Error ? err.message : 'Contrato não encontrado.';
+          this.contractLookupError =
+            err instanceof Error ? err.message : 'Contrato não encontrado.';
         },
       });
   }
 
   searchCustomer(): void {
+    if (!this.canChangeCustomer()) return;
     const query = this.customerSearchQuery.trim();
     if (!query) return;
 
@@ -494,7 +537,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       ? this.customerService.getCustomerByLegacyId(+query)
       : this.customerService.getCustomerByDocument(query);
 
-    obs.pipe(finalize(() => (this.customerLoading = false))).subscribe({
+    obs.pipe(finalize(this.refreshView(() => (this.customerLoading = false)))).subscribe({
       next: (customer) => {
         const previousCustomerUuid = this.customerUuid;
         this.customerUuid = customer.id ?? null;
@@ -516,6 +559,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearCustomer(): void {
+    if (!this.canChangeCustomer()) return;
     this.activateStepperMode();
     this.customerFound = false;
     this.customerSearchQuery = '';
@@ -540,25 +584,26 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.itemModalName = '';
     this.itemModalMeta = '';
     this.itemModalValor = 0;
-    this.itemModalEmployee = '';
+    this.itemModalEmployee = this.operatorService.currentOperator()?.employeeId ?? '';
     this.itemModalExtras = [];
     this.itemModalNewExtraDesc = '';
     this.itemModalFoundProduct = null;
     this.itemModalFoundProductUuid = null;
     this.itemModalError = '';
     this.showItemModal = true;
-    setTimeout(() => this.itemCodeInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.itemCodeInput()?.nativeElement.focus(), 0);
   }
 
   private loadActiveAttendants(): void {
     this.attendantsLoading = true;
     this.attendantsError = '';
-    this.employeeService.listActiveAttendants()
-      .pipe(finalize(() => (this.attendantsLoading = false)))
+    this.employeeService
+      .listActiveAttendants()
+      .pipe(finalize(this.refreshView(() => (this.attendantsLoading = false))))
       .subscribe({
-        next: attendants => {
+        next: (attendants) => {
           const roles = new Set(['EMPLOYEE', 'MANAGER', 'ADMIN']);
-          this.activeAttendants = attendants.filter(attendant => roles.has(attendant.role));
+          this.activeAttendants = attendants.filter((attendant) => roles.has(attendant.role));
         },
         error: (error: Error) => {
           this.activeAttendants = [];
@@ -582,11 +627,51 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.itemModalNewExtraType = 'observacao';
     this.itemModalError = '';
     this.showItemModal = true;
-    setTimeout(() => this.itemCodeInput?.nativeElement.focus(), 0);
+    const editingRentalItemId = this.itemRentalIds.get(item.codigo);
+    if (editingRentalItemId) {
+      this.checkItemReservations(editingRentalItemId);
+    }
+    setTimeout(() => this.itemCodeInput()?.nativeElement.focus(), 0);
   }
 
   closeItemModal(): void {
     this.showItemModal = false;
+  }
+
+  /**
+   * Consulta reservas ativas do item recém-carregado; se houver, abre o modal
+   * de alerta com os contratos que já reservam o item.
+   *
+   * A consulta é apenas informativa — uma falha não impede adicionar o item,
+   * pois o backend bloqueia conflitos reais no salvar/assinar.
+   */
+  private checkItemReservations(rentalItemId: string): void {
+    this.rentalContractService
+      .getItemReservations(rentalItemId, this.contractId ?? undefined)
+      .subscribe({
+        next: (reservations) => {
+          if (reservations.length === 0) return;
+          this.itemReservations = reservations;
+          this.showReservationsModal = true;
+          this.view?.markForCheck();
+        },
+        error: (err: Error) =>
+          console.warn('Falha ao consultar reservas do item:', err.message),
+      });
+  }
+
+  closeReservationsModal(): void {
+    this.showReservationsModal = false;
+  }
+
+  /** Abre o contrato da reserva em outra aba (mesmo padrão de "Últimos Contratos"). */
+  openReservationContract(reservation: IItemReservationResponse): void {
+    const label = reservation.legacyId
+      ? `Contrato ${reservation.legacyId}`
+      : 'Contrato';
+    this.tabService.open('/rental/new', label, 'rental', reservation.contractId, {
+      id: reservation.contractId,
+    });
   }
 
   searchItemByCode(): void {
@@ -600,7 +685,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     this.productService
       .getRentalItemByLegacyId(code)
-      .pipe(finalize(() => (this.itemSearchLoading = false)))
+      .pipe(finalize(this.refreshView(() => (this.itemSearchLoading = false))))
       .subscribe({
         next: (item) => {
           this.itemModalFoundProductUuid = item.id ?? null;
@@ -629,6 +714,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
             .filter(Boolean)
             .join(' | ');
           this.itemModalValor = item.value;
+          if (item.id) this.checkItemReservations(item.id);
         },
         error: (err: Error) => {
           this.itemModalError = err.message || 'Produto não encontrado.';
@@ -650,7 +736,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   confirmAddItem(): void {
-    if (this.editingItemIndex === null && (!this.itemModalFoundProduct || !this.itemModalEmployee)) return;
+    if (this.editingItemIndex === null && (!this.itemModalFoundProduct || !this.itemModalEmployee))
+      return;
     if (!this.isEditable()) return;
     const item: IRentalContractItem = {
       codigo: this.itemModalCode,
@@ -659,7 +746,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       entregue: false,
       attendantEmployeeId: this.itemModalEmployee,
       sub: [
-        ...(this.itemModalMeta ? [{ tipo: 'observacao' as const, descricao: this.itemModalMeta }] : []),
+        ...(this.itemModalMeta
+          ? [{ tipo: 'observacao' as const, descricao: this.itemModalMeta }]
+          : []),
         ...this.itemModalExtras,
       ],
     };
@@ -689,11 +778,15 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   // ==================== Payment modal ====================
 
   get canAddPayment(): boolean {
-    return this.contract.itens.length > 0;
+    return (
+      this.contract.situacao !== ContractStatus.SUPERSEDED &&
+      this.contract.situacao !== ContractStatus.CLOSED &&
+      this.contract.itens.length > 0
+    );
   }
 
   get nextParcela(): number {
-    return this.contract.pagamentos.length + 1;
+    return Math.max(0, ...this.contract.pagamentos.map((payment) => payment.parcela)) + 1;
   }
 
   get remainingAmount(): number {
@@ -702,7 +795,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   /** Total of all planned parcelas (regardless of payment status) */
   get totalPlanned(): number {
-    return this.contract.pagamentos.reduce((s, p) => s + p.valor, 0);
+    return this.contract.pagamentos
+      .filter((payment) => payment.status !== PaymentStatus.CANCELLED)
+      .reduce((sum, payment) => sum + payment.valor, 0);
   }
 
   /** Amount not yet covered by any parcela */
@@ -744,15 +839,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       d.setMonth(d.getMonth() + 1);
       const nextMonthStr = this.toDateString(d);
       const retiradaDate = this.contract.retirada;
-      this.paymentModalData = retiradaDate && nextMonthStr > retiradaDate
-        ? retiradaDate
-        : nextMonthStr;
+      this.paymentModalData =
+        retiradaDate && nextMonthStr > retiradaDate ? retiradaDate : nextMonthStr;
     } else {
       this.paymentModalData = this.toDateString(new Date());
     }
     this.paymentModalError = '';
     this.showPaymentModal = true;
-    setTimeout(() => this.paymentValorInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.paymentValorInput()?.nativeElement.focus(), 0);
   }
 
   openEditPaymentModal(index: number): void {
@@ -768,7 +862,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.paymentModalStatus = p.status;
     this.paymentModalError = '';
     this.showPaymentModal = true;
-    setTimeout(() => this.paymentValorInput?.nativeElement.focus(), 0);
+    setTimeout(() => this.paymentValorInput()?.nativeElement.focus(), 0);
   }
 
   closePaymentModal(): void {
@@ -784,6 +878,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   confirmAddPayment(): void {
+    if (
+      this.contract.situacao === ContractStatus.REVISION &&
+      this.paymentModalStatus !== PaymentStatus.PENDING
+    ) {
+      this.paymentModalError =
+        'Alteração de contrato preserva o valor pago; esperado status Pendente.';
+      return;
+    }
     // Only used in edit mode now
     this.paymentModalError = '';
 
@@ -798,8 +900,15 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         (this.paymentModalStatus === PaymentStatus.PAID && existingPayment?.id != null)) &&
       this.pendingPaymentEmployeeId === null
     ) {
-      this.employeeVerifyAction = 'payment';
-      this.showEmployeeVerify = true;
+      const title =
+        this.paymentModalStatus === PaymentStatus.PAID
+          ? 'Identificar Usuário — Registrar Pagamento'
+          : 'Identificar Usuário — Editar Parcela';
+      this.operatorService.authorize({ title, requirePin: true }).subscribe((op) => {
+        if (!op) return;
+        this.pendingPaymentEmployeeId = op.employeeId;
+        this.confirmAddPayment();
+      });
       return;
     }
     if (!isEditing) return;
@@ -825,7 +934,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     if (isReducingPersistedInstallment) {
       const confirmed = window.confirm(
-        'A redução do valor desta parcela pode gerar uma parcela compensatória automática. Deseja continuar?'
+        'A redução do valor desta parcela pode gerar uma parcela compensatória automática. Deseja continuar?',
       );
       if (!confirmed) {
         return;
@@ -847,10 +956,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.recalculate();
     this.closePaymentModal();
 
-    if (this.contractId) {
+    if (this.contractId && this.contract.situacao !== ContractStatus.REVISION) {
       this.isSaving = true;
       this.serverError = '';
-      const employeeId = this.pendingPaymentEmployeeId ?? this.itemModalEmployee ?? '';
+      const employeeId =
+        this.pendingPaymentEmployeeId ??
+        this.operatorService.currentOperator()?.employeeId ??
+        this.itemModalEmployee ??
+        '';
       this.pendingPaymentEmployeeId = null;
       const contractId = this.contractId;
       const request = this.buildPaymentRequest(payment, employeeId);
@@ -859,17 +972,15 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         ? this.rentalContractService.updatePayment(contractId, payment.id, request)
         : this.rentalContractService.addPayment(contractId, request);
 
-      save$
-        .pipe(finalize(() => (this.isSaving = false)))
-        .subscribe({
-          next: () => {
-            this.loadContractById(contractId);
-          },
-          error: (err: Error) => {
-            this.serverError = err.message || 'Erro ao salvar parcela.';
-            this.loadContractById(contractId);
-          },
-        });
+      save$.pipe(finalize(this.refreshView(() => (this.isSaving = false)))).subscribe({
+        next: () => {
+          this.loadContractById(contractId);
+        },
+        error: (err: Error) => {
+          this.serverError = err.message || 'Erro ao salvar parcela.';
+          this.loadContractById(contractId);
+        },
+      });
     } else {
       this.pendingPaymentEmployeeId = null;
       this.triggerAutosave();
@@ -890,8 +1001,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.contract.situacao === ContractStatus.SIGNED &&
       this.pendingPaymentEmployeeId === null
     ) {
-      this.employeeVerifyAction = 'addPayment';
-      this.showEmployeeVerify = true;
+      this.operatorService
+        .authorize({ title: 'Identificar Usuário — Adicionar Parcela', requirePin: true })
+        .subscribe((op) => {
+          if (!op) return;
+          this.pendingPaymentEmployeeId = op.employeeId;
+          this.dividePayment();
+        });
       return;
     }
 
@@ -910,18 +1026,18 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     let currentDate = this.paymentModalData; // usa a data pré-calculada do modal
 
     while (remaining > 0.001) {
-      if (this.contract.pagamentos.length >= 24) {
+      if (this.contract.pagamentos.length >= 24 || this.nextParcela > 24) {
         this.paymentModalError = 'Limite de 24 parcelas atingido.';
         break;
       }
       const valor = parseFloat(Math.min(this.paymentModalValor, remaining).toFixed(2));
       this.contract.pagamentos.push({
-        parcela: this.contract.pagamentos.length + 1,
+        parcela: this.nextParcela,
         data: currentDate,
         forma: this.paymentModalForma,
         valor,
         vezes: 1,
-        processedByEmployeeId: "",
+        processedByEmployeeId: '',
         status: PaymentStatus.PENDING,
       });
       remaining = parseFloat((remaining - this.paymentModalValor).toFixed(2));
@@ -930,9 +1046,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       const d = new Date(currentDate + 'T12:00:00');
       d.setMonth(d.getMonth() + 1);
       const nextMonthStr = this.toDateString(d);
-      currentDate = retiradaDate && nextMonthStr > retiradaDate
-        ? retiradaDate
-        : nextMonthStr;
+      currentDate = retiradaDate && nextMonthStr > retiradaDate ? retiradaDate : nextMonthStr;
     }
 
     this.recalculate();
@@ -944,17 +1058,23 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     // For SIGNED contracts: persist each new (unsaved) payment to backend
     if (this.contractId && this.contract.situacao === ContractStatus.SIGNED) {
-      const employeeId = this.pendingPaymentEmployeeId ?? '';
+      const employeeId =
+        this.pendingPaymentEmployeeId ?? this.operatorService.currentOperator()?.employeeId ?? '';
       this.pendingPaymentEmployeeId = null;
       const contractId = this.contractId;
-      const unsaved = this.contract.pagamentos.filter(p => !p.id);
+      const unsaved = this.contract.pagamentos.filter((p) => !p.id);
       if (unsaved.length > 0) {
         this.isSaving = true;
         this.serverError = '';
-        forkJoin(unsaved.map(p =>
-          this.rentalContractService.addPayment(contractId, this.buildPaymentRequest(p, employeeId))
-        ))
-          .pipe(finalize(() => (this.isSaving = false)))
+        forkJoin(
+          unsaved.map((p) =>
+            this.rentalContractService.addPayment(
+              contractId,
+              this.buildPaymentRequest(p, employeeId),
+            ),
+          ),
+        )
+          .pipe(finalize(this.refreshView(() => (this.isSaving = false))))
           .subscribe({
             next: () => this.loadContractById(contractId),
             error: (err: Error) => {
@@ -970,15 +1090,18 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   removePayment(index: number): void {
-    if (this.contract.situacao === ContractStatus.FINALIZED) return;
+    if (!this.isEditable() || this.contract.pagamentos[index]?.status === PaymentStatus.PAID)
+      return;
     this.activateStepperMode();
     this.contract.pagamentos.splice(index, 1);
-    this.contract.pagamentos.forEach((p, i) => p.parcela = i + 1);
+    if (this.contract.situacao !== ContractStatus.REVISION)
+      this.contract.pagamentos.forEach((p, i) => (p.parcela = i + 1));
     this.recalculate();
     this.triggerAutosave();
   }
 
   togglePaymentStatus(index: number): void {
+    if (!this.isEditable() || this.contract.situacao === ContractStatus.REVISION) return;
     const p = this.contract.pagamentos[index];
     if (!p) return;
     this.activateStepperMode();
@@ -990,20 +1113,24 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   canChargeBack(index: number): boolean {
     const p = this.contract.pagamentos[index];
-    return !!p
-      && p.status === PaymentStatus.PAID
-      && this.contract.situacao === ContractStatus.SIGNED;
+    return (
+      !!p && p.status === PaymentStatus.PAID && this.contract.situacao === ContractStatus.SIGNED
+    );
   }
 
   requestChargeBack(index: number): void {
     if (!this.canChargeBack(index)) return;
     const confirmed = window.confirm(
-      'Tem certeza que deseja extornar esta parcela? Esta ação é irreversível.'
+      'Tem certeza que deseja extornar esta parcela? Esta ação é irreversível.',
     );
     if (!confirmed) return;
     this.pendingChargeBackIndex = index;
-    this.employeeVerifyAction = 'chargeBack';
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Autorizar Extorno de Parcela', requirePin: true })
+      .subscribe((op) => {
+        if (!op) return;
+        this.executeChargeBack(op.employeeId);
+      });
   }
 
   private executeChargeBack(employeeId: string): void {
@@ -1021,7 +1148,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = '';
       this.rentalContractService
         .cancelPayment(contractId, p.id)
-        .pipe(finalize(() => (this.isSaving = false)))
+        .pipe(finalize(this.refreshView(() => (this.isSaving = false))))
         .subscribe({
           next: () => this.loadContractById(contractId),
           error: (err: Error) => {
@@ -1043,11 +1170,24 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.subtotal = this.contract.itens.reduce((s, i) => s + i.valor, 0);
     this.total = Math.max(0, this.subtotal - this.discount);
     this.totalPaid = this.contract.pagamentos
-      .filter(p => p.status === PaymentStatus.PAID)
+      .filter((p) => p.status === PaymentStatus.PAID)
       .reduce((s, p) => s + p.valor, 0);
   }
 
   // ==================== Contract flow ====================
+
+  canChangeCustomer(): boolean {
+    return !this.contractId && this.contract.situacao !== ContractStatus.REVISION;
+  }
+
+  get canRevise(): boolean {
+    return (
+      !!this.contractId &&
+      !this.contract.baixa &&
+      !this.contract.itens.some((item) => item.entregue) &&
+      [ContractStatus.SIGNED, ContractStatus.FINALIZED].includes(this.contract.situacao)
+    );
+  }
 
   isEditable(): boolean {
     return (
@@ -1059,22 +1199,39 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   get stepperStep(): number {
     switch (this.contract.situacao) {
-      case ContractStatus.DRAFT:      return 1; // step 1 done, step 2 active
-      case ContractStatus.REVISION:   return 1; // same visual position as DRAFT
-      case ContractStatus.SIGNED:     return 2; // steps 1+2 done, step 3 active
-      case ContractStatus.FINALIZED:  return 4; // all done
-      case ContractStatus.SUPERSEDED: return 4; // terminal — differentiated by label
-      default:                        return 0; // INITIAL: only step 1 active
+      case ContractStatus.DRAFT:
+        return 1; // step 1 done, step 2 active
+      case ContractStatus.REVISION:
+        return 1; // same visual position as DRAFT
+      case ContractStatus.SIGNED:
+        return 2; // steps 1+2 done, step 3 active
+      case ContractStatus.FINALIZED:
+        return 4; // all done
+      case ContractStatus.CLOSED:
+      case ContractStatus.SUPERSEDED:
+        return 4; // terminal — differentiated by label
+      default:
+        return 0; // INITIAL: only step 1 active
     }
   }
 
   reviseContrato(): void {
+    if (!this.canRevise || this.isSaving) return;
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Alterar contrato', requirePin: true })
+      .subscribe((operator) => {
+        if (operator) this.executeRevision();
+      });
+  }
+
+  private executeRevision(): void {
     if (!this.contractId) return;
     this.isSaving = true;
     this.serverError = '';
     this.serverWarnings = [];
-    this.rentalContractService.revise(this.contractId)
-      .pipe(finalize(() => (this.isSaving = false)))
+    this.rentalContractService
+      .revise(this.contractId)
+      .pipe(finalize(this.refreshView(() => (this.isSaving = false))))
       .subscribe({
         next: (response) => this.mapResponseToContract(response),
         error: (err: Error) => {
@@ -1083,11 +1240,40 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       });
   }
 
+  restartRevision(): void {
+    if (!this.contractId || this.contract.situacao !== ContractStatus.REVISION || this.isSaving)
+      return;
+    if (
+      !window.confirm(
+        'Descartar as alterações desta revisão e copiar novamente o contrato original?',
+      )
+    )
+      return;
+    this.operatorService
+      .authorize({ title: 'Reiniciar alteração de contrato', requirePin: true })
+      .subscribe((operator) => {
+        if (!operator || !this.contractId) return;
+        this.isSaving = true;
+        this.rentalContractService
+          .restartRevision(this.contractId)
+          .pipe(finalize(this.refreshView(() => (this.isSaving = false))))
+          .subscribe({
+            next: (response) => this.mapResponseToContract(response),
+            error: (error: Error) => (this.serverError = error.message),
+          });
+      });
+  }
+
   loadContractById(id: string): void {
     this.contractLookupLoading = true;
     this.contractLookupError = '';
-    this.rentalContractService.getById(id)
-      .pipe(finalize(() => (this.contractLookupLoading = false)))
+    this.rentalContractService
+      .getById(id)
+      .pipe(
+        takeUntil(this.draftChanged$),
+        takeUntil(this.destroy$),
+        finalize(this.refreshView(() => (this.contractLookupLoading = false))),
+      )
       .subscribe({
         next: (response) => {
           this.mapResponseToContract(response);
@@ -1100,7 +1286,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   salvarProposta(): void {
-    if (this.contract.situacao === ContractStatus.FINALIZED) return;
+    if (!this.isEditable()) return;
     if (!this.customerUuid) {
       this.serverError = 'Selecione um cliente antes de salvar.';
       return;
@@ -1113,9 +1299,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Adicione pelo menos um item antes de salvar.';
       return;
     }
-    // Require employee identification + PIN before persisting
-    this.employeeVerifyAction = 'save';
-    this.showEmployeeVerify = true;
+    // Require operator PIN before persisting
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Salvar Proposta', requirePin: true })
+      .subscribe((op) => {
+        if (!op) return;
+        this.executeSave(op.employeeId);
+      });
   }
 
   private executeSave(employeeId: string): void {
@@ -1130,18 +1320,16 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       ? this.rentalContractService.update(this.contractId, request)
       : this.rentalContractService.create(request);
 
-    saveContract$
-      .pipe(finalize(() => (this.isSaving = false)))
-      .subscribe({
-        next: (response) => {
-          this.contract.situacao = ContractStatus.DRAFT;
-          this.mapResponseToContract(response);
-          this.formStorage.clearDraft(this.formType, this.draftId);
-        },
-        error: (err: unknown) => {
-          this.serverError = err instanceof Error ? err.message : 'Erro ao salvar proposta.';
-        },
-      });
+    saveContract$.pipe(finalize(this.refreshView(() => (this.isSaving = false)))).subscribe({
+      next: (response) => {
+        this.contract.situacao = ContractStatus.DRAFT;
+        this.mapResponseToContract(response);
+        this.formStorage.clearDraft(this.formType, this.draftId);
+      },
+      error: (err: unknown) => {
+        this.serverError = err instanceof Error ? err.message : 'Erro ao salvar proposta.';
+      },
+    });
   }
 
   requestContractPrint(): void {
@@ -1172,8 +1360,12 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
   private loadCustomerForPrint(customerId: string, cachedCustomer: ICustomer | null): void {
     this.isPreparingContractPrint.set(true);
-    this.customerService.getCustomerById(customerId)
-      .pipe(takeUntil(this.destroy$), finalize(() => this.isPreparingContractPrint.set(false)))
+    this.customerService
+      .getCustomerById(customerId)
+      .pipe(
+        takeUntil(this.destroy$),
+        finalize(() => this.isPreparingContractPrint.set(false)),
+      )
       .subscribe({
         next: (customer) => {
           this.selectedCustomerDetails = customer;
@@ -1233,7 +1425,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private createPrintItems(): NonNullable<InterpolationContext['itensContrato']> {
     return this.contract.itens.map((item) => ({
       codigo: item.codigo,
-      descricao: [item.descricao, ...item.sub.map((meta) => meta.descricao)].filter(Boolean).join(', '),
+      descricao: [item.descricao, ...item.sub.map((meta) => meta.descricao)]
+        .filter(Boolean)
+        .join(', '),
       valor: item.valor,
     }));
   }
@@ -1249,7 +1443,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   assinarContrato(): void {
-    if (this.contract.situacao !== ContractStatus.DRAFT) return;
+    if (![ContractStatus.DRAFT, ContractStatus.REVISION].includes(this.contract.situacao)) return;
     if (!this.contract.cliente) {
       this.serverError = 'Selecione um cliente antes de assinar.';
       return;
@@ -1262,8 +1456,39 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Salve a proposta antes de assinar.';
       return;
     }
-    this.employeeVerifyAction = 'sign';    
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Assinatura', requirePin: false })
+      .subscribe((op) => {
+        if (!op) return;
+        if (this.contract.situacao === ContractStatus.REVISION) {
+          this.saveAndSignRevision(op.employeeId, op.name);
+          return;
+        }
+        this.runContractAction('sign', op.name);
+      });
+  }
+
+  private saveAndSignRevision(employeeId: string, name: string): void {
+    if (
+      !this.contractId ||
+      !window.confirm(
+        'Confirmar alteração e substituir o contrato original, preservando cliente e valor pago?',
+      )
+    )
+      return;
+    this.isSaving = true;
+    this.rentalContractService
+      .update(this.contractId, this.buildCreateRequest(employeeId))
+      .subscribe({
+        next: (response) => {
+          this.mapResponseToContract(response);
+          this.runContractAction('sign', name);
+        },
+        error: (error: Error) => {
+          this.isSaving = false;
+          this.serverError = error.message;
+        },
+      });
   }
 
   finalizarLocacao(): void {
@@ -1280,48 +1505,28 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       this.serverError = 'Salve a proposta antes de finalizar.';
       return;
     }
-    this.employeeVerifyAction = 'finalize';
-    this.showEmployeeVerify = true;
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Finalização', requirePin: false })
+      .subscribe((op) => {
+        if (op) this.runContractAction('finalize', op.name);
+      });
   }
 
-  private signContractWithDefaultPrintTemplate(contractId: string): Observable<IRentalContractResponse> {
+  private signContractWithDefaultPrintTemplate(
+    contractId: string,
+  ): Observable<IRentalContractResponse> {
     return from(this.printTemplateStorage.initialize()).pipe(
       switchMap(() => {
         const template = this.printTemplateStorage.getDefaultByType('RENTAL_CONTRACT');
-        if (!template) return throwError(() => new Error('Template padrão de locação não encontrado.'));
+        if (!template)
+          return throwError(() => new Error('Template padrão de locação não encontrado.'));
         const request: IRentalContractSignRequest = { printTemplateId: template.id };
         return this.rentalContractService.sign(contractId, request);
       }),
     );
   }
 
-  onEmployeeConfirmed(event: EmployeeConfirmedEvent): void {
-    this.showEmployeeVerify = false;
-    const action = this.employeeVerifyAction;
-    this.employeeVerifyAction = null;
-
-    if (action === 'save') {
-      this.executeSave(event.employeeId);
-      return;
-    }
-
-    if (action === 'payment') {
-      this.pendingPaymentEmployeeId = event.employeeId;
-      this.confirmAddPayment();
-      return;
-    }
-
-    if (action === 'chargeBack') {
-      this.executeChargeBack(event.employeeId);
-      return;
-    }
-
-    if (action === 'addPayment') {
-      this.pendingPaymentEmployeeId = event.employeeId;
-      this.dividePayment();
-      return;
-    }
-
+  private runContractAction(action: 'sign' | 'finalize', employeeName: string): void {
     if (!this.contractId) return;
 
     this.isSaving = true;
@@ -1333,63 +1538,48 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         ? this.signContractWithDefaultPrintTemplate(this.contractId)
         : this.rentalContractService.finalize(this.contractId);
 
-    obs.pipe(finalize(() => (this.isSaving = false))).subscribe({
+    obs.pipe(finalize(this.refreshView(() => (this.isSaving = false)))).subscribe({
       next: (response) => {
         this.mapResponseToContract(response);
         if (response.warnings?.length) {
           this.serverWarnings = response.warnings;
         }
-        console.log(`Contract ${action} confirmed by employee ${event.employeeName}`);
+        console.log(`Contract ${action} confirmed by employee ${employeeName}`);
       },
       error: (err: Error) => {
-        this.serverError = err.message || `Erro ao ${action === 'sign' ? 'assinar' : 'finalizar'} contrato.`;
+        this.serverError =
+          err.message || `Erro ao ${action === 'sign' ? 'assinar' : 'finalizar'} contrato.`;
       },
     });
   }
 
-  onEmployeeCancelled(): void {
-    this.showEmployeeVerify = false;
-    this.employeeVerifyAction = null;
+  duplicateContract(): void {
+    if (this.isSaving || this.contractLookupLoading) return;
+    this.executeDuplicate();
   }
 
-  duplicateContract(): void {
-    if (!this.contractId) {
-      // Offline duplicate (no backend contract yet)
-      this.contract = {
-        ...this.contract,
-        _id: undefined,
-        situacao: ContractStatus.DRAFT,
-        baixa: false,
-        pagamentos: [],
-        hoje: this.toDateString(new Date()),
-      };
-      this.contractId = null;
-      this.contractPrintTemplateId = null;
-      this.serverError = '';
-      this.serverWarnings = [];
-      this.recalculate();
-      return;
-    }
+  /** Gate de PIN do operador para emitir/cancelar nota fiscal (NFS-e embutida). */
+  protected readonly authorizeFiscalAction = (action: 'emit' | 'cancel'): Observable<boolean> =>
+    this.operatorService
+      .authorize({
+        title:
+          action === 'emit'
+            ? 'Identificar Usuário — Emitir NFS-e'
+            : 'Autorizar Cancelamento de NFS-e',
+        requirePin: true,
+      })
+      .pipe(map((op) => op !== null));
 
-    this.isSaving = true;
-    this.serverError = '';
-    this.rentalContractService
-      .duplicate(this.contractId)
-      .pipe(finalize(() => (this.isSaving = false)))
-      .subscribe({
-        next: (response) => {
-          this.contractId = response.id;
-          this.contractPrintTemplateId = response.printTemplateId ?? null;
-          this.contract.situacao = ContractStatus.DRAFT;
-          this.contract.baixa = false;
-          this.contract.pagamentos = [];
-          this.serverWarnings = [];
-          this.recalculate();
-        },
-        error: (err: Error) => {
-          this.serverError = err.message || 'Erro ao duplicar contrato.';
-        },
-      });
+  private executeDuplicate(): void {
+    // Offline duplicate (no backend contract yet)
+    const copy = copyUnsavedRentalProposal(
+      this.createDraftSnapshot(),
+      this.toDateString(new Date()),
+    );
+    const newDraftId = this.generateDraftId();
+    this.persistDraft();
+    this.formStorage.saveDraft(this.formType, newDraftId, copy);
+    this.tabService.open('/rental/new', 'Nova proposta não salva', 'rental', newDraftId);
   }
 
   activateStepperMode(): void {
@@ -1400,6 +1590,14 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   }
 
   clearProposal(): void {
+    this.draftChanged$.next();
+    this.autosaveService.reset();
+    this.autosaveEmployeeId = null;
+    this.pendingPaymentEmployeeId = null;
+    this.pendingChargeBackIndex = null;
+    this.fiscalDocument = null;
+    this.showItemModal = false;
+    this.showPaymentModal = false;
     this.contractId = null;
     this.contractPrintTemplateId = null;
     this.contractLoaded = false;
@@ -1431,6 +1629,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     this.parentContractId = null;
     this.replacedByContractId = null;
+    this.revisionAudit.set('');
   }
 
   // ==================== Autosave ====================
@@ -1479,6 +1678,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         metadata: item.sub.map<IItemMetaRequest>((m) => ({
           type: META_MAP[m.tipo],
           description: m.descricao,
+          accessoryId: m.accessoryId,
         })),
       };
     });
@@ -1492,7 +1692,9 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       returnDate: this.contract.devolucao,
       notes: this.contract.comunicado || undefined,
       items,
-      payments: this.contract.pagamentos.map((p) => this.buildPaymentRequest(p, createdByEmployeeId)),
+      payments: this.contract.pagamentos.map((p) =>
+        this.buildPaymentRequest(p, createdByEmployeeId),
+      ),
     };
   }
 
@@ -1544,7 +1746,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       usa: response.eventDate,
       devolucao: response.returnDate,
       devolveu: response.actualReturnDate,
-      baixa: !!response.isReturned,
+      baixa: !!(response.isReturned ?? response.returned),
       situacao: STATUS_FROM_API[response.status] ?? this.contract.situacao,
       comunicado: response.notes ?? '',
       itens: response.items.map((item) => ({
@@ -1556,6 +1758,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
         sub: item.metadata.map((meta) => ({
           tipo: meta.type === 'ACESSORIO' ? 'acessorio' : 'observacao',
           descricao: meta.description,
+          accessoryId: meta.accessoryId,
         })),
       })),
       pagamentos: (response.payments ?? []).map((p) => ({
@@ -1581,6 +1784,13 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     this.totalPaid = response.paidValue;
     this.parentContractId = response.parentContractId ?? null;
     this.replacedByContractId = response.replacedByContractId ?? null;
+    this.revisionAudit.set(
+      response.revisionConfirmedAt
+        ? `Alteração confirmada em ${new Date(response.revisionConfirmedAt).toLocaleString('pt-BR')} por ${response.confirmedByAccountId}`
+        : response.revisedByAccountId
+          ? `Alteração iniciada por ${response.revisedByAccountId}`
+          : '',
+    );
     this.recalculate();
     this.updateTabTitle();
     // Reset autosave status after a successful server response
@@ -1605,7 +1815,10 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     };
   }
 
-  private buildPaymentRequest(p: IRentalPayment, processedByEmployeeId: string): IRentalPaymentRequest {
+  private buildPaymentRequest(
+    p: IRentalPayment,
+    processedByEmployeeId: string,
+  ): IRentalPaymentRequest {
     return {
       installmentNumber: p.parcela,
       paymentDate: p.data,
@@ -1613,7 +1826,10 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       value: p.valor,
       installments: p.vezes,
       status: this.STATUS_MAP[p.status],
-      processedByEmployeeId: p.status === PaymentStatus.PAID ? (processedByEmployeeId ?? "") : undefined,
+      processedByEmployeeId:
+        p.status === PaymentStatus.PAID
+          ? p.processedByEmployeeId || processedByEmployeeId
+          : undefined,
     };
   }
 

@@ -1,24 +1,46 @@
-import { Component, inject, signal } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
+import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  RouterLink,
+  RouterLinkActive,
+  RouterOutlet,
+  Router,
+  NavigationEnd,
+  ActivatedRoute,
+} from '@angular/router';
 import { filter } from 'rxjs';
-import { CommonModule } from '@angular/common';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AuthService } from '../../../domains/auth/services/auth.service';
 import { UserRole } from '../../../domains/auth/data/user.model';
+import {
+  TerminalOperator,
+  TerminalOperatorService,
+} from '../../../domains/auth/services/terminal-operator.service';
+import {
+  EmployeeConfirmedEvent,
+  EmployeeVerifyComponent,
+} from '../../../domains/rental/features/employee-verify/employee-verify.component';
 import { UiVariantService } from '../../services/ui-variant.service';
 import { TabService } from '../../services/tab.service';
 import { TabGroup } from '../../data/tab.model';
 
 @Component({
   selector: 'rentafit-main-layout',
-  standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, CommonModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    '(document:pointerdown)': 'dismissOutsideMenu($event)',
+    '(document:focusin)': 'dismissOutsideMenu($event)',
+    '(document:keydown.escape)': 'dismissMenus()',
+  },
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, EmployeeVerifyComponent],
   templateUrl: './main-layout.html',
-  styleUrl: './main-layout.css'
+  styleUrl: './main-layout.css',
 })
 export class MainLayout {
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly activatedRoute = inject(ActivatedRoute);
   protected readonly authService = inject(AuthService);
+  protected readonly operatorService = inject(TerminalOperatorService);
   protected readonly uiVariant = inject(UiVariantService);
   protected readonly tabService = inject(TabService);
 
@@ -37,31 +59,56 @@ export class MainLayout {
   protected readonly tabs = this.tabService.tabs;
   protected readonly activeTabId = this.tabService.activeTabId;
 
+  // Operador em comando do terminal.
+  protected readonly operators = this.operatorService.operators;
+  protected readonly currentOperator = this.operatorService.currentOperator;
+  protected readonly operatorRequest = this.operatorService.pendingRequest;
+  protected readonly operatorsOpen = signal(false);
+
   // Expõe UserRole para uso no template
   protected readonly UserRole = UserRole;
 
   constructor() {
     // BUG-2026-05-04-4: atualiza título do header e estado do FAB a cada navegação
-    this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe((event) => {
-      const url = (event as NavigationEnd).url;
-      this.showFab.set(!url.includes('/rental/return/'));
+    this.router.events
+      .pipe(
+        filter((event) => event instanceof NavigationEnd),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe((event) => {
+        this.dismissMenus();
+        const url = (event as NavigationEnd).url;
+        this.showFab.set(!url.includes('/rental/return/'));
 
-      // Percorre a árvore de rotas ativadas para encontrar o title mais específico
-      let child = this.activatedRoute.firstChild;
-      while (child?.firstChild) { child = child.firstChild; }
-      const title = child?.snapshot.data?.['title'] as string | undefined;
-      this.pageTitle.set(title ?? 'Dashboard');
+        // Percorre a árvore de rotas ativadas para encontrar o title mais específico
+        let child = this.activatedRoute.firstChild;
+        while (child?.firstChild) {
+          child = child.firstChild;
+        }
+        const title = child?.snapshot.data?.['title'] as string | undefined;
+        this.pageTitle.set(title ?? 'Dashboard');
 
-      if (this.isMobile()) {
-        this.isSidebarVisible.set(false);
-      }
-    });
+        if (this.isMobile()) {
+          this.isSidebarVisible.set(false);
+        }
+      });
+  }
+
+  protected dismissOutsideMenu(event: Event): void {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest('.nav-item-container.open')) this.closeAllSubmenus();
+    if (!target.closest('.operator-card')) this.operatorsOpen.set(false);
+  }
+
+  protected dismissMenus(): void {
+    this.closeAllSubmenus();
+    this.operatorsOpen.set(false);
   }
 
   protected toggleSidebar(): void {
-    this.isSidebarVisible.update(visible => !visible);
+    this.dismissMenus();
+    this.isSidebarVisible.update((visible) => !visible);
   }
 
   public closeAllSubmenus(): void {
@@ -117,17 +164,48 @@ export class MainLayout {
 
   /** Activate an existing tab. */
   protected activateTab(tabId: string): void {
+    this.dismissMenus();
     this.tabService.activate(tabId);
   }
 
   /** Close a tab without triggering navigation side effects. */
   protected closeTab(event: MouseEvent, tabId: string): void {
+    this.dismissMenus();
     event.stopPropagation();
     this.tabService.close(tabId);
   }
 
   protected logout(): void {
     this.authService.logout();
+  }
+
+  protected toggleOperators(): void {
+    this.closeAllSubmenus();
+    this.operatorService.pruneExpiredOperators();
+    this.operatorsOpen.update((open) => !open);
+  }
+
+  protected switchOperator(operator: TerminalOperator): void {
+    this.operatorsOpen.set(false);
+    this.operatorService.requestSwitch(operator.employeeId).subscribe();
+  }
+
+  protected removeOperator(event: MouseEvent, employeeId: string): void {
+    event.stopPropagation();
+    this.operatorService.removeOperator(employeeId);
+  }
+
+  protected authenticateOperator(): void {
+    this.operatorsOpen.set(false);
+    this.operatorService.requestAuthentication().subscribe();
+  }
+
+  protected onOperatorConfirmed(event: EmployeeConfirmedEvent): void {
+    this.operatorService.resolvePending(event);
+  }
+
+  protected onOperatorCancelled(): void {
+    this.operatorService.cancelPending();
   }
 
   protected hasRole(role: UserRole): boolean {

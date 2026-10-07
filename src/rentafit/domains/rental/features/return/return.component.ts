@@ -2,10 +2,7 @@ import { CommonModule } from '@angular/common';
 import { Component, effect, OnInit, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import {
-  EmployeeConfirmedEvent,
-  EmployeeVerifyComponent,
-} from '../employee-verify/employee-verify.component';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { ReturnFacadeService } from '../../service/return-facade.service';
 import { ReturnApiPort } from './data/return-api.port';
 import { ReturnApiHttpService } from './service/return-api-http.service';
@@ -15,7 +12,7 @@ import { TabService } from '../../../../shared/services/tab.service';
 @Component({
   selector: 'rentafit-return',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmployeeVerifyComponent],
+  imports: [CommonModule, FormsModule],
   templateUrl: './return.component.html',
   styleUrl: './return.component.css',
   providers: [
@@ -27,6 +24,7 @@ export class ReturnComponent implements OnInit {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly facade = inject(ReturnFacadeService);
+  private readonly operatorService = inject(TerminalOperatorService);
   private readonly tabService = inject(TabService);
 
   readonly summary = this.facade.summary;
@@ -47,9 +45,7 @@ export class ReturnComponent implements OnInit {
   readonly unpaidPaymentsCount = this.facade.unpaidPaymentsCount;
   readonly showConfirmButton = this.facade.showConfirmButton;
 
-  readonly showEmployeeVerify = signal(false);
   readonly closeSuccess = signal(false);
-  readonly employeeVerifyMode = signal<'close' | 'confirm'>('close');
 
   readonly canConfirmReturn = computed(() => {
     const returnerName = this.form().returnerName?.trim();
@@ -130,8 +126,16 @@ export class ReturnComponent implements OnInit {
 
   onConfirmReturn(): void {
     if (!this.canConfirmReturn()) return;
-    this.employeeVerifyMode.set('confirm');
-    this.showEmployeeVerify.set(true);
+    this.operatorService
+      .authorize({ title: 'Confirmar Devolução', requirePin: false })
+      .subscribe(op => {
+        if (!op) return;
+        this.facade.saveMarkings(op.employeeId).subscribe(success => {
+          if (success) {
+            this.facade.clearError();
+          }
+        });
+      });
   }
 
   onSaveMarkings(): void {
@@ -144,33 +148,19 @@ export class ReturnComponent implements OnInit {
 
   onCloseContract(): void {
     if (!this.canClose()) return;
-    this.employeeVerifyMode.set('close');
-    this.showEmployeeVerify.set(true);
-  }
-
-  onEmployeeConfirmed(event: EmployeeConfirmedEvent): void {
-    this.showEmployeeVerify.set(false);
-    
-    if (this.employeeVerifyMode() === 'confirm') {
-      this.facade.saveMarkings(event.employeeId).subscribe(success => {
-        if (success) {
-          this.facade.clearError();
-        }
+    this.operatorService
+      .authorize({ title: 'Autorizar Fechamento de Contrato', requirePin: false })
+      .subscribe(op => {
+        if (!op) return;
+        this.facade.closeContract(op.employeeId).subscribe(success => {
+          if (success) {
+            this.closeSuccess.set(true);
+            setTimeout(() => {
+              this.router.navigate(['/rental/management']);
+            }, 2000);
+          }
+        });
       });
-    } else {
-      this.facade.closeContract(event.employeeId).subscribe(success => {
-        if (success) {
-          this.closeSuccess.set(true);
-          setTimeout(() => {
-            this.router.navigate(['/rental/management']);
-          }, 2000);
-        }
-      });
-    }
-  }
-
-  onEmployeeVerifyCancelled(): void {
-    this.showEmployeeVerify.set(false);
   }
 
   onRetryLoad(): void {

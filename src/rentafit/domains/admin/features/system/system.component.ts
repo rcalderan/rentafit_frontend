@@ -1,5 +1,6 @@
-import { Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { RouterModule } from '@angular/router';
+import { RentalIntervalSettingsComponent } from './rental-interval-settings.component';
 import { UiVariantSelectorComponent } from './ui-variant-selector.component';
 import { MigrationComponent } from '../migration/migration.component';
 import { AuthService } from '../../../auth/services/auth.service';
@@ -7,8 +8,13 @@ import { UserRole } from '../../../auth/data/user.model';
 
 @Component({
   selector: 'rentafit-system',
-  standalone: true,
-  imports: [UiVariantSelectorComponent, RouterModule, MigrationComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    UiVariantSelectorComponent,
+    RouterModule,
+    MigrationComponent,
+    RentalIntervalSettingsComponent,
+  ],
   templateUrl: './system.component.html',
   styleUrl: './system.component.css',
 })

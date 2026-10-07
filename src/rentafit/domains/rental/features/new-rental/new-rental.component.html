@@ -1,516 +1,743 @@
 <div class="new-rental-container">
-    <h1>Locação</h1>
-    @if (!contractLoaded) {
-        <div class="contract-load-row section-card">
-            <span class="section-label">Carregar Contrato</span>
-            <div class="search-input">
-                <input
-                    #contractLookupInput
-                    type="text"
-                    [(ngModel)]="contractLookupLegacyId"
-                    placeholder="Informe o legacyId do contrato..."
-                    [disabled]="contractLookupLoading"
-                    (keyup.enter)="loadContractByLegacyId()">
-                <button class="icon-btn" (click)="loadContractByLegacyId()" [disabled]="contractLookupLoading"
-                        aria-label="Buscar contrato">
-                    <i aria-hidden="true">{{ contractLookupLoading ? '⏳' : '🔍' }}</i>
-                </button>
-            </div>
-            @if (contractLookupError) {
-                <div class="field-error">{{ contractLookupError }}</div>
-            }
+  <h1>Locação</h1>
+  @if (contractLoaded) {
+    <div class="section-card">
+      <button
+        type="button"
+        class="btn btn-duplicate"
+        (click)="duplicateContract()"
+        [disabled]="isSaving || contractLookupLoading"
+      >
+        Criar nova proposta em outra aba
+      </button>
+      @if (!contractId) {
+        <span>Proposta não salva · pagamentos não são copiados</span>
+      }
+    </div>
+  }
+  @if (!contractLoaded) {
+    <div class="contract-load-row section-card">
+      <span class="section-label">Carregar Contrato</span>
+      <div class="search-input">
+        <input
+          #contractLookupInput
+          type="text"
+          [(ngModel)]="contractLookupLegacyId"
+          placeholder="Informe o legacyId do contrato..."
+          [disabled]="contractLookupLoading"
+          (keyup.enter)="loadContractByLegacyId()"
+        />
+        <button
+          class="icon-btn"
+          (click)="loadContractByLegacyId()"
+          [disabled]="contractLookupLoading"
+          aria-label="Buscar contrato"
+        >
+          <i aria-hidden="true">{{ contractLookupLoading ? '⏳' : '🔍' }}</i>
+        </button>
+      </div>
+      @if (contractLookupError) {
+        <div class="field-error">{{ contractLookupError }}</div>
+      }
+    </div>
+  } @else {
+    <div class="stepper-header">
+      <div class="stepper">
+        <div class="step" [class.active]="stepperStep >= 0" [class.done]="stepperStep > 0">
+          <div class="step-circle">1</div>
+          <span>Rascunho</span>
         </div>
-    } @else {
-        <div class="stepper-header">
-            <div class="stepper">
-            <div class="step" [class.active]="stepperStep >= 0" [class.done]="stepperStep > 0">
-                <div class="step-circle">1</div>
-                <span>Rascunho</span>
+        <div class="step-line" [class.done]="stepperStep > 0"></div>
+        <div class="step" [class.active]="stepperStep >= 1" [class.done]="stepperStep >= 1">
+          <div class="step-circle">2</div>
+          <span>Salvo</span>
+        </div>
+        <div class="step-line" [class.done]="stepperStep > 1"></div>
+        <div class="step" [class.active]="stepperStep >= 2" [class.done]="stepperStep >= 2">
+          <div class="step-circle">✓</div>
+          <span>{{ stepperStep >= 2 ? 'Assinado' : 'Assinar' }}</span>
+        </div>
+        <div class="step-line" [class.done]="stepperStep >= 2"></div>
+        <div class="step" [class.active]="stepperStep >= 3" [class.done]="stepperStep > 3">
+          <div class="step-circle">🔒</div>
+          <span>{{ stepperStep > 3 ? 'Finalizado' : 'Finalizar' }}</span>
+        </div>
+      </div>
+      <div class="stepper-meta">
+        @if (revisionAudit()) {
+          <span>{{ revisionAudit() }}</span>
+        }
+        @if (contract.situacao === ContractStatus.REVISION) {
+          <span class="status-badge badge-revision">📄 Revisão</span>
+          <button type="button" class="btn-link" (click)="restartRevision()" [disabled]="isSaving">
+            Reiniciar alteração
+          </button>
+        }
+        @if (contract.situacao === ContractStatus.SUPERSEDED) {
+          <span class="status-badge badge-superseded">❌ Substituído</span>
+        }
+        @if (parentContractId) {
+          <button
+            class="btn-link"
+            (click)="loadContractById(parentContractId)"
+            [disabled]="contractLookupLoading"
+          >
+            ← Ver contrato original
+          </button>
+        }
+        @if (replacedByContractId) {
+          <button
+            class="btn btn-revise"
+            (click)="loadContractById(replacedByContractId)"
+            [disabled]="contractLookupLoading"
+          >
+            {{
+              contract.situacao === ContractStatus.SUPERSEDED
+                ? '📂 Carregar Vigente'
+                : '→ Ir para Revisão'
+            }}
+          </button>
+        }
+      </div>
+      <button
+        class="btn btn-clear-proposal"
+        (click)="clearProposal()"
+        [disabled]="isSaving || contractLookupLoading"
+      >
+        🧹 Limpar Proposta
+      </button>
+    </div>
+  }
+
+  <div class="page-grid">
+    <!-- ── Top-left: Customer + Dates ── -->
+    <div class="section-card top-card">
+      <div class="customer-search-row">
+        <span class="section-label">Cliente</span>
+        <div class="search-input">
+          @if (!customerFound) {
+            <input
+              type="text"
+              [(ngModel)]="customerSearchQuery"
+              placeholder="CPF, CNPJ ou código legado..."
+              class="uppercase"
+              [disabled]="!canChangeCustomer() || customerLoading"
+              (ngModelChange)="activateStepperMode()"
+              (keyup.enter)="searchCustomer()"
+            />
+          } @else {
+            <div class="customer-inline-info">
+              <strong>{{ contract.clienteNome }}</strong>
+              <span class="text-muted customer-doc">{{ contract.clienteCpf }}</span>
             </div>
-            <div class="step-line" [class.done]="stepperStep > 0"></div>
-            <div class="step" [class.active]="stepperStep >= 1" [class.done]="stepperStep >= 1">
-                <div class="step-circle">2</div>
-                <span>Salvo</span>
-            </div>
-            <div class="step-line" [class.done]="stepperStep > 1"></div>
-            <div class="step" [class.active]="stepperStep >= 2" [class.done]="stepperStep >= 2">
-                <div class="step-circle">✓</div>
-                <span>{{ stepperStep >= 2 ? 'Assinado' : 'Assinar' }}</span>
-            </div>
-            <div class="step-line" [class.done]="stepperStep >= 2"></div>
-            <div class="step" [class.active]="stepperStep >= 3" [class.done]="stepperStep > 3">
-                <div class="step-circle">🔒</div>
-                <span>{{ stepperStep > 3 ? 'Finalizado' : 'Finalizar' }}</span>
-            </div>
-            </div>
-            <div class="stepper-meta">
-                @if (contract.situacao === ContractStatus.REVISION) {
-                    <span class="status-badge badge-revision">📄 Revisão</span>
-                }
-                @if (contract.situacao === ContractStatus.SUPERSEDED) {
-                    <span class="status-badge badge-superseded">❌ Substituído</span>
-                }
-                @if (parentContractId) {
-                    <button class="btn-link" (click)="loadContractById(parentContractId)" [disabled]="contractLookupLoading">
-                        ← Ver contrato original
-                    </button>
-                }
-                @if (replacedByContractId) {
-                    <button class="btn btn-revise"
-                            (click)="loadContractById(replacedByContractId)"
-                            [disabled]="contractLookupLoading">
-                        {{ contract.situacao === ContractStatus.SUPERSEDED ? '📂 Carregar Vigente' : '→ Ir para Revisão' }}
-                    </button>
-                }
-            </div>
-            <button class="btn btn-clear-proposal" (click)="clearProposal()" [disabled]="isSaving || contractLookupLoading">
-                🧹 Limpar Proposta
+          }
+          @if (customerFound) {
+            <button
+              class="icon-btn icon-btn-clear"
+              (click)="clearCustomer()"
+              [disabled]="!canChangeCustomer()"
+              aria-label="Limpar cliente"
+            >
+              <i aria-hidden="true">✕</i>
             </button>
+          } @else {
+            <button
+              class="icon-btn"
+              (click)="searchCustomer()"
+              [disabled]="!canChangeCustomer() || customerLoading"
+              aria-label="Buscar cliente"
+            >
+              <i aria-hidden="true">{{ customerLoading ? '⏳' : '🔍' }}</i>
+            </button>
+          }
         </div>
-    }
+        @if (customerError) {
+          <div class="field-error">{{ customerError }}</div>
+        }
+      </div>
 
-    <div class="page-grid">
-
-        <!-- ── Top-left: Customer + Dates ── -->
-        <div class="section-card top-card">
-
-            <div class="customer-search-row">
-                <span class="section-label">Cliente</span>
-                <div class="search-input">
-                    @if (!customerFound) {
-                        <input
-                            type="text"
-                            [(ngModel)]="customerSearchQuery"
-                            placeholder="CPF, CNPJ ou código legado..."
-                            class="uppercase"
-                            [disabled]="!isEditable() || customerLoading"
-                            (ngModelChange)="activateStepperMode()"
-                            (keyup.enter)="searchCustomer()">
-                    } @else {
-                        <div class="customer-inline-info">
-                            <strong>{{ contract.clienteNome }}</strong>
-                            <span class="text-muted customer-doc">{{ contract.clienteCpf }}</span>
-                        </div>
-                    }
-                    @if (customerFound) {
-                        <button class="icon-btn icon-btn-clear" (click)="clearCustomer()" [disabled]="!isEditable()"
-                            aria-label="Limpar cliente"><i aria-hidden="true">✕</i></button>
-                    } @else {
-                        <button class="icon-btn" (click)="searchCustomer()" [disabled]="customerLoading"
-                                aria-label="Buscar cliente">
-                            <i aria-hidden="true">{{ customerLoading ? '⏳' : '🔍' }}</i>
-                        </button>
-                    }
-                </div>
-                @if (customerError) {
-                    <div class="field-error">{{ customerError }}</div>
-                }
-            </div>
-
-            <div class="dates-row">
-                <div class="input-group">
-                    <label>Retirada</label>
-                    <input type="date" [(ngModel)]="contract.retirada"
-                           [disabled]="!isEditable()"
-                              (ngModelChange)="activateStepperMode()"
-                           (change)="onRetiradaChange()">
-                </div>
-                <div class="input-group">
-                    <label>Uso</label>
-                    <input type="date" [(ngModel)]="contract.usa"
-                           [disabled]="!isEditable()"
-                              (ngModelChange)="activateStepperMode()"
-                           (change)="onUsoDateChange()">
-                </div>
-                <div class="input-group">
-                    <label>Devolução</label>
-                    <input type="date" [(ngModel)]="contract.devolucao"
-                           [disabled]="!isEditable()"
-                              (ngModelChange)="activateStepperMode()"
-                           (change)="onDevolucaoChange()">
-                </div>
-            </div>
-
+      <div class="dates-row">
+        <div class="input-group">
+          <label>Retirada</label>
+          <input
+            type="date"
+            [(ngModel)]="contract.retirada"
+            [disabled]="!isEditable()"
+            (ngModelChange)="activateStepperMode()"
+            (change)="onRetiradaChange()"
+          />
         </div>
-
-        <!-- ── Bottom-left: Rental Items ── -->
-        <div class="section-card products-section">
-            <div class="section-header">
-                <span class="section-title">Itens da Locação</span>
-                @if (isEditable()) {
-                    <button class="btn-icon-labeled" (click)="openItemModal()" aria-label="Adicionar item"><i aria-hidden="true">➕</i> Adicionar Item</button>
-                }
-            </div>
-
-            @if (contract.itens.length === 0) {
-                <div class="empty-state">Nenhum item adicionado.</div>
-            }
-
-            <div class="items-list">
-                @for (item of contract.itens; track item.codigo; let i = $index) {
-                    <div class="item-row" (click)="openEditItemModal(i)">
-                        <div class="item-desc">
-                            <span class="item-name">{{ item.descricao }}</span>
-                            <div class="item-metas">
-                                @for (meta of item.sub; track $index) {
-                                    <span class="item-meta-tag" [class.acessorio]="meta.tipo === 'acessorio'">
-                                        {{ meta.descricao }}
-                                    </span>
-                                }
-                            </div>
-                        </div>
-                        <span class="item-price">R$ {{ formatCurrency(item.valor) }}</span>
-                        @if (isEditable()) {
-                            <button class="remove-btn" (click)="$event.stopPropagation(); removeItem(i)" aria-label="Remover item"><i aria-hidden="true">✕</i></button>
-                        }
-                    </div>
-                }
-            </div>
-
+        <div class="input-group">
+          <label>Uso</label>
+          <input
+            type="date"
+            [(ngModel)]="contract.usa"
+            [disabled]="!isEditable()"
+            (ngModelChange)="activateStepperMode()"
+            (change)="onUsoDateChange()"
+          />
         </div>
-
-        <!-- ── Right (spans 2 rows): Payments ── -->
-        <div class="section-card payments-section">
-            <div class="section-header">
-                <span class="section-title">Pagamentos</span>
-                @if (canAddPayment && contract.pagamentos.length < 24 && unplannedAmount > 0.001) {
-                    <button class="btn-icon-labeled" (click)="openPaymentModal()" aria-label="Adicionar parcela"><i aria-hidden="true">➕</i> Parcela</button>
-                }
-            </div>
-
-            @if (contract.pagamentos.length === 0) {
-                <div class="empty-state">
-                    @if (!canAddPayment) {
-                        Adicione itens para habilitar pagamentos.
-                    } @else {
-                        Nenhum pagamento registrado.
-                    }
-                </div>
-            }
-
-            <div class="payments-list">
-                @for (p of contract.pagamentos; track p.parcela; let i = $index) {
-                    <div class="payment-row"
-                         [class.is-paid]="p.status === PaymentStatus.PAID"
-                         [class.is-pending]="p.status === PaymentStatus.PENDING"
-                         [class.is-cancelled]="p.status === PaymentStatus.CANCELLED"
-                         (click)="openEditPaymentModal(i)">
-                        <div class="payment-parcela">#{{ p.parcela }}</div>
-                        <div class="payment-info">
-                            <span class="payment-method">{{ paymentMethodLabels[p.forma] }}</span>
-                            <span class="payment-date">{{ formatDate(p.data) }}</span>
-                        </div>
-                        <div class="payment-amount-col">
-                            <span class="payment-amount">R$ {{ formatCurrency(p.valor) }}</span>
-                            <span class="payment-badge"
-                                    [class.paid]="p.status === PaymentStatus.PAID"
-                                    [class.pending]="p.status === PaymentStatus.PENDING"
-                                    [class.cancelled]="p.status === PaymentStatus.CANCELLED">
-                                {{ p.status === PaymentStatus.PAID 
-                                    ? 'Pago' 
-                                    : p.status === PaymentStatus.CANCELLED
-                                        ? 'Extornado'
-                                        : 'Pendente' }}
-                            </span>
-                        </div>
-                        @if (p.status === PaymentStatus.CANCELLED) {
-                            <div class="payment-row-action cancelled-lock" title="Extornado — irreversível">🔒</div>
-                        } @else if (p.status === PaymentStatus.PAID && contract.situacao === ContractStatus.SIGNED) {
-                            <button class="btn-chargeback" (click)="$event.stopPropagation(); requestChargeBack(i)" title="Extornar parcela">↩</button>
-                        } @else if (p.status !== PaymentStatus.PAID) {
-                            <button class="remove-btn" (click)="$event.stopPropagation(); removePayment(i)" aria-label="Remover parcela"><i aria-hidden="true">✕</i></button>
-                        } @else {
-                            <div class="payment-row-action">✅</div>
-                        }
-                    </div>
-                }
-            </div>
-
-            <div class="payments-summary">
-                <div class="total-row final">
-                    <span>Saldo Restante</span>
-                    <span class="pending-color">R$ {{ formatCurrency(remainingAmount) }}</span>
-                </div>
-                <div class="total-row">
-                    <span>Total Pago</span>
-                    <span class="paid-color">R$ {{ formatCurrency(totalPaid) }}</span>
-                </div>
-                <div class="total-row">
-                    <span>Total do Contrato</span>
-                    <span>R$ {{ formatCurrency(total) }}</span>
-                </div>
-            </div>
+        <div class="input-group">
+          <label>Devolução</label>
+          <input
+            type="date"
+            [(ngModel)]="contract.devolucao"
+            [disabled]="!isEditable()"
+            (ngModelChange)="activateStepperMode()"
+            (change)="onDevolucaoChange()"
+          />
         </div>
-
+      </div>
     </div>
 
-    <!-- ── Actions ── -->
-    @if (contractLoaded) {
-        @if (serverError) {
-            <div class="server-error">⚠️ {{ serverError }}</div>
+    <!-- ── Bottom-left: Rental Items ── -->
+    <div class="section-card products-section">
+      <div class="section-header">
+        <span class="section-title">Itens da Locação</span>
+        @if (isEditable()) {
+          <button class="btn-icon-labeled" (click)="openItemModal()" aria-label="Adicionar item">
+            <i aria-hidden="true">➕</i> Adicionar Item
+          </button>
         }
-        <div class="actions">
-            @if (serverWarnings.length > 0) {
-                <div class="server-warnings">
-                    @for (w of serverWarnings; track w) {
-                        <div class="server-warning">⚠️ {{ w }}</div>
-                    }
-                </div>
-            }
-            @if (autosaveStatus === 'saving') {
-                <span class="autosave-indicator autosave-saving">⏳ Salvando automaticamente…</span>
-            } @else if (autosaveStatus === 'saved') {
-                <span class="autosave-indicator autosave-saved">✅ Salvo</span>
-            } @else if (autosaveStatus === 'error') {
-                <span class="autosave-indicator autosave-error" [title]="autosaveError ?? ''">⚠️ Erro ao salvar</span>
-            }
-            @if (contractId) {
-                <button class="btn btn-print-contract" (click)="requestContractPrint()"
-                        [disabled]="isSaving || isPreparingContractPrint()">
-                    {{ isPreparingContractPrint() ? 'Preparando impressão…' : 'Imprimir contrato' }}
-                </button>
-            }
-            @if (stepperStep === 0) {
-                <button class="btn btn-update" (click)="salvarProposta()" [disabled]="isSaving">
-                    {{ isSaving ? '⏳ Salvando…' : '💾 Salvar Proposta' }}
-                </button>
-            }
-            @if (stepperStep === 1) {
-                @if (contract.situacao === ContractStatus.REVISION) {
-                    <button class="btn btn-update" (click)="salvarProposta()" [disabled]="isSaving">
-                        {{ isSaving ? '⏳ Salvando…' : '💾 Salvar Revisão' }}
-                    </button>
-                }
-                <button class="btn btn-sign" (click)="assinarContrato()" [disabled]="isSaving">
-                    ✍️ Assinar Proposta
-                </button>
-            }
-            @if (stepperStep === 2) {
-                <button class="btn btn-save" (click)="finalizarLocacao()" [disabled]="isSaving">
-                    🔒 Finalizar Locação
-                </button>
-                @if (!replacedByContractId) {
-                    <button class="btn btn-revise" (click)="reviseContrato()" [disabled]="true">
-                        {{ isSaving ? '⏳ Gerando…' : '✏️ Revisar Contrato' }}
-                    </button>
-                }
-            }
-            @if (stepperStep >= 3) {
-                @if (contract.situacao === ContractStatus.SUPERSEDED) {
-                    <span class="contract-closed-label contract-superseded-label">❌ Contrato Substituído</span>
-                } @else {
-                    <span class="contract-closed-label">Contrato Fechado</span>
-                    <button class="btn btn-duplicate" (click)="duplicateContract()" [disabled]="isSaving">
-                        {{ isSaving ? '⏳ Duplicando…' : '📋 Gerar Nova Proposta Igual' }}
-                    </button>
-                }
-            }
-        </div>
-    }
+      </div>
 
-    <!-- ── NFS-e (emissão de nota fiscal de serviço) ── -->
-    @if (contractLoaded && contractId) {
-        <div class="section-card nfse-section">
-            <rentafit-nfse-emission
-                [context]="fiscalContext"
-                [initialDocument]="fiscalDocument"
-                (changed)="onInvoiceChanged($event)">
-            </rentafit-nfse-emission>
-        </div>
-    }
+      @if (contract.itens.length === 0) {
+        <div class="empty-state">Nenhum item adicionado.</div>
+      }
 
+      <div class="items-list">
+        @for (item of contract.itens; track item.codigo; let i = $index) {
+          <div class="item-row" (click)="openEditItemModal(i)">
+            <div class="item-desc">
+              <span class="item-name">{{ item.descricao }}</span>
+              <div class="item-metas">
+                @for (meta of item.sub; track $index) {
+                  <span class="item-meta-tag" [class.acessorio]="meta.tipo === 'acessorio'">
+                    {{ meta.descricao }}
+                  </span>
+                }
+              </div>
+            </div>
+            <span class="item-price">R$ {{ formatCurrency(item.valor) }}</span>
+            @if (isEditable()) {
+              <button
+                class="remove-btn"
+                (click)="$event.stopPropagation(); removeItem(i)"
+                aria-label="Remover item"
+              >
+                <i aria-hidden="true">✕</i>
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </div>
+
+    <!-- ── Right (spans 2 rows): Payments ── -->
+    <div class="section-card payments-section">
+      <div class="section-header">
+        <span class="section-title">Pagamentos</span>
+        @if (canAddPayment && contract.pagamentos.length < 24 && unplannedAmount > 0.001) {
+          <button
+            class="btn-icon-labeled"
+            (click)="openPaymentModal()"
+            aria-label="Adicionar parcela"
+          >
+            <i aria-hidden="true">➕</i> Parcela
+          </button>
+        }
+      </div>
+
+      @if (contract.pagamentos.length === 0) {
+        <div class="empty-state">
+          @if (!canAddPayment) {
+            Adicione itens para habilitar pagamentos.
+          } @else {
+            Nenhum pagamento registrado.
+          }
+        </div>
+      }
+
+      <div class="payments-list">
+        @for (p of contract.pagamentos; track p.parcela; let i = $index) {
+          <div
+            class="payment-row"
+            [class.is-paid]="p.status === PaymentStatus.PAID"
+            [class.is-pending]="p.status === PaymentStatus.PENDING"
+            [class.is-cancelled]="p.status === PaymentStatus.CANCELLED"
+            (click)="openEditPaymentModal(i)"
+          >
+            <div class="payment-parcela">#{{ p.parcela }}</div>
+            <div class="payment-info">
+              <span class="payment-method">{{ paymentMethodLabels[p.forma] }}</span>
+              <span class="payment-date">{{ formatDate(p.data) }}</span>
+            </div>
+            <div class="payment-amount-col">
+              <span class="payment-amount">R$ {{ formatCurrency(p.valor) }}</span>
+              <span
+                class="payment-badge"
+                [class.paid]="p.status === PaymentStatus.PAID"
+                [class.pending]="p.status === PaymentStatus.PENDING"
+                [class.cancelled]="p.status === PaymentStatus.CANCELLED"
+              >
+                {{
+                  p.status === PaymentStatus.PAID
+                    ? 'Pago'
+                    : p.status === PaymentStatus.CANCELLED
+                      ? 'Extornado'
+                      : 'Pendente'
+                }}
+              </span>
+            </div>
+            @if (p.status === PaymentStatus.CANCELLED) {
+              <div class="payment-row-action cancelled-lock" title="Extornado — irreversível">
+                🔒
+              </div>
+            } @else if (
+              p.status === PaymentStatus.PAID && contract.situacao === ContractStatus.SIGNED
+            ) {
+              <button
+                class="btn-chargeback"
+                (click)="$event.stopPropagation(); requestChargeBack(i)"
+                title="Extornar parcela"
+              >
+                ↩
+              </button>
+            } @else if (p.status !== PaymentStatus.PAID) {
+              <button
+                class="remove-btn"
+                (click)="$event.stopPropagation(); removePayment(i)"
+                aria-label="Remover parcela"
+              >
+                <i aria-hidden="true">✕</i>
+              </button>
+            } @else {
+              <div class="payment-row-action">✅</div>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="payments-summary">
+        <div class="total-row final">
+          <span>Saldo Restante</span>
+          <span class="pending-color">R$ {{ formatCurrency(remainingAmount) }}</span>
+        </div>
+        <div class="total-row">
+          <span>Total Pago</span>
+          <span class="paid-color">R$ {{ formatCurrency(totalPaid) }}</span>
+        </div>
+        <div class="total-row">
+          <span>Total do Contrato</span>
+          <span>R$ {{ formatCurrency(total) }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Actions ── -->
+  @if (contractLoaded) {
+    @if (serverError) {
+      <div class="server-error">⚠️ {{ serverError }}</div>
+    }
+    <div class="actions">
+      @if (serverWarnings.length > 0) {
+        <div class="server-warnings">
+          @for (w of serverWarnings; track w) {
+            <div class="server-warning">⚠️ {{ w }}</div>
+          }
+        </div>
+      }
+      @if (autosaveStatus === 'saving') {
+        <span class="autosave-indicator autosave-saving">⏳ Salvando automaticamente…</span>
+      } @else if (autosaveStatus === 'saved') {
+        <span class="autosave-indicator autosave-saved">✅ Salvo</span>
+      } @else if (autosaveStatus === 'error') {
+        <span class="autosave-indicator autosave-error" [title]="autosaveError ?? ''"
+          >⚠️ Erro ao salvar</span
+        >
+      }
+      @if (contractId) {
+        <button
+          class="btn btn-print-contract"
+          (click)="requestContractPrint()"
+          [disabled]="isSaving || isPreparingContractPrint()"
+        >
+          {{ isPreparingContractPrint() ? 'Preparando impressão…' : 'Imprimir contrato' }}
+        </button>
+      }
+      @if (stepperStep === 0) {
+        <button class="btn btn-update" (click)="salvarProposta()" [disabled]="isSaving">
+          {{ isSaving ? '⏳ Salvando…' : '💾 Salvar Proposta' }}
+        </button>
+      }
+      @if (stepperStep === 1) {
+        @if (contract.situacao === ContractStatus.REVISION) {
+          <button class="btn btn-update" (click)="salvarProposta()" [disabled]="isSaving">
+            {{ isSaving ? '⏳ Salvando…' : '💾 Salvar Revisão' }}
+          </button>
+        }
+        <button class="btn btn-sign" (click)="assinarContrato()" [disabled]="isSaving">
+          {{
+            contract.situacao === ContractStatus.REVISION
+              ? 'Confirmar alteração de contrato'
+              : 'Assinar Proposta'
+          }}
+        </button>
+      }
+      @if (stepperStep === 2) {
+        <button class="btn btn-save" (click)="finalizarLocacao()" [disabled]="isSaving">
+          🔒 Finalizar Locação
+        </button>
+        @if (canRevise && !replacedByContractId) {
+          <button class="btn btn-revise" (click)="reviseContrato()" [disabled]="isSaving">
+            Alterar contrato
+          </button>
+        }
+      }
+      @if (stepperStep >= 3) {
+        @if (contract.situacao === ContractStatus.SUPERSEDED) {
+          <span class="contract-closed-label contract-superseded-label"
+            >❌ Contrato Substituído</span
+          >
+        } @else {
+          <span class="contract-closed-label">Contrato Fechado</span>
+          @if (canRevise && !replacedByContractId) {
+            <button class="btn btn-revise" (click)="reviseContrato()" [disabled]="isSaving">
+              Alterar contrato
+            </button>
+          }
+        }
+      }
+    </div>
+  }
+
+  <!-- ── NFS-e (emissão de nota fiscal de serviço) ── -->
+  @if (contractLoaded && contractId) {
+    <div class="section-card nfse-section">
+      <rentafit-nfse-emission
+        [context]="fiscalContext"
+        [initialDocument]="fiscalDocument"
+        [authorizeAction]="authorizeFiscalAction"
+        (changed)="onInvoiceChanged($event)"
+      >
+      </rentafit-nfse-emission>
+    </div>
+  }
 </div>
 
 @if (showPrintConfirmation()) {
-    <div class="modal-backdrop print-confirmation-backdrop" (click)="cancelContractPrint()"></div>
-    <section class="modal modal-print-confirmation" role="dialog" aria-modal="true"
-             aria-labelledby="print-confirmation-title" (click)="$event.stopPropagation()">
-        <header class="modal-header">
-            <h2 id="print-confirmation-title" class="modal-title">Imprimir contrato de locação?</h2>
-            <button type="button" class="modal-close" aria-label="Cancelar" (click)="cancelContractPrint()">×</button>
-        </header>
-        <div class="modal-body">
-            <p>Proposta salva {{ contract.legacyId ? 'nº ' + contract.legacyId : '' }}. Deseja imprimir usando {{ contractPrintTemplateId ? 'o modelo registrado na assinatura' : 'o template padrão atual' }}?</p>
-        </div>
-        <footer class="modal-footer">
-            <button type="button" class="btn btn-update" (click)="cancelContractPrint()">Cancelar</button>
-            <button type="button" class="btn btn-save" (click)="confirmContractPrint()">Confirmar</button>
-        </footer>
-    </section>
+  <div class="modal-backdrop print-confirmation-backdrop" (click)="cancelContractPrint()"></div>
+  <section
+    class="modal modal-print-confirmation"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="print-confirmation-title"
+    (click)="$event.stopPropagation()"
+  >
+    <header class="modal-header">
+      <h2 id="print-confirmation-title" class="modal-title">Imprimir contrato de locação?</h2>
+      <button
+        type="button"
+        class="modal-close"
+        aria-label="Cancelar"
+        (click)="cancelContractPrint()"
+      >
+        ×
+      </button>
+    </header>
+    <div class="modal-body">
+      <p>
+        Proposta salva {{ contract.legacyId ? 'nº ' + contract.legacyId : '' }}. Deseja imprimir
+        usando
+        {{
+          contractPrintTemplateId ? 'o modelo registrado na assinatura' : 'o template padrão atual'
+        }}?
+      </p>
+    </div>
+    <footer class="modal-footer">
+      <button type="button" class="btn btn-update" (click)="cancelContractPrint()">Cancelar</button>
+      <button type="button" class="btn btn-save" (click)="confirmContractPrint()">Confirmar</button>
+    </footer>
+  </section>
 }
 
 @if (showContractPrintModal()) {
-    <rentafit-print-preview-modal
-        [templateId]="contractPrintTemplateId"
-        templateType="RENTAL_CONTRACT"
-        [customData]="contractPrintData()"
-        [isOpen]="true"
-        [printImmediately]="true"
-        [isolatePrint]="true"
-        (close)="closeContractPrintPreview()"
-    />
-}
-
-<!-- ══════════════ Employee Verify Modal ══════════════ -->
-@if (showEmployeeVerify) {
-    <rentafit-employee-verify
-        [title]="employeeVerifyTitle"
-        [requirePin]="employeeVerifyRequirePin"
-        (confirmed)="onEmployeeConfirmed($event)"
-        (cancelled)="onEmployeeCancelled()">
-    </rentafit-employee-verify>
+  <rentafit-print-preview-modal
+    [templateId]="contractPrintTemplateId"
+    templateType="RENTAL_CONTRACT"
+    [customData]="contractPrintData()"
+    [isOpen]="true"
+    [printImmediately]="true"
+    [isolatePrint]="true"
+    (close)="closeContractPrintPreview()"
+  />
 }
 
 <!-- ══════════════ Modal: Adicionar Item ══════════════ -->
 @if (showItemModal) {
-    <div class="modal-backdrop" (click)="closeItemModal()"></div>
-    <div class="modal">
-        <div class="modal-header">
-            <span class="modal-title">{{ editingItemIndex !== null ? 'Editar Item' : 'Adicionar Item' }}</span>
-            <button class="modal-close" (click)="closeItemModal()" aria-label="Fechar"><i aria-hidden="true">✕</i></button>
-        </div>
-        <div class="modal-body">
-
-            @if (editingItemIndex === null) {
-                <div class="input-group">
-                    <label for="item-attendant">Atendente</label>
-                    <select id="item-attendant" [(ngModel)]="itemModalEmployee"
-                            [disabled]="attendantsLoading || activeAttendants.length === 0">
-                        <option value="" disabled>
-                            {{ attendantsLoading ? 'Carregando atendentes...' : 'Selecione o atendente' }}
-                        </option>
-                        @for (attendant of activeAttendants; track attendant.id) {
-                            <option [value]="attendant.id">{{ attendant.name }}</option>
-                        }
-                    </select>
-                </div>
-                @if (attendantsError) {
-                    <div class="modal-error">{{ attendantsError }}</div>
-                }
-            }
-
-            <div class="input-group">
-                <label>Código do Produto</label>
-                <div class="search-input">
-                    @if (editingItemIndex !== null) {
-                        <span class="readonly-value">{{ itemModalCode }}</span>
-                    } @else {
-                        <input #itemCodeInput type="text" [(ngModel)]="itemModalCode" class="uppercase"
-                               placeholder="Código legado..." (keyup.enter)="searchItemByCode()"
-                               [disabled]="itemSearchLoading">
-                        <button class="icon-btn" (click)="searchItemByCode()" [disabled]="itemSearchLoading"
-                                aria-label="Buscar produto">
-                            <i aria-hidden="true">{{ itemSearchLoading ? '⏳' : '🔍' }}</i>
-                        </button>
-                    }
-                </div>
-            </div>
-
-            @if (itemModalError) {
-                <div class="modal-error">{{ itemModalError }}</div>
-            }
-
-            @if (itemModalFoundProduct) {
-                <div class="modal-product-card">
-                    <div class="modal-item-name">{{ itemModalName }}</div>
-                    <div class="modal-item-meta">{{ itemModalMeta }}</div>
-
-                    <div class="input-group" style="margin-top: 1rem;">
-                        <label>Valor (editável)</label>
-                        <input type="number" [(ngModel)]="itemModalValor" min="0" step="0.01">
-                    </div>
-                </div>
-
-                <div class="modal-extras">
-                    <span class="section-label">Acessórios / Observações</span>
-
-                    @for (extra of itemModalExtras; track $index; let ei = $index) {
-                        <div class="extra-tag-row">
-                            <span class="item-meta-tag" [class.acessorio]="extra.tipo === 'acessorio'">
-                                {{ extra.tipo === 'acessorio' ? '🧩' : '📝' }} {{ extra.descricao }}
-                            </span>
-                            <button class="remove-btn" (click)="removeItemModalExtra(ei)" aria-label="Remover extra"><i aria-hidden="true">✕</i></button>
-                        </div>
-                    }
-
-                    <div class="extra-add-row">
-                        <select [(ngModel)]="itemModalNewExtraType" class="extra-type-select">
-                            <option value="acessorio">Acessório</option>
-                            <option value="observacao">Observação</option>
-                        </select>
-                        <input type="text" [(ngModel)]="itemModalNewExtraDesc"
-                               placeholder="Descrição..." (keyup.enter)="addItemModalExtra()">
-                        <button class="icon-btn" (click)="addItemModalExtra()" aria-label="Adicionar extra"><i aria-hidden="true">➕</i></button>
-                    </div>
-                </div>
-            }
-        </div>
-        <div class="modal-footer">
-            <button class="btn btn-save" (click)="confirmAddItem()"
-                    [disabled]="editingItemIndex === null && (!itemModalFoundProduct || !itemModalEmployee || attendantsLoading)">
-                {{ editingItemIndex !== null ? 'Salvar' : 'Adicionar' }}
-            </button>
-        </div>
+  <div class="modal-backdrop" (click)="closeItemModal()"></div>
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">{{
+        editingItemIndex !== null ? 'Editar Item' : 'Adicionar Item'
+      }}</span>
+      <button class="modal-close" (click)="closeItemModal()" aria-label="Fechar">
+        <i aria-hidden="true">✕</i>
+      </button>
     </div>
+    <div class="modal-body">
+      @if (editingItemIndex === null) {
+        <div class="input-group">
+          <label for="item-attendant">Atendente</label>
+          <select
+            id="item-attendant"
+            [(ngModel)]="itemModalEmployee"
+            [disabled]="attendantsLoading || activeAttendants.length === 0"
+          >
+            <option value="" disabled>
+              {{ attendantsLoading ? 'Carregando atendentes...' : 'Selecione o atendente' }}
+            </option>
+            @for (attendant of activeAttendants; track attendant.id) {
+              <option [value]="attendant.id">{{ attendant.name }}</option>
+            }
+          </select>
+        </div>
+        @if (attendantsError) {
+          <div class="modal-error">{{ attendantsError }}</div>
+        }
+      }
+
+      <div class="input-group">
+        <label>Código do Produto</label>
+        <div class="search-input">
+          @if (editingItemIndex !== null) {
+            <span class="readonly-value">{{ itemModalCode }}</span>
+          } @else {
+            <input
+              #itemCodeInput
+              type="text"
+              [(ngModel)]="itemModalCode"
+              class="uppercase"
+              placeholder="Código legado..."
+              (keyup.enter)="searchItemByCode()"
+              [disabled]="itemSearchLoading"
+            />
+            <button
+              class="icon-btn"
+              (click)="searchItemByCode()"
+              [disabled]="itemSearchLoading"
+              aria-label="Buscar produto"
+            >
+              <i aria-hidden="true">{{ itemSearchLoading ? '⏳' : '🔍' }}</i>
+            </button>
+          }
+        </div>
+      </div>
+
+      @if (itemModalError) {
+        <div class="modal-error">{{ itemModalError }}</div>
+      }
+
+      @if (itemModalFoundProduct) {
+        <div class="modal-product-card">
+          <div class="modal-item-name">{{ itemModalName }}</div>
+          <div class="modal-item-meta">{{ itemModalMeta }}</div>
+
+          <div class="input-group" style="margin-top: 1rem">
+            <label>Valor (editável)</label>
+            <input type="number" [(ngModel)]="itemModalValor" min="0" step="0.01" />
+          </div>
+        </div>
+
+        <div class="modal-extras">
+          <span class="section-label">Acessórios / Observações</span>
+
+          @for (extra of itemModalExtras; track $index; let ei = $index) {
+            <div class="extra-tag-row">
+              <span class="item-meta-tag" [class.acessorio]="extra.tipo === 'acessorio'">
+                {{ extra.tipo === 'acessorio' ? '🧩' : '📝' }} {{ extra.descricao }}
+              </span>
+              <button
+                class="remove-btn"
+                (click)="removeItemModalExtra(ei)"
+                aria-label="Remover extra"
+              >
+                <i aria-hidden="true">✕</i>
+              </button>
+            </div>
+          }
+
+          <div class="extra-add-row">
+            <select [(ngModel)]="itemModalNewExtraType" class="extra-type-select">
+              <option value="acessorio">Acessório</option>
+              <option value="observacao">Observação</option>
+            </select>
+            <input
+              type="text"
+              [(ngModel)]="itemModalNewExtraDesc"
+              placeholder="Descrição..."
+              (keyup.enter)="addItemModalExtra()"
+            />
+            <button class="icon-btn" (click)="addItemModalExtra()" aria-label="Adicionar extra">
+              <i aria-hidden="true">➕</i>
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+    <div class="modal-footer">
+      <button
+        class="btn btn-save"
+        (click)="confirmAddItem()"
+        [disabled]="
+          editingItemIndex === null &&
+          (!itemModalFoundProduct || !itemModalEmployee || attendantsLoading)
+        "
+      >
+        {{ editingItemIndex !== null ? 'Salvar' : 'Adicionar' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- ══════════════ Modal: Reservas do Item ══════════════ -->
+@if (showReservationsModal) {
+  <div class="modal-backdrop" (click)="closeReservationsModal()"></div>
+  <div
+    class="modal modal-reservations"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="item-reservations-title"
+  >
+    <div class="modal-header">
+      <span class="modal-title" id="item-reservations-title">Item já reservado</span>
+      <button class="modal-close" (click)="closeReservationsModal()" aria-label="Fechar">
+        <i aria-hidden="true">✕</i>
+      </button>
+    </div>
+    <div class="modal-body">
+      <p class="reservations-hint">
+        Este item já está reservado nos contratos abaixo. Confira as datas antes de
+        adicioná-lo à proposta.
+      </p>
+      <table class="reservations-table">
+        <thead>
+          <tr>
+            <th>Nº</th>
+            <th>Cliente</th>
+            <th>Evento</th>
+            <th>Status</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (reservation of itemReservations; track reservation.contractId) {
+            <tr>
+              <td class="reservation-legacy-id">{{ reservation.legacyId || '—' }}</td>
+              <td>
+                {{ reservation.customerName }}
+                @if (reservation.customerLegacyId) {
+                  <span class="customer-legacy">#{{ reservation.customerLegacyId }}</span>
+                }
+              </td>
+              <td>{{ formatDate(reservation.eventDate) }}</td>
+              <td>{{ reservation.statusDescription }}</td>
+              <td>
+                <button
+                  type="button"
+                  class="btn-link"
+                  (click)="openReservationContract(reservation)"
+                  title="Abrir contrato"
+                >
+                  Abrir →
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn btn-save" (click)="closeReservationsModal()">
+        Entendi
+      </button>
+    </div>
+  </div>
 }
 
 <!-- ══════════════ Modal: Adicionar Pagamento ══════════════ -->
 @if (showPaymentModal) {
-    <div class="modal-backdrop" (click)="closePaymentModal()"></div>
-    <div class="modal modal-payment">
-        <div class="modal-header">
-            <span class="modal-title">
-                {{ editingPaymentIndex !== null ? 'Editar Parcela #' + contract.pagamentos[editingPaymentIndex].parcela : 'Parcela ' + nextParcela + ' de 24' }}
-            </span>
-            <button class="modal-close" (click)="closePaymentModal()" aria-label="Fechar"><i aria-hidden="true">✕</i></button>
-        </div>
-        <div class="modal-body">
-
-            <div class="payment-modal-grid">
-                <div class="input-group">
-                    <label>Forma de Pagamento</label>
-                    <select [(ngModel)]="paymentModalForma">
-                        @for (key of paymentMethodKeys; track key) {
-                            <option [ngValue]="key">{{ paymentMethodLabels[key] }}</option>
-                        }
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>Valor (não planejado: R$ {{ formatCurrency(unplannedAmount) }})</label>
-                    <input #paymentValorInput type="number" [(ngModel)]="paymentModalValor" min="0.01" step="0.01"
-                           (keyup.enter)="submitPaymentModal()">
-                </div>
-                <div class="input-group">
-                    <label>Data (máx: {{ formatDate(contract.usa) }})</label>
-                    <input type="date" [(ngModel)]="paymentModalData"
-                           [max]="contract.usa">
-                </div>
-                @if (editingPaymentIndex !== null) {
-                    <div class="input-group">
-                        <label>Status</label>
-                        <select [(ngModel)]="paymentModalStatus">
-                            @for (key of paymentStatusKeys; track key) {
-                                <option [ngValue]="key">{{ paymentStatusLabels[key] }}</option>
-                            }
-                        </select>
-                    </div>
-                }
-            </div>
-
-            @if (paymentModalError) {
-                <div class="modal-error">{{ paymentModalError }}</div>
-            }
-
-        </div>
-        <div class="modal-footer">
-            @if (editingPaymentIndex !== null) {
-                <button class="btn btn-save" (click)="confirmAddPayment()">Salvar</button>
-            } @else {
-                <button class="btn btn-sign" (click)="dividePayment()" [disabled]="paymentModalValor <= 0">
-                    {{ paymentModalValor > 0 && paymentModalValor < unplannedAmount - 0.001 ? '➗ Dividir' : '✔ Concluir' }}
-                </button>
-            }
-        </div>
+  <div class="modal-backdrop" (click)="closePaymentModal()"></div>
+  <div class="modal modal-payment">
+    <div class="modal-header">
+      <span class="modal-title">
+        {{
+          editingPaymentIndex !== null
+            ? 'Editar Parcela #' + contract.pagamentos[editingPaymentIndex].parcela
+            : 'Parcela ' + nextParcela + ' de 24'
+        }}
+      </span>
+      <button class="modal-close" (click)="closePaymentModal()" aria-label="Fechar">
+        <i aria-hidden="true">✕</i>
+      </button>
     </div>
-}
+    <div class="modal-body">
+      <div class="payment-modal-grid">
+        <div class="input-group">
+          <label>Forma de Pagamento</label>
+          <select [(ngModel)]="paymentModalForma">
+            @for (key of paymentMethodKeys; track key) {
+              <option [ngValue]="key">{{ paymentMethodLabels[key] }}</option>
+            }
+          </select>
+        </div>
+        <div class="input-group">
+          <label>Valor (não planejado: R$ {{ formatCurrency(unplannedAmount) }})</label>
+          <input
+            #paymentValorInput
+            type="number"
+            [(ngModel)]="paymentModalValor"
+            min="0.01"
+            step="0.01"
+            (keyup.enter)="submitPaymentModal()"
+          />
+        </div>
+        <div class="input-group">
+          <label>Data (máx: {{ formatDate(contract.usa) }})</label>
+          <input type="date" [(ngModel)]="paymentModalData" [max]="contract.usa" />
+        </div>
+        @if (editingPaymentIndex !== null) {
+          <div class="input-group">
+            <label>Status</label>
+            <select
+              [(ngModel)]="paymentModalStatus"
+              [disabled]="contract.situacao === ContractStatus.REVISION"
+            >
+              @for (key of paymentStatusKeys; track key) {
+                <option [ngValue]="key">{{ paymentStatusLabels[key] }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
 
+      @if (paymentModalError) {
+        <div class="modal-error">{{ paymentModalError }}</div>
+      }
+    </div>
+    <div class="modal-footer">
+      @if (editingPaymentIndex !== null) {
+        <button class="btn btn-save" (click)="confirmAddPayment()">Salvar</button>
+      } @else {
+        <button class="btn btn-sign" (click)="dividePayment()" [disabled]="paymentModalValor <= 0">
+          {{
+            paymentModalValor > 0 && paymentModalValor < unplannedAmount - 0.001
+              ? '➗ Dividir'
+              : '✔ Concluir'
+          }}
+        </button>
+      }
+    </div>
+  </div>
+}

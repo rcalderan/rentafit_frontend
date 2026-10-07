@@ -3,7 +3,7 @@ import { Component, effect, inject, OnDestroy, OnInit, signal, computed } from '
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Observable, Subject } from 'rxjs';
-import { distinctUntilChanged, finalize, switchMap, takeUntil } from 'rxjs/operators';
+import { distinctUntilChanged, finalize, map, switchMap, takeUntil } from 'rxjs/operators';
 import { SalesOrderService } from '../../service/sales-order.service';
 import { CustomerService, ICustomerPageResponse } from '../../../customer/service/customer.service';
 import { ProductService } from '../../../product/service/product.service';
@@ -19,10 +19,7 @@ import { SalesOrderStatus, SALES_ORDER_STATUS_LABELS } from '../../data/sales-or
 import { SalesItemStatus, SALES_ITEM_STATUS_LABELS } from '../../data/sales-item-status.enum';
 import { PaymentMethodApi, PaymentStatusApi, SalesOrderStatusApi } from '../../data/sales-api.types';
 import { IRetailItem } from '../../../product/data/Product.interface';
-import {
-  EmployeeConfirmedEvent,
-  EmployeeVerifyComponent,
-} from '../../../rental/features/employee-verify/employee-verify.component';
+import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { NfeEmissionComponent } from '../../../finance/features/nfe-emission/nfe-emission.component';
 import { IFiscalContext, IFiscalDocument } from '../../../finance/data/fiscal-document.types';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
@@ -40,7 +37,7 @@ const PAYMENT_METHOD_LABELS: Record<PaymentMethodApi, string> = {
 @Component({
   selector: 'rentafit-new-sale',
   standalone: true,
-  imports: [CommonModule, FormsModule, EmployeeVerifyComponent, NfeEmissionComponent],
+  imports: [CommonModule, FormsModule, NfeEmissionComponent],
   templateUrl: './new-sale.component.html',
   styleUrl: './new-sale.component.css',
 })
@@ -48,6 +45,7 @@ export class NewSale implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly salesService = inject(SalesOrderService);
+  private readonly operatorService = inject(TerminalOperatorService);
   private readonly customerService = inject(CustomerService);
   private readonly productService = inject(ProductService);
   private readonly formStorage = inject(SessionFormStorageService);
@@ -98,11 +96,8 @@ export class NewSale implements OnInit, OnDestroy {
   protected readonly showCancelModal = signal(false);
   protected cancelReason = '';
 
-  // Employee verification
-  protected readonly showEmployeeVerify = signal(false);
-  protected employeeVerifyAction: 'payment' | 'confirm' | 'deliver' | 'ready' | null = null;
+  // Operator identification (TerminalOperatorService + janela de PIN)
   private pendingPaymentEmployeeId: string | null = null;
-  private pendingItemId: string | null = null;
 
   // Inline modal errors
   protected itemModalError = '';
@@ -529,10 +524,15 @@ export class NewSale implements OnInit, OnDestroy {
     const current = this.order();
     if (!current) return;
 
-    // Exige PIN do funcionário antes de registrar qualquer pagamento
+    // Atribui o pagamento ao operador em comando (sem modal quando já identificado)
     if (this.pendingPaymentEmployeeId === null) {
-      this.employeeVerifyAction = 'payment';
-      this.showEmployeeVerify.set(true);
+      this.operatorService
+        .authorize({ title: 'Identificar Usuário — Pagamento', requirePin: false })
+        .subscribe(op => {
+          if (!op) return;
+          this.pendingPaymentEmployeeId = op.employeeId;
+          this.confirmAddPayment();
+        });
       return;
     }
 
@@ -674,8 +674,11 @@ export class NewSale implements OnInit, OnDestroy {
     if (!o?.id) return;
 
     // BUG-2026-05-05-2: exige PIN antes de confirmar
-    this.employeeVerifyAction = 'confirm';
-    this.showEmployeeVerify.set(true);
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Confirmação', requirePin: true })
+      .subscribe(op => {
+        if (op) this.executeConfirm();
+      });
   }
 
   private executeConfirm(): void {
@@ -761,9 +764,11 @@ export class NewSale implements OnInit, OnDestroy {
   }
 
   protected markItemReady(itemId: string): void {
-    this.pendingItemId = itemId;
-    this.employeeVerifyAction = 'ready';
-    this.showEmployeeVerify.set(true);
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Pronto para Entrega', requirePin: false })
+      .subscribe(op => {
+        if (op) this.executeMarkItemReady(itemId);
+      });
   }
 
   private executeMarkItemReady(itemId: string): void {
@@ -776,9 +781,11 @@ export class NewSale implements OnInit, OnDestroy {
   }
 
   protected deliverItem(itemId: string): void {
-    this.pendingItemId = itemId;
-    this.employeeVerifyAction = 'deliver';
-    this.showEmployeeVerify.set(true);
+    this.operatorService
+      .authorize({ title: 'Identificar Usuário — Entrega', requirePin: false })
+      .subscribe(op => {
+        if (op) this.executeDeliverItem(itemId, op.employeeId);
+      });
   }
 
   private executeDeliverItem(itemId: string, employeeId: string): void {
@@ -790,42 +797,16 @@ export class NewSale implements OnInit, OnDestroy {
     });
   }
 
-  // ─── Employee Verify ────────────────────────────────────────────────────────
-
-  protected onEmployeeConfirmed(event: EmployeeConfirmedEvent): void {
-    this.showEmployeeVerify.set(false);
-    const action = this.employeeVerifyAction;
-    this.employeeVerifyAction = null;
-
-    if (action === 'payment') {
-      this.pendingPaymentEmployeeId = event.employeeId;
-      this.confirmAddPayment();
-      return;
-    }
-    if (action === 'confirm') {
-      this.executeConfirm();
-      return;
-    }
-    if (action === 'deliver' && this.pendingItemId) {
-      this.executeDeliverItem(this.pendingItemId, event.employeeId);
-      this.pendingItemId = null;
-      return;
-    }
-    if (action === 'ready' && this.pendingItemId) {
-      this.executeMarkItemReady(this.pendingItemId);
-      this.pendingItemId = null;
-    }
-  }
-
-  protected onEmployeeCancelled(): void {
-    this.showEmployeeVerify.set(false);
-    this.employeeVerifyAction = null;
-    this.pendingPaymentEmployeeId = null;
-    this.pendingItemId = null;
-    this.errorMsg.set(null);
-  }
-
   // ─── Helpers ────────────────────────────────────────────────────────────────
+
+  /** Gate de PIN do operador para emitir/cancelar nota fiscal (NF-e embutida). */
+  protected readonly authorizeFiscalAction = (action: 'emit' | 'cancel'): Observable<boolean> =>
+    this.operatorService
+      .authorize({
+        title: action === 'emit' ? 'Identificar Usuário — Emitir NF-e' : 'Autorizar Cancelamento de NF-e',
+        requirePin: true,
+      })
+      .pipe(map(op => op !== null));
 
   protected paymentMethodLabel(method: string): string {
     return (PAYMENT_METHOD_LABELS as Record<string, string>)[method] ?? method;

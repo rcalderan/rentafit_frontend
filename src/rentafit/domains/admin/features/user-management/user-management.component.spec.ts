@@ -4,7 +4,12 @@ import { vi } from 'vitest';
 import { UserManagementComponent } from './user-management.component';
 import { UserAdminService } from '../../service/user-admin.service';
 import { EmployeeService } from '../../service/employee.service';
+import { SettingsService } from '../../service/settings.service';
 import { AuthService } from '../../../auth/services/auth.service';
+import {
+  PIN_TRUST_MINUTES_KEY,
+  TerminalOperatorService,
+} from '../../../auth/services/terminal-operator.service';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { User, UserRole } from '../../../auth/data/user.model';
 import { IUserSummary } from '../../data/user-admin.model';
@@ -47,6 +52,12 @@ describe('UserManagementComponent', () => {
   let employeeService: {
     findByIdOrNull: ReturnType<typeof vi.fn>;
   };
+  let settingsService: {
+    getNumber: ReturnType<typeof vi.fn>;
+  };
+  let operatorService: {
+    updateTrustWindow: ReturnType<typeof vi.fn>;
+  };
 
   const makeComponent = () => {
     const fixture = TestBed.createComponent(UserManagementComponent);
@@ -65,12 +76,20 @@ describe('UserManagementComponent', () => {
     employeeService = {
       findByIdOrNull: vi.fn().mockReturnValue(of({ id: 'u-target', name: 'Target', initials: 'TT' })),
     };
+    settingsService = {
+      getNumber: vi.fn().mockReturnValue(of(10)),
+    };
+    operatorService = {
+      updateTrustWindow: vi.fn().mockReturnValue(of(void 0)),
+    };
 
     await TestBed.configureTestingModule({
       imports: [UserManagementComponent],
       providers: [
         { provide: UserAdminService, useValue: adminService },
         { provide: EmployeeService, useValue: employeeService },
+        { provide: SettingsService, useValue: settingsService },
+        { provide: TerminalOperatorService, useValue: operatorService },
         { provide: AuthService, useValue: authService },
         { provide: APP_CONFIG, useValue: { apiBaseUrl: '' } },
       ],
@@ -195,6 +214,30 @@ describe('UserManagementComponent', () => {
       const component = makeComponent();
       component.changeRole(buildSummary({ id: 'u-target', name: 'Target' }), UserRole.MANAGER);
       expect(adminService.listUsers).toHaveBeenCalledTimes(2); // ngOnInit + após sucesso
+    });
+  });
+
+  describe('saveTrustWindow', () => {
+    it('carrega a janela de confiança na inicialização', () => {
+      const component = makeComponent();
+      expect(settingsService.getNumber).toHaveBeenCalledWith(PIN_TRUST_MINUTES_KEY, 5);
+      expect(component.trustMinutes()).toBe(10);
+    });
+
+    it('grava a janela via TerminalOperatorService', () => {
+      const component = makeComponent();
+      component.trustMinutes.set(20);
+      component.saveTrustWindow();
+      expect(operatorService.updateTrustWindow).toHaveBeenCalledWith(20);
+      expect(component.trustFeedback()?.ok).toBe(true);
+    });
+
+    it('rejeita valor fora da faixa 1-120', () => {
+      const component = makeComponent();
+      component.trustMinutes.set(0);
+      component.saveTrustWindow();
+      expect(operatorService.updateTrustWindow).not.toHaveBeenCalled();
+      expect(component.trustFeedback()?.ok).toBe(false);
     });
   });
 

@@ -1,10 +1,11 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, NavigationEnd, ActivatedRoute } from '@angular/router';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { vi } from 'vitest';
 import { MainLayout } from './main-layout';
 import { AuthService } from '../../../domains/auth/services/auth.service';
+import { TerminalOperatorService } from '../../../domains/auth/services/terminal-operator.service';
 import { UiVariantService } from '../../services/ui-variant.service';
 import { TabService } from '../../services/tab.service';
 import { TabGroup } from '../../data/tab.model';
@@ -32,6 +33,19 @@ class MockTabService {
   close = vi.fn();
 }
 
+class MockTerminalOperatorService {
+  readonly operators = signal([]);
+  readonly currentOperatorId = signal<string | null>(null);
+  readonly currentOperator = signal(null);
+  readonly pendingRequest = signal(null);
+  requestSwitch = vi.fn().mockReturnValue(of(null));
+  requestAuthentication = vi.fn().mockReturnValue(of(null));
+  removeOperator = vi.fn();
+  pruneExpiredOperators = vi.fn();
+  resolvePending = vi.fn();
+  cancelPending = vi.fn();
+}
+
 const mockActivatedRoute = {
   firstChild: null,
   snapshot: { data: {} },
@@ -52,6 +66,7 @@ describe('MainLayout', () => {
         provideRouter([]),
         { provide: UiVariantService, useClass: MockUiVariantService },
         { provide: AuthService, useClass: MockAuthService },
+        { provide: TerminalOperatorService, useClass: MockTerminalOperatorService },
         { provide: TabService, useClass: MockTabService },
         { provide: ActivatedRoute, useValue: mockActivatedRoute },
         {
@@ -93,6 +108,35 @@ describe('MainLayout', () => {
     fixture = TestBed.createComponent(MainLayout);
     component = fixture.componentInstance;
     uiVariant = TestBed.inject(UiVariantService) as unknown as MockUiVariantService;
+  });
+
+  it('dismisses menus on outside pointer, focus and Escape', () => {
+    fixture.detectChanges();
+    component['toggleProductSubmenu']();
+    fixture.nativeElement
+      .querySelector('main')
+      .dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+    component['toggleProductSubmenu']();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+    component['toggleProductSubmenu']();
+    fixture.nativeElement
+      .querySelector('main')
+      .dispatchEvent(new Event('focusin', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(false);
+  });
+
+  it('keeps menu open when interacting within its active container', () => {
+    fixture.detectChanges();
+    component['toggleProductSubmenu']();
+    const container: HTMLDivElement = document.createElement('div');
+    container.className = 'nav-item-container open';
+    const option: HTMLButtonElement = document.createElement('button');
+    container.append(option);
+    fixture.nativeElement.append(container);
+    option.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+    expect(component['isProductSubmenuOpen']()).toBe(true);
   });
 
   it('should create', () => {

@@ -2,23 +2,58 @@
   <div class="ev-modal" (click)="$event.stopPropagation()">
     <h3 class="ev-title">{{ title }}</h3>
 
-    <div class="ev-field">
-      <label for="ev-initials">Iniciais do Funcionário</label>
-      <input
-        #initialsInput
-        id="ev-initials"
-        type="text"
-        autocomplete="off"
-        [ngModel]="initials"
-        (ngModelChange)="initials = $event?.toUpperCase()"
-        placeholder="Ex.: MS"
-        maxlength="10"
-        [disabled]="isLoading"
-        (keydown.enter)="onInitialsEnter()"
-      />
-    </div>
+    @if (showOperatorChip && employee) {
+      <div class="ev-operator">
+        <span class="ev-operator-badge">{{ employee.initials }}</span>
+        <span class="ev-operator-name">{{ employee.name }}</span>
+      </div>
+    }
 
-    @if (requirePin) {
+    @if (isLogin) {
+      <div class="ev-field">
+        <label for="ev-username">Usuário</label>
+        <input
+          #usernameInput
+          id="ev-username"
+          type="text"
+          autocomplete="username"
+          [(ngModel)]="username"
+          placeholder="Ex.: maria.silva"
+          [disabled]="isLoading"
+          (keydown.enter)="passwordInput.focus()"
+        />
+      </div>
+      <div class="ev-field">
+        <label for="ev-password">Senha</label>
+        <input
+          #passwordInput
+          id="ev-password"
+          type="password"
+          autocomplete="current-password"
+          [(ngModel)]="password"
+          placeholder="••••••••"
+          [disabled]="isLoading"
+          (keydown.enter)="confirm()"
+        />
+      </div>
+    } @else {
+      @if (isTarget) {
+        <div class="ev-field">
+          <label for="ev-initials">Sigla do usuário</label>
+          <input
+            #initialsInput
+            id="ev-initials"
+            type="text"
+            autocomplete="off"
+            [ngModel]="initials"
+            (ngModelChange)="initials = $event?.toUpperCase()"
+            placeholder="Ex.: MS"
+            maxlength="10"
+            [disabled]="isLoading"
+            (keydown.enter)="pinInput.focus()"
+          />
+        </div>
+      }
       <div class="ev-field">
         <label for="ev-pin">PIN</label>
         <input
@@ -33,6 +68,12 @@
           (keydown.enter)="confirm()"
         />
       </div>
+    }
+
+    @if (mode === 'pin' && !switchedToLogin) {
+      <button type="button" class="ev-switch" (click)="switchEmployee()" [disabled]="isLoading">
+        Não é você? Trocar usuário
+      </button>
     }
 
     @if (error) {
