@@ -69,6 +69,19 @@ export class ReturnComponent implements OnInit {
   /** SIGNED: contrato ainda não saiu — devolução granular não se aplica. */
   readonly isSignedOnly = computed(() => this.summary()?.contractStatus === 'SIGNED');
 
+  /** CLOSED/CANCELLED: tela abre somente para consulta — formulários travados. */
+  readonly isTerminal = computed(() => {
+    const s = this.summary()?.contractStatus;
+    return s === 'CLOSED' || s === 'CANCELLED';
+  });
+
+  readonly terminalBanner = computed(() => {
+    const s = this.summary()?.contractStatus;
+    if (s === 'CLOSED') return 'Contrato concluído — devolução já encerrada.';
+    if (s === 'CANCELLED') return 'Contrato cancelado por desistência.';
+    return null;
+  });
+
   readonly canConfirmReturn = computed(() => {
     const returnerName = this.form().returnerName?.trim();
     const fineOk = !this.form().applyFine || this.isValidFineAmount();
@@ -89,13 +102,17 @@ export class ReturnComponent implements OnInit {
   readonly paymentStatusLabels: Record<string, string> = {
     PENDING: 'Pendente',
     PAID: 'Pago',
+    CANCELLED: 'Cancelado',
     MULTA: 'Multa',
+    REFUNDED: 'Reembolsado',
   };
 
   readonly paymentStatusClasses: Record<string, string> = {
     PENDING: 'status-pending',
     PAID: 'status-paid',
+    CANCELLED: 'status-cancelled',
     MULTA: 'status-multa',
+    REFUNDED: 'status-refunded',
   };
 
   ngOnInit(): void {

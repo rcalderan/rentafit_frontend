@@ -105,6 +105,13 @@
   transition: all 0.2s ease;
   font-size: 0.875rem;
   white-space: nowrap;
+  /* Reset de <button> para ficar idêntico a <a> no submenu */
+  background: none;
+  border: none;
+  font-family: inherit;
+  font-weight: inherit;
+  width: 100%;
+  cursor: pointer;
 }
 
 .submenu-item:hover {

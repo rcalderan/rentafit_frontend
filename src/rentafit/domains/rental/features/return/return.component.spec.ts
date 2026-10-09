@@ -275,6 +275,15 @@ describe('ReturnComponent', () => {
       expect(component.showCancellation()).toBe(false);
     });
 
+    it('openCancellation não abre para contrato CANCELLED', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'CANCELLED' }));
+
+      component.openCancellation();
+
+      expect(component.showCancellation()).toBe(false);
+    });
+
     it('confirmação autoriza operador e chama withdraw com reembolso', () => {
       const component = makeComponent();
       facade.summary.set(buildReturnSummary());
@@ -309,6 +318,43 @@ describe('ReturnComponent', () => {
       component.onCancellationConfirmed({ refundPaymentIds: [], applyFine: false });
 
       expect(facade.withdraw).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('estado terminal (somente leitura)', () => {
+    it('CLOSED: isTerminal true e banner de contrato concluído', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'CLOSED' }));
+
+      expect(component.isTerminal()).toBe(true);
+      expect(component.terminalBanner()).toContain('concluído');
+    });
+
+    it('CANCELLED: isTerminal true e banner de desistência', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'CANCELLED' }));
+
+      expect(component.isTerminal()).toBe(true);
+      expect(component.terminalBanner()).toContain('desistência');
+    });
+
+    it('FINALIZED: isTerminal false e sem banner', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'FINALIZED' }));
+
+      expect(component.isTerminal()).toBe(false);
+      expect(component.terminalBanner()).toBeNull();
+    });
+
+    it('banner terminal é renderizado no template', () => {
+      const fixture = TestBed.createComponent(ReturnComponent);
+      fixture.detectChanges();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'CANCELLED' }));
+      fixture.detectChanges();
+
+      const banner = fixture.nativeElement.querySelector('.terminal-notice');
+      expect(banner).toBeTruthy();
+      expect(banner.textContent).toContain('desistência');
     });
   });
 

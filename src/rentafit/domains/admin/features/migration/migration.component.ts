@@ -1,3 +1,4 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, OnDestroy, computed, inject, signal } from '@angular/core';
 import { MigrationComparison, MigrationSession } from './migration.model';
 import { MigrationService } from './migration.service';
@@ -110,6 +111,12 @@ export class MigrationComponent implements OnDestroy {
         this.service.promote(id).subscribe({
             next: result => {
                 this.log(result.message ?? result.status);
+                // Marca promoted antes do refresh: após a troca do banco o GET pode
+                // falhar com 403 (usuário logado não existe nos dados migrados).
+                const s = this.session();
+                if (s) {
+                    this.applySession({ ...s, status: 'promoted' });
+                }
                 this.refreshSession(id);
             },
             error: e => { this.log(e); this.loading.set(false); },
@@ -136,7 +143,12 @@ export class MigrationComponent implements OnDestroy {
     private refreshSession(id: string): void {
         this.service.getSession(id).subscribe({
             next: s => { this.applySession(s); this.loading.set(false); },
-            error: e => { this.log(e); this.loading.set(false); },
+            error: (e: HttpErrorResponse) => {
+                this.loading.set(false);
+                this.log(e.status === 403
+                    ? 'Sessão encerrada: o banco foi substituído pela promoção. Faça login novamente.'
+                    : e);
+            },
         });
     }
 
@@ -184,8 +196,15 @@ export class MigrationComponent implements OnDestroy {
         });
     }
 
-    private log(message: string | Error): void {
-        const text = typeof message === 'string' ? message : message.message;
+    private log(message: string | HttpErrorResponse | Error): void {
+        let text: string;
+        if (typeof message === 'string') {
+            text = message;
+        } else if (message instanceof HttpErrorResponse) {
+            text = message.error?.message ?? message.message;
+        } else {
+            text = message.message;
+        }
         this.logs.update(list => [...list, text]);
     }
 }

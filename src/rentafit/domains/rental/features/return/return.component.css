@@ -408,6 +408,30 @@
   color: #c62828;
 }
 
+.status-cancelled .payment-status {
+  background: #eceff1;
+  color: #546e7a;
+}
+
+.status-refunded .payment-status {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+/* ── Contrato em status terminal (CLOSED/CANCELLED): somente leitura ── */
+.terminal-notice {
+  background: #eceff1;
+  border: 1px solid #b0bec5;
+  border-radius: 8px;
+  padding: 1rem;
+}
+
+.terminal-notice p {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #455a64;
+}
+
 .return-actions {
   display: flex;
   justify-content: space-between;

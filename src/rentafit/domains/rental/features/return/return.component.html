@@ -72,6 +72,12 @@
         </div>
       </header>
 
+      @if (terminalBanner()) {
+        <div class="terminal-notice">
+          <p>{{ terminalBanner() }} Consulta somente leitura.</p>
+        </div>
+      }
+
       @if (isSignedOnly()) {
         <div class="signed-notice">
           <p>
@@ -95,7 +101,7 @@
           [value]="form().returnerName"
           (input)="onReturnerNameChange($any($event).target.value)"
           placeholder="Nome da pessoa que está entregando fisicamente"
-          [disabled]="isSignedOnly() || saving() || closing()"
+          [disabled]="isSignedOnly() || isTerminal() || saving() || closing()"
         />
         <p class="field-hint">Pode ser diferente do cliente que alugou</p>
       </section>
@@ -119,7 +125,7 @@
                     type="checkbox"
                     [checked]="isItemSelected(item.itemId)"
                     (change)="onItemToggle(item, $any($event).target.checked)"
-                    [disabled]="item.isReturned || isSignedOnly() || saving() || closing()"
+                    [disabled]="item.isReturned || isSignedOnly() || isTerminal() || saving() || closing()"
                   />
                   <span class="item-name">{{ item.description }}</span>
                 </label>
@@ -144,7 +150,7 @@
                         type="checkbox"
                         [checked]="isAccessorySelected(item.itemId, acc.accessoryId)"
                         (change)="onAccessoryToggle(item.itemId, acc, $any($event).target.checked)"
-                        [disabled]="acc.isReturned || isSignedOnly() || saving() || closing()"
+                        [disabled]="acc.isReturned || isSignedOnly() || isTerminal() || saving() || closing()"
                       />
                       <span class="accessory-name">{{ acc.description }}</span>
                       @if (acc.isReturned) {
@@ -164,7 +170,7 @@
         </div>
       </section>
 
-      @if (s.delayDays > 0 && !s.isFullyReturned) {
+      @if (s.delayDays > 0 && !s.isFullyReturned && !isTerminal()) {
         <section class="fine-section">
           <h2 class="section-title">Multa por Atraso</h2>
           <div class="fine-content">
@@ -225,7 +231,7 @@
           >
             Cancelar
           </button>
-          @if (canWithdraw() && !isSignedOnly()) {
+          @if (canWithdraw() && !isSignedOnly() && !isTerminal()) {
             <button
               type="button"
               class="btn-cancel-contract"
@@ -237,7 +243,7 @@
           }
         </div>
         <div class="actions-right">
-          @if (!isSignedOnly() && showConfirmButton()) {
+          @if (!isSignedOnly() && !isTerminal() && showConfirmButton()) {
             <button
               type="button"
               class="btn-primary"
@@ -248,7 +254,7 @@
             </button>
           }
 
-          @if (!isSignedOnly() && s.isFullyReturned && unpaidPaymentsCount() === 0) {
+          @if (!isSignedOnly() && !isTerminal() && s.isFullyReturned && unpaidPaymentsCount() === 0) {
             <button
               type="button"
               class="btn-close"
@@ -261,13 +267,13 @@
         </div>
       </footer>
 
-      @if (s.isFullyReturned && unpaidPaymentsCount() === 0 && !form().returnerName.trim()) {
+      @if (!isTerminal() && s.isFullyReturned && unpaidPaymentsCount() === 0 && !form().returnerName.trim()) {
         <p class="validation-hint">Informe quem está devolvendo para fechar o contrato</p>
       }
       @if (form().applyFine && !isValidFineAmount()) {
         <p class="validation-hint">Informe o valor da multa ou desmarque a opção</p>
       }
-      @if (s.isFullyReturned && unpaidPaymentsCount() > 0) {
+      @if (!isTerminal() && s.isFullyReturned && unpaidPaymentsCount() > 0) {
         <p class="validation-hint validation-hint--warning">
           {{ unpaidPaymentsCount() }} parcela{{ unpaidPaymentsCount() > 1 ? 's' : '' }} pendente{{ unpaidPaymentsCount() > 1 ? 's' : '' }} — quite os pagamentos para fechar o contrato
         </p>
