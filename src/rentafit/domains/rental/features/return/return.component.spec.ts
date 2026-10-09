@@ -1,6 +1,6 @@
-import { TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { TestBed } from '@angular/core/testing';
 import { signal, WritableSignal } from '@angular/core';
-import { of } from 'rxjs';
+import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { ReturnComponent } from './return.component';
 import { ReturnFacadeService } from '../../service/return-facade.service';
@@ -10,11 +10,14 @@ import { ReturnSummaryModel, ReturnFormState } from './data/return.model';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { TabService } from '../../../../shared/services/tab.service';
 import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
+import { RentalContractService } from '../../service/rental-contract.service';
 
 const buildReturnSummary = (overrides: Partial<ReturnSummaryModel> = {}): ReturnSummaryModel => ({
   contractId: 'contract-123',
   legacyId: '2024-001',
   customerName: 'João Silva',
+  contractStatus: 'FINALIZED',
+  totalValue: 0,
   returnDate: '2026-06-01',
   pendingCount: 2,
   isFullyReturned: false,
@@ -53,13 +56,19 @@ interface MockFacade {
   setFineAmount: ReturnType<typeof vi.fn>;
   saveMarkings: ReturnType<typeof vi.fn>;
   closeContract: ReturnType<typeof vi.fn>;
+  withdraw: ReturnType<typeof vi.fn>;
   clearError: ReturnType<typeof vi.fn>;
 }
 
 describe('ReturnComponent', () => {
   let facade: MockFacade;
   let router: { navigate: ReturnType<typeof vi.fn> };
-  let route: { snapshot: { paramMap: { get: ReturnType<typeof vi.fn> } } };
+  let route: {
+    paramMap: unknown;
+    snapshot: { paramMap: { get: ReturnType<typeof vi.fn> } };
+  };
+  let paramMapGet: (k: string) => string | null;
+  let contractServiceMock: { getByLegacyId: ReturnType<typeof vi.fn> };
   let tabServiceMock: { getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn>; updateActiveTitle: ReturnType<typeof vi.fn> };
 
   const makeComponent = () => TestBed.createComponent(ReturnComponent).componentInstance;
@@ -85,17 +94,21 @@ describe('ReturnComponent', () => {
       setFineAmount: vi.fn(),
       saveMarkings: vi.fn().mockReturnValue(of(true)),
       closeContract: vi.fn().mockReturnValue(of(true)),
+      withdraw: vi.fn().mockReturnValue(of(true)),
       clearError: vi.fn(),
     };
 
     router = { navigate: vi.fn() };
+    paramMapGet = (k: string) => (k === 'contractId' ? 'contract-123' : null);
     route = {
+      paramMap: of({ get: (k: string) => paramMapGet(k) }),
       snapshot: {
         paramMap: {
           get: vi.fn().mockReturnValue('contract-123'),
         },
       },
     };
+    contractServiceMock = { getByLegacyId: vi.fn() };
     tabServiceMock = { getTabId: vi.fn(), updateTitle: vi.fn(), updateActiveTitle: vi.fn() };
 
     TestBed.configureTestingModule({
@@ -112,6 +125,7 @@ describe('ReturnComponent', () => {
           },
         },
         { provide: TabService, useValue: tabServiceMock },
+        { provide: RentalContractService, useValue: contractServiceMock },
         {
           provide: TerminalOperatorService,
           useValue: {
@@ -188,7 +202,7 @@ describe('ReturnComponent', () => {
 
   describe('ngOnInit', () => {
     it('carrega contrato quando contractId está na rota', () => {
-      route.snapshot.paramMap.get.mockReturnValue('contract-789');
+      paramMapGet = (k: string) => (k === 'contractId' ? 'contract-789' : null);
 
       const component = makeComponent();
       component.ngOnInit();
@@ -196,14 +210,105 @@ describe('ReturnComponent', () => {
       expect(facade.loadContract).toHaveBeenCalledWith('contract-789');
     });
 
-    it('navega para / quando contractId não está na rota', () => {
-      route.snapshot.paramMap.get.mockReturnValue(null);
+    it('entra em modo lookup quando contractId não está na rota', () => {
+      paramMapGet = () => null;
 
       const component = makeComponent();
       component.ngOnInit();
 
-      expect(router.navigate).toHaveBeenCalledWith(['/']);
+      expect(component.lookupMode()).toBe(true);
       expect(facade.loadContract).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('lookup de contrato', () => {
+    it('resolve legacyId e navega para /rental/return/:id', () => {
+      contractServiceMock.getByLegacyId.mockReturnValue(of({ id: 'uuid-42' }));
+      const component = makeComponent();
+      component.lookupQuery.set('20261006-1');
+
+      component.onLookupSubmit();
+
+      expect(contractServiceMock.getByLegacyId).toHaveBeenCalledWith('20261006-1');
+      expect(router.navigate).toHaveBeenCalledWith(['/rental/return', 'uuid-42']);
+    });
+
+    it('exibe erro quando contrato não é encontrado', () => {
+      contractServiceMock.getByLegacyId.mockReturnValue(
+        throwError(() => new Error('Contrato não encontrado'))
+      );
+      const component = makeComponent();
+      component.lookupQuery.set('9999');
+
+      component.onLookupSubmit();
+
+      expect(component.lookupError()).toBe('Contrato não encontrado');
+      expect(router.navigate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('desistência', () => {
+    it('openCancellation abre o modal quando status é FINALIZED', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'FINALIZED' }));
+
+      component.openCancellation();
+
+      expect(component.showCancellation()).toBe(true);
+    });
+
+    it('openCancellation abre o modal quando status é SIGNED', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'SIGNED' }));
+
+      component.openCancellation();
+
+      expect(component.showCancellation()).toBe(true);
+    });
+
+    it('openCancellation não abre para status não elegível', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary({ contractStatus: 'CLOSED' }));
+
+      component.openCancellation();
+
+      expect(component.showCancellation()).toBe(false);
+    });
+
+    it('confirmação autoriza operador e chama withdraw com reembolso', () => {
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary());
+      component.showCancellation.set(true);
+
+      component.onCancellationConfirmed({
+        refundPaymentIds: ['pay-1'],
+        applyFine: true,
+        fineAmount: 300,
+      });
+
+      expect(facade.withdraw).toHaveBeenCalledWith(
+        expect.objectContaining({
+          employeeId: 'emp-1',
+          refundPaymentIds: ['pay-1'],
+          applyFine: true,
+          fineAmount: 300,
+        })
+      );
+      expect(component.showCancellation()).toBe(false);
+      expect(component.withdrawSuccess()).toBe(true);
+    });
+
+    it('não chama withdraw quando operador cancela a autorização', () => {
+      const opService = TestBed.inject(TerminalOperatorService) as unknown as {
+        authorize: ReturnType<typeof vi.fn>;
+      };
+      opService.authorize.mockReturnValue(of(null));
+      const component = makeComponent();
+      facade.summary.set(buildReturnSummary());
+
+      component.onCancellationConfirmed({ refundPaymentIds: [], applyFine: false });
+
+      expect(facade.withdraw).not.toHaveBeenCalled();
     });
   });
 

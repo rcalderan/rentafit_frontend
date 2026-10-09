@@ -12,6 +12,7 @@ import {
   ReturnAccessoryModel,
   ReturnItemModel,
   ReturnSummaryModel,
+  WithdrawRequestModel,
 } from '../data/return.model';
 
 /** Resposta bruta do backend — campos UUID chegam como string no JSON. */
@@ -19,8 +20,13 @@ interface BackendReturnSummary {
   contractId: string;
   legacyId: string;
   customerName: string;
+  customerId?: string;
+  contractStatus: string;
+  pickupDate?: string;
+  eventDate?: string;
   returnDate: string;
   actualReturnDate?: string;
+  totalValue: number;
   pendingCount: number;
   isFullyReturned: boolean;
   delayDays: number;
@@ -46,6 +52,7 @@ interface BackendReturnAccessory {
 }
 
 interface BackendPaymentPreview {
+  paymentId: string;
   installmentNumber: number;
   value: number;
   status: string;
@@ -105,6 +112,22 @@ export class ReturnApiHttpService implements ReturnApiPort {
       );
   }
 
+  withdraw(contractId: string, request: WithdrawRequestModel): Observable<void> {
+    const body = {
+      employeeId: request.employeeId,
+      refundPaymentIds: request.refundPaymentIds,
+      applyFine: request.applyFine,
+      fineAmount: request.applyFine ? (request.fineAmount ?? null) : null,
+    };
+
+    return this.http
+      .post<unknown>(`${this.baseUrl}/${contractId}/withdraw`, body)
+      .pipe(
+        map(() => undefined),
+        catchError(this.handleError)
+      );
+  }
+
   private mapSummary(raw: BackendReturnSummary): ReturnSummaryModel {
     const items: ReturnItemModel[] = raw.items.map(i => ({
       itemId: i.itemId,
@@ -122,6 +145,7 @@ export class ReturnApiHttpService implements ReturnApiPort {
     }));
 
     const paymentsPreview: PaymentPreviewModel[] = raw.paymentsPreview.map(p => ({
+      paymentId: p.paymentId,
       installmentNumber: p.installmentNumber,
       value: p.value,
       status: p.status as PaymentPreviewModel['status'],
@@ -131,8 +155,13 @@ export class ReturnApiHttpService implements ReturnApiPort {
       contractId: raw.contractId,
       legacyId: raw.legacyId,
       customerName: raw.customerName,
+      customerId: raw.customerId,
+      contractStatus: raw.contractStatus,
+      pickupDate: raw.pickupDate,
+      eventDate: raw.eventDate,
       returnDate: raw.returnDate,
       actualReturnDate: raw.actualReturnDate,
+      totalValue: raw.totalValue ?? 0,
       pendingCount: raw.pendingCount,
       isFullyReturned: raw.isFullyReturned,
       delayDays: raw.delayDays,

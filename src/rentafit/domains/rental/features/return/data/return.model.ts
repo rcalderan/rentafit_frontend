@@ -1,7 +1,8 @@
 export interface PaymentPreviewModel {
+  paymentId: string;
   installmentNumber: number;
   value: number;
-  status: 'PENDING' | 'PAID' | 'MULTA';
+  status: 'PENDING' | 'PAID' | 'CANCELLED' | 'MULTA' | 'REFUNDED';
   paymentDate?: string;
 }
 
@@ -27,8 +28,13 @@ export interface ReturnSummaryModel {
   contractId: string;
   legacyId: string;
   customerName: string;
+  customerId?: string;
+  contractStatus: string;
+  pickupDate?: string;
+  eventDate?: string;
   returnDate: string;
   actualReturnDate?: string;
+  totalValue: number;
   pendingCount: number;
   isFullyReturned: boolean;
   delayDays: number;
@@ -52,6 +58,14 @@ export interface MarkReturnRequestModel {
 
 export interface CloseReturnRequestModel {
   employeeId: string;
+  applyFine: boolean;
+  fineAmount?: number;
+}
+
+export interface WithdrawRequestModel {
+  employeeId: string;
+  /** Parcelas PAID a reembolsar — vazio = sem devolução de valores. */
+  refundPaymentIds: string[];
   applyFine: boolean;
   fineAmount?: number;
 }

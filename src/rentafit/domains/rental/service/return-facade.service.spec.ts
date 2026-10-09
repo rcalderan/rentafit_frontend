@@ -16,6 +16,8 @@ const buildSummary = (overrides: Partial<ReturnSummaryModel> = {}): ReturnSummar
   isFullyReturned: false,
   delayDays: 1,
   suggestedFine: 50,
+  contractStatus: 'FINALIZED',
+  totalValue: 1000,
   items: [
     {
       itemId: 'item-1',
@@ -33,8 +35,8 @@ const buildSummary = (overrides: Partial<ReturnSummaryModel> = {}): ReturnSummar
     },
   ],
   paymentsPreview: [
-    { installmentNumber: 1, value: 800, status: 'PAID' },
-    { installmentNumber: 2, value: 200, status: 'PENDING' },
+    { paymentId: 'pay-1', installmentNumber: 1, value: 800, status: 'PAID' },
+    { paymentId: 'pay-2', installmentNumber: 2, value: 200, status: 'PENDING' },
   ],
   ...overrides,
 });
@@ -48,7 +50,7 @@ const buildFullyReturnedSummary = (): ReturnSummaryModel =>
     items: [
       { itemId: 'item-1', description: 'Vestido', isReturned: true, returnedAt: '2026-05-02T10:00:00Z', returnedBy: 'João', accessories: [] },
     ],
-    paymentsPreview: [{ installmentNumber: 1, value: 1000, status: 'PAID' }],
+    paymentsPreview: [{ paymentId: 'pay-1', installmentNumber: 1, value: 1000, status: 'PAID' }],
   });
 
 // ── Fake API ──────────────────────────────────────────────────────────────────
@@ -59,6 +61,7 @@ class FakeReturnApi implements ReturnApiPort {
   getReturnSummary = vi.fn(() => of(this.summaryToReturn));
   markItemsReturned = vi.fn(() => of(this.summaryToReturn));
   closeReturn = vi.fn(() => of(this.summaryToReturn));
+  withdraw = vi.fn(() => of(undefined));
 }
 
 // ── Suite ─────────────────────────────────────────────────────────────────────
@@ -139,7 +142,7 @@ describe('ReturnFacadeService', () => {
       api.summaryToReturn = buildSummary({
         isFullyReturned: true,
         pendingCount: 0,
-        paymentsPreview: [{ installmentNumber: 1, value: 200, status: 'PENDING' }],
+        paymentsPreview: [{ paymentId: 'pay-1', installmentNumber: 1, value: 200, status: 'PENDING' }],
       });
       facade.loadContract('c1');
       facade.setReturnerName('João');
@@ -197,7 +200,7 @@ describe('ReturnFacadeService', () => {
     it('retorna true quando isFullyReturned mas há parcelas pendentes', () => {
       api.summaryToReturn = buildSummary({
         isFullyReturned: true,
-        paymentsPreview: [{ installmentNumber: 1, value: 200, status: 'PENDING' }],
+        paymentsPreview: [{ paymentId: 'pay-1', installmentNumber: 1, value: 200, status: 'PENDING' }],
       });
       facade.loadContract('c1');
       expect(facade.showConfirmButton()).toBe(true);
@@ -220,9 +223,9 @@ describe('ReturnFacadeService', () => {
     it('conta apenas parcelas PENDING', () => {
       api.summaryToReturn = buildSummary({
         paymentsPreview: [
-          { installmentNumber: 1, value: 500, status: 'PAID' },
-          { installmentNumber: 2, value: 200, status: 'PENDING' },
-          { installmentNumber: 3, value: 100, status: 'PENDING' },
+          { paymentId: 'pay-1', installmentNumber: 1, value: 500, status: 'PAID' },
+          { paymentId: 'pay-2', installmentNumber: 2, value: 200, status: 'PENDING' },
+          { paymentId: 'pay-3', installmentNumber: 3, value: 100, status: 'PENDING' },
         ],
       });
       facade.loadContract('c1');
@@ -232,8 +235,8 @@ describe('ReturnFacadeService', () => {
     it('não conta MULTA como pendente', () => {
       api.summaryToReturn = buildSummary({
         paymentsPreview: [
-          { installmentNumber: 1, value: 500, status: 'PAID' },
-          { installmentNumber: 2, value: 50, status: 'MULTA' },
+          { paymentId: 'pay-1', installmentNumber: 1, value: 500, status: 'PAID' },
+          { paymentId: 'pay-2', installmentNumber: 2, value: 50, status: 'MULTA' },
         ],
       });
       facade.loadContract('c1');
@@ -409,6 +412,52 @@ describe('ReturnFacadeService', () => {
 
       expect(result).toBe(false);
       expect(facade.error()).toBe('Falha ao fechar');
+      expect(facade.closing()).toBe(false);
+    });
+  });
+
+  // ── withdraw (desistência) ──────────────────────────────────────────────────
+
+  describe('withdraw', () => {
+    it('chama a API e retorna true em caso de sucesso', () => {
+      facade.loadContract('c1');
+      let result: boolean | undefined;
+      facade
+        .withdraw({ employeeId: 'emp-1', refundPaymentIds: ['pay-1'], applyFine: true, fineAmount: 300 })
+        .subscribe(r => { result = r; });
+
+      expect(result).toBe(true);
+      expect(api.withdraw).toHaveBeenCalledWith(
+        'contract-uuid-1',
+        expect.objectContaining({
+          employeeId: 'emp-1',
+          refundPaymentIds: ['pay-1'],
+          applyFine: true,
+          fineAmount: 300,
+        })
+      );
+      expect(facade.closing()).toBe(false);
+    });
+
+    it('retorna false sem summary e não chama a API', () => {
+      let result: boolean | undefined;
+      facade.withdraw({ employeeId: 'e', refundPaymentIds: [], applyFine: false })
+        .subscribe(r => { result = r; });
+
+      expect(result).toBe(false);
+      expect(api.withdraw).not.toHaveBeenCalled();
+    });
+
+    it('propaga erro e retorna false quando API falha', () => {
+      facade.loadContract('c1');
+      api.withdraw.mockReturnValueOnce(throwError(() => new Error('Desistência falhou')));
+
+      let result: boolean | undefined;
+      facade.withdraw({ employeeId: 'emp-1', refundPaymentIds: [], applyFine: false })
+        .subscribe(r => { result = r; });
+
+      expect(result).toBe(false);
+      expect(facade.error()).toBe('Desistência falhou');
       expect(facade.closing()).toBe(false);
     });
   });

@@ -90,10 +90,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     [PaymentStatus.PAID]: 'Pago',
     [PaymentStatus.CANCELLED]: 'Cancelado',
     [PaymentStatus.MULTA]: 'Multa',
+    [PaymentStatus.REFUNDED]: 'Reembolsado',
   };
-  // CANCELLED is set only via chargeBack; MULTA remains unavailable until its workflow is implemented.
+  // CANCELLED/REFUNDED são definidos pela desistência; MULTA por fechamento com atraso.
   paymentStatusKeys = Object.values(PaymentStatus).filter(
-    (v) => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA,
+    (v) => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA && v !== PaymentStatus.REFUNDED,
   ) as PaymentStatus[];
 
   // ── Services ──
@@ -137,6 +138,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     [PaymentStatus.PAID]: 'PAID',
     [PaymentStatus.CANCELLED]: 'CANCELLED',
     [PaymentStatus.MULTA]: 'MULTA',
+    [PaymentStatus.REFUNDED]: 'REFUNDED',
   };
 
   // ── Backend contract state ──
@@ -1710,6 +1712,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       3: ContractStatus.REVISION,
       4: ContractStatus.SUPERSEDED,
       5: ContractStatus.CLOSED,
+      6: ContractStatus.CANCELLED,
     };
 
     const METHOD_FROM_API: Record<PaymentMethodApi, PaymentMethod> = {
@@ -1725,6 +1728,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       PAID: PaymentStatus.PAID,
       CANCELLED: PaymentStatus.CANCELLED,
       MULTA: PaymentStatus.MULTA,
+      REFUNDED: PaymentStatus.REFUNDED,
     };
 
     if (this.selectedCustomerDetails?.id !== response.customerId) {

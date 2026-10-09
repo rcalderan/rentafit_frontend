@@ -6,4 +6,5 @@ export enum ContractStatus {
   REVISION = 3,   // Revisão (nova proposta gerada a partir de um contrato assinado)
   SUPERSEDED = 4, // Substituído (contrato original invalidado pela revisão assinada)
   CLOSED = 5,     // Concluído (devolução granular finalizada)
+  CANCELLED = 6,  // Desistência (encerrado antes da data com termo assinado)
 }

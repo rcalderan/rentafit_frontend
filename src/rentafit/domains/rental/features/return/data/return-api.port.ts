@@ -3,6 +3,7 @@ import {
   CloseReturnRequestModel,
   MarkReturnRequestModel,
   ReturnSummaryModel,
+  WithdrawRequestModel,
 } from './return.model';
 
 export abstract class ReturnApiPort {
@@ -17,4 +18,7 @@ export abstract class ReturnApiPort {
     contractId: string,
     request: CloseReturnRequestModel
   ): Observable<ReturnSummaryModel>;
+
+  /** Desistência (SIGNED|FINALIZED → CANCELLED). Resposta é o contrato detalhado. */
+  abstract withdraw(contractId: string, request: WithdrawRequestModel): Observable<void>;
 }

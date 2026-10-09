@@ -3,4 +3,5 @@ export enum PaymentStatus {
   PAID = 1,
   CANCELLED = 2,
   MULTA = 3,
+  REFUNDED = 4,   // Reembolsado ao cliente na desistência
 }

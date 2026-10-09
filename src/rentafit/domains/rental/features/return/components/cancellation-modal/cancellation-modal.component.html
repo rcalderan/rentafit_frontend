@@ -1,0 +1,106 @@
+<div class="modal-backdrop" (click)="onCancel()"></div>
+<section class="cancellation-modal" role="dialog" aria-modal="true" aria-labelledby="cancellation-title">
+  <header class="modal-header">
+    <h2 id="cancellation-title" class="modal-title">Desistência — Contrato #{{ summary().legacyId }}</h2>
+    <button type="button" class="modal-close" (click)="onCancel()" aria-label="Fechar">×</button>
+  </header>
+
+  <div class="modal-body">
+    <p class="cancellation-warning">
+      A desistência encerra o contrato <strong>antes</strong> da data prevista
+      ({{ formatDate(summary().returnDate) }}), libera os itens reservados e cancela
+      parcelas pendentes. Esta operação é irreversível.
+    </p>
+
+    @if (paidPayments().length > 0) {
+      <section class="refund-section">
+        <h3 class="section-title">Devolução de Valores Pagos</h3>
+        <p class="section-hint">Marque as parcelas a reembolsar ao cliente (opcional).</p>
+        <div class="refund-list">
+          @for (payment of paidPayments(); track payment.paymentId) {
+            <label class="refund-row">
+              <input
+                type="checkbox"
+                [checked]="isRefundSelected(payment.paymentId)"
+                (change)="onRefundToggle(payment.paymentId, $event)"
+                [disabled]="busy()"
+              />
+              <span class="refund-label">Parcela {{ payment.installmentNumber }}</span>
+              <span class="refund-value">{{ formatCurrency(payment.value) }}</span>
+            </label>
+          }
+        </div>
+        @if (refundTotal() > 0) {
+          <p class="refund-total">Total a devolver: <strong>{{ formatCurrency(refundTotal()) }}</strong></p>
+        }
+      </section>
+    }
+
+    <section class="fine-section">
+      <label class="fine-toggle">
+        <input
+          type="checkbox"
+          [checked]="applyFine()"
+          (change)="onApplyFineToggle($event)"
+          [disabled]="busy()"
+        />
+        <span>Aplicar multa rescisória</span>
+      </label>
+      @if (applyFine()) {
+        <div class="fine-input-row">
+          <span class="currency">R$</span>
+          <input
+            type="number"
+            class="fine-input"
+            [value]="fineAmount() ?? ''"
+            (input)="onFineAmountInput($event)"
+            step="0.01"
+            min="0"
+            [disabled]="busy()"
+          />
+        </div>
+        <p class="section-hint">Sugerido (30% do contrato): {{ formatCurrency(suggestedFine()) }}</p>
+      }
+    </section>
+
+    <section class="signature-steps">
+      <h3 class="section-title">Assinatura do Termo</h3>
+      <ol class="steps-list">
+        <li [class.done]="printed()">Imprimir o Termo de Desistência</li>
+        <li [class.done]="printed()">Coletar a assinatura do cliente no termo impresso</li>
+        <li>Confirmar a assinatura para processar a desistência</li>
+      </ol>
+      @if (!printed()) {
+        <p class="section-hint">O botão de confirmação só é habilitado após a impressão.</p>
+      }
+    </section>
+  </div>
+
+  <footer class="modal-footer">
+    <button type="button" class="btn-secondary" (click)="onCancel()" [disabled]="busy()">
+      Cancelar
+    </button>
+    <button type="button" class="btn-primary" (click)="printTerm()" [disabled]="busy()">
+      {{ printed() ? 'Reimprimir Termo' : 'Imprimir Termo' }}
+    </button>
+    <button
+      type="button"
+      class="btn-confirm"
+      (click)="onConfirm()"
+      [disabled]="!canConfirm()"
+    >
+      {{ busy() ? 'Processando...' : 'Confirmar Assinatura' }}
+    </button>
+  </footer>
+</section>
+
+@if (showPrint()) {
+  <rentafit-print-preview-modal
+    templateType="RENTAL_CANCELLATION"
+    [customData]="printData()"
+    [isOpen]="true"
+    [printImmediately]="true"
+    [isolatePrint]="true"
+    (close)="onPrintClosed()"
+  />
+}

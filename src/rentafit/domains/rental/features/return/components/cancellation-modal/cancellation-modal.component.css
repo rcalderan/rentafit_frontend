@@ -1,0 +1,170 @@
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 900;
+}
+
+.cancellation-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, 92vw);
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  z-index: 901;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  border-bottom: 1px solid #e2e2e2;
+}
+
+.modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.modal-close {
+  border: none;
+  background: none;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+}
+
+.modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+}
+
+.cancellation-warning {
+  background: #fff4e5;
+  border: 1px solid #f2c57c;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
+.section-title {
+  margin: 16px 0 6px;
+  font-size: 0.95rem;
+}
+
+.section-hint {
+  margin: 4px 0;
+  font-size: 0.8rem;
+  color: #777;
+}
+
+.refund-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.refund-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #e2e2e2;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.refund-label {
+  flex: 1;
+}
+
+.refund-value {
+  font-weight: 600;
+}
+
+.refund-total {
+  margin: 8px 0 0;
+  text-align: right;
+}
+
+.fine-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.fine-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.fine-input {
+  width: 130px;
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.steps-list {
+  margin: 6px 0;
+  padding-left: 20px;
+  font-size: 0.9rem;
+}
+
+.steps-list li {
+  margin: 4px 0;
+}
+
+.steps-list li.done {
+  color: #2e7d32;
+  text-decoration: line-through;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  border-top: 1px solid #e2e2e2;
+}
+
+.btn-secondary,
+.btn-primary,
+.btn-confirm {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.btn-secondary {
+  background: #ececec;
+}
+
+.btn-primary {
+  background: #34558b;
+  color: #fff;
+}
+
+.btn-confirm {
+  background: #b3261e;
+  color: #fff;
+}
+
+.btn-confirm:disabled,
+.btn-primary:disabled,
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

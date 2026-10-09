@@ -12,7 +12,12 @@ const backendSummary = {
   contractId: CONTRACT_ID,
   legacyId: '20260502-1',
   customerName: 'Maria Silva',
+  customerId: 'customer-uuid-1',
+  contractStatus: 'FINALIZED',
+  pickupDate: '2026-04-28',
+  eventDate: '2026-04-30',
   returnDate: '2026-05-01',
+  totalValue: 1000,
   pendingCount: 1,
   isFullyReturned: false,
   delayDays: 1,
@@ -28,8 +33,8 @@ const backendSummary = {
     },
   ],
   paymentsPreview: [
-    { installmentNumber: 1, value: 800, status: 'PAID' },
-    { installmentNumber: 2, value: 200, status: 'PENDING' },
+    { paymentId: 'pay-1', installmentNumber: 1, value: 800, status: 'PAID' },
+    { paymentId: 'pay-2', installmentNumber: 2, value: 200, status: 'PENDING' },
   ],
 };
 
@@ -228,6 +233,58 @@ describe('ReturnApiHttpService', () => {
         .flush({ message: 'Itens pendentes de devolução' }, { status: 422, statusText: 'Unprocessable' });
 
       await expect(promise).rejects.toThrow('Itens pendentes de devolução');
+    });
+  });
+
+  // ── withdraw (desistência) ──────────────────────────────────────────────────
+
+  describe('withdraw', () => {
+    it('faz POST no endpoint /withdraw com refundPaymentIds e multa', () => {
+      service
+        .withdraw(CONTRACT_ID, {
+          employeeId: 'emp-1',
+          refundPaymentIds: ['pay-1'],
+          applyFine: true,
+          fineAmount: 300,
+        })
+        .subscribe();
+
+      const req = httpMock.expectOne(`${BASE}/${CONTRACT_ID}/withdraw`);
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body).toEqual({
+        employeeId: 'emp-1',
+        refundPaymentIds: ['pay-1'],
+        applyFine: true,
+        fineAmount: 300,
+      });
+      req.flush({});
+    });
+
+    it('envia fineAmount=null quando applyFine=false', () => {
+      service
+        .withdraw(CONTRACT_ID, {
+          employeeId: 'emp-1',
+          refundPaymentIds: [],
+          applyFine: false,
+          fineAmount: 300,
+        })
+        .subscribe();
+
+      const req = httpMock.expectOne(`${BASE}/${CONTRACT_ID}/withdraw`);
+      expect(req.request.body.fineAmount).toBeNull();
+      req.flush({});
+    });
+
+    it('propaga erro 422 com mensagem do backend', async () => {
+      const promise = lastValueFrom(
+        service.withdraw(CONTRACT_ID, { employeeId: 'e', refundPaymentIds: [], applyFine: false })
+      );
+
+      httpMock
+        .expectOne(`${BASE}/${CONTRACT_ID}/withdraw`)
+        .flush({ message: 'Status inválido' }, { status: 422, statusText: 'Unprocessable' });
+
+      await expect(promise).rejects.toThrow('Status inválido');
     });
   });
 

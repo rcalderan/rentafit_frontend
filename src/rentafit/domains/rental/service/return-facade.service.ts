@@ -7,6 +7,7 @@ import {
   MarkReturnRequestModel,
   ReturnFormState,
   ReturnSummaryModel,
+  WithdrawRequestModel,
 } from '../features/return/data/return.model';
 
 interface ReturnState {
@@ -264,6 +265,34 @@ export class ReturnFacadeService {
           ...st,
           closing: false,
           error: err instanceof Error ? err.message : 'Erro ao fechar contrato.',
+        }));
+        return of(false);
+      })
+    );
+  }
+
+  /**
+   * Desistência: chamado só após o Termo ser impresso e o operador confirmar
+   * a assinatura do cliente via PIN (gate no componente).
+   */
+  withdraw(request: Omit<WithdrawRequestModel, 'employeeId'> & { employeeId: string }): Observable<boolean> {
+    const s = this.state();
+    if (!s.summary) {
+      return of(false);
+    }
+
+    this.state.update(st => ({ ...st, closing: true, error: null }));
+
+    return this.api.withdraw(s.summary.contractId, request).pipe(
+      tap(() => {
+        this.state.update(st => ({ ...st, closing: false }));
+      }),
+      switchMap(() => of(true)),
+      catchError(err => {
+        this.state.update(st => ({
+          ...st,
+          closing: false,
+          error: err instanceof Error ? err.message : 'Erro ao registrar desistência.',
         }));
         return of(false);
       })

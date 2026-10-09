@@ -1,6 +1,44 @@
-@if (loading()) {
+@if (lookupMode()) {
+  <div class="return-container">
+    <header class="return-header">
+      <h1 class="return-title">Devolução de Contrato</h1>
+    </header>
+    <section class="lookup-section">
+      <label for="contract-lookup" class="field-label">Número do contrato</label>
+      <div class="lookup-row">
+        <input
+          id="contract-lookup"
+          type="text"
+          class="lookup-input"
+          [value]="lookupQuery()"
+          (input)="onLookupInput($event)"
+          (keydown.enter)="onLookupSubmit()"
+          placeholder="Ex.: 20261006-1"
+          [disabled]="lookupLoading()"
+        />
+        <button
+          type="button"
+          class="btn-primary"
+          (click)="onLookupSubmit()"
+          [disabled]="!lookupQuery().trim() || lookupLoading()"
+        >
+          {{ lookupLoading() ? 'Buscando...' : 'Buscar' }}
+        </button>
+      </div>
+      @if (lookupError()) {
+        <p class="error-message">{{ lookupError() }}</p>
+      }
+      <p class="field-hint">Informe o número do contrato para registrar devolução ou desistência.</p>
+    </section>
+  </div>
+} @else if (loading()) {
   <div class="return-loading">
     <p>Carregando contrato...</p>
+  </div>
+} @else if (withdrawSuccess()) {
+  <div class="return-success">
+    <p class="success-message">Desistência registrada com sucesso!</p>
+    <p>Redirecionando para a lista de contratos...</p>
   </div>
 } @else if (error()) {
   <div class="return-error">
@@ -34,6 +72,18 @@
         </div>
       </header>
 
+      @if (isSignedOnly()) {
+        <div class="signed-notice">
+          <p>
+            Contrato <strong>assinado</strong> — os itens ainda não saíram.
+            A única operação disponível é a <strong>Desistência</strong>.
+          </p>
+          <button type="button" class="btn-cancel-contract" (click)="openCancellation()">
+            Desistência
+          </button>
+        </div>
+      }
+
       <section class="returner-section">
         <label for="returner-name" class="field-label">
           Quem está devolvendo <span class="required">*</span>
@@ -45,7 +95,7 @@
           [value]="form().returnerName"
           (input)="onReturnerNameChange($any($event).target.value)"
           placeholder="Nome da pessoa que está entregando fisicamente"
-          [disabled]="saving() || closing()"
+          [disabled]="isSignedOnly() || saving() || closing()"
         />
         <p class="field-hint">Pode ser diferente do cliente que alugou</p>
       </section>
@@ -69,7 +119,7 @@
                     type="checkbox"
                     [checked]="isItemSelected(item.itemId)"
                     (change)="onItemToggle(item, $any($event).target.checked)"
-                    [disabled]="item.isReturned || saving() || closing()"
+                    [disabled]="item.isReturned || isSignedOnly() || saving() || closing()"
                   />
                   <span class="item-name">{{ item.description }}</span>
                 </label>
@@ -94,7 +144,7 @@
                         type="checkbox"
                         [checked]="isAccessorySelected(item.itemId, acc.accessoryId)"
                         (change)="onAccessoryToggle(item.itemId, acc, $any($event).target.checked)"
-                        [disabled]="acc.isReturned || saving() || closing()"
+                        [disabled]="acc.isReturned || isSignedOnly() || saving() || closing()"
                       />
                       <span class="accessory-name">{{ acc.description }}</span>
                       @if (acc.isReturned) {
@@ -175,9 +225,19 @@
           >
             Cancelar
           </button>
+          @if (canWithdraw() && !isSignedOnly()) {
+            <button
+              type="button"
+              class="btn-cancel-contract"
+              (click)="openCancellation()"
+              [disabled]="saving() || closing()"
+            >
+              Desistência
+            </button>
+          }
         </div>
         <div class="actions-right">
-          @if (showConfirmButton()) {
+          @if (!isSignedOnly() && showConfirmButton()) {
             <button
               type="button"
               class="btn-primary"
@@ -188,7 +248,7 @@
             </button>
           }
 
-          @if (s.isFullyReturned && unpaidPaymentsCount() === 0) {
+          @if (!isSignedOnly() && s.isFullyReturned && unpaidPaymentsCount() === 0) {
             <button
               type="button"
               class="btn-close"
@@ -213,6 +273,17 @@
         </p>
       }
     </div>
+  }
+}
+
+@if (showCancellation(); as open) {
+  @if (open && summary(); as s) {
+    <rentafit-cancellation-modal
+      [summary]="s"
+      [busy]="closing()"
+      (cancelled)="onCancellationCancelled()"
+      (confirmed)="onCancellationConfirmed($event)"
+    />
   }
 }
 

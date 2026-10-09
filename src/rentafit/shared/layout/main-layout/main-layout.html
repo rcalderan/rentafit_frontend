@@ -71,6 +71,10 @@
                        role="menuitem" (click)="closeAllSubmenus()">
                         <span>Relatório Diário</span>
                     </a>
+                    <button type="button" class="submenu-item"
+                            role="menuitem" (click)="openTab('/rental/return', 'Devolução', 'rental')">
+                        <span>Devolução</span>
+                    </button>
                     <a routerLink="/rental/nfse-view" routerLinkActive="active" class="submenu-item"
                        role="menuitem" (click)="closeAllSubmenus()">
                         <span>NFS-e</span>

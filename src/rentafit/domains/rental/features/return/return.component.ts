@@ -1,18 +1,21 @@
 import { CommonModule } from '@angular/common';
-import { Component, effect, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, DestroyRef, effect, OnInit, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { TerminalOperatorService } from '../../../auth/services/terminal-operator.service';
 import { ReturnFacadeService } from '../../service/return-facade.service';
+import { RentalContractService } from '../../service/rental-contract.service';
 import { ReturnApiPort } from './data/return-api.port';
 import { ReturnApiHttpService } from './service/return-api-http.service';
 import { ReturnItemModel, ReturnAccessoryModel } from './data/return.model';
+import { CancellationModalComponent, CancellationConfirmPayload } from './components/cancellation-modal/cancellation-modal.component';
 import { TabService } from '../../../../shared/services/tab.service';
 
 @Component({
   selector: 'rentafit-return',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, CancellationModalComponent],
   templateUrl: './return.component.html',
   styleUrl: './return.component.css',
   providers: [
@@ -25,6 +28,8 @@ export class ReturnComponent implements OnInit {
   private readonly router = inject(Router);
   private readonly facade = inject(ReturnFacadeService);
   private readonly operatorService = inject(TerminalOperatorService);
+  private readonly contractService = inject(RentalContractService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly tabService = inject(TabService);
 
   readonly summary = this.facade.summary;
@@ -46,6 +51,23 @@ export class ReturnComponent implements OnInit {
   readonly showConfirmButton = this.facade.showConfirmButton;
 
   readonly closeSuccess = signal(false);
+  readonly withdrawSuccess = signal(false);
+  readonly showCancellation = signal(false);
+
+  // Modo lookup: rota /rental/return sem contractId
+  readonly lookupMode = signal(false);
+  readonly lookupQuery = signal('');
+  readonly lookupLoading = signal(false);
+  readonly lookupError = signal<string | null>(null);
+
+  /** Desistência disponível para SIGNED e FINALIZED (antes da data de devolução). */
+  readonly canWithdraw = computed(() => {
+    const s = this.summary();
+    return !!s && (s.contractStatus === 'SIGNED' || s.contractStatus === 'FINALIZED');
+  });
+
+  /** SIGNED: contrato ainda não saiu — devolução granular não se aplica. */
+  readonly isSignedOnly = computed(() => this.summary()?.contractStatus === 'SIGNED');
 
   readonly canConfirmReturn = computed(() => {
     const returnerName = this.form().returnerName?.trim();
@@ -77,12 +99,45 @@ export class ReturnComponent implements OnInit {
   };
 
   ngOnInit(): void {
-    const contractId = this.route.snapshot.paramMap.get('contractId');
-    if (!contractId) {
-      this.router.navigate(['/']);
-      return;
-    }
-    this.facade.loadContract(contractId);
+    this.route.paramMap
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(params => {
+        const contractId = params.get('contractId');
+        if (!contractId) {
+          this.lookupMode.set(true);
+          this.tabService.updateActiveTitle('Devolução');
+          return;
+        }
+        this.lookupMode.set(false);
+        this.withdrawSuccess.set(false);
+        this.closeSuccess.set(false);
+        this.facade.loadContract(contractId);
+      });
+  }
+
+  onLookupInput(event: Event): void {
+    this.lookupQuery.set((event.target as HTMLInputElement).value);
+  }
+
+  onLookupSubmit(): void {
+    const query = this.lookupQuery().trim();
+    if (!query || this.lookupLoading()) return;
+    this.lookupLoading.set(true);
+    this.lookupError.set(null);
+    this.contractService.getByLegacyId(query).subscribe({
+      next: contract => {
+        this.lookupLoading.set(false);
+        if (!contract.id) {
+          this.lookupError.set('Contrato sem identificador — verifique o cadastro.');
+          return;
+        }
+        this.router.navigate(['/rental/return', contract.id]);
+      },
+      error: err => {
+        this.lookupLoading.set(false);
+        this.lookupError.set(err instanceof Error ? err.message : 'Contrato não encontrado.');
+      },
+    });
   }
 
   onReturnerNameChange(value: string): void {
@@ -160,6 +215,37 @@ export class ReturnComponent implements OnInit {
             }, 2000);
           }
         });
+      });
+  }
+
+  openCancellation(): void {
+    if (!this.canWithdraw()) return;
+    this.showCancellation.set(true);
+  }
+
+  onCancellationCancelled(): void {
+    this.showCancellation.set(false);
+  }
+
+  /**
+   * Chamado pelo modal após o Termo de Desistência ter sido impresso e o
+   * operador confirmar que o cliente assinou — exige PIN (ação sensível).
+   */
+  onCancellationConfirmed(payload: CancellationConfirmPayload): void {
+    this.operatorService
+      .authorize({ title: 'Confirmar Desistência — Assinatura Coletada', requirePin: true })
+      .subscribe(op => {
+        if (!op) return;
+        this.facade
+          .withdraw({ employeeId: op.employeeId, ...payload })
+          .subscribe(success => {
+            if (!success) return;
+            this.showCancellation.set(false);
+            this.withdrawSuccess.set(true);
+            setTimeout(() => {
+              this.router.navigate(['/rental/management']);
+            }, 2000);
+          });
       });
   }
 
