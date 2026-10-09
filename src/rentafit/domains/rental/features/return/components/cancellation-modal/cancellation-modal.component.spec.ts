@@ -30,9 +30,13 @@ type ModalInternals = {
   printTerm(): void;
   onPrintClosed(): void;
   onConfirm(): void;
-  onRefundToggle(id: string, event: Event): void;
+  onApplyRefundToggle(event: Event): void;
+  onRefundAmountInput(event: Event): void;
   canConfirm(): boolean;
 };
+
+const checkEvent = (checked: boolean) => ({ target: { checked } }) as unknown as Event;
+const inputEvent = (value: string) => ({ target: { value } }) as unknown as Event;
 
 const internals = (c: CancellationModalComponent): ModalInternals =>
   c as unknown as ModalInternals;
@@ -62,9 +66,9 @@ describe('CancellationModalComponent', () => {
     fixture.detectChanges();
   });
 
-  it('lista apenas parcelas PAID para reembolso', () => {
-    const paid = (component as unknown as { paidPayments(): { paymentId: string }[] }).paidPayments();
-    expect(paid.map(p => p.paymentId)).toEqual(['pay-1']);
+  it('soma apenas parcelas PAID como teto do reembolso', () => {
+    const paidTotal = (component as unknown as { paidTotal(): number }).paidTotal();
+    expect(paidTotal).toBe(300);
   });
 
   it('confirmar sem imprimir não emite evento', () => {
@@ -85,25 +89,50 @@ describe('CancellationModalComponent', () => {
     internals(component).onConfirm();
 
     expect(spy).toHaveBeenCalledWith({
-      refundPaymentIds: [],
+      refundAmount: undefined,
       applyFine: false,
       fineAmount: undefined,
     });
   });
 
-  it('seleção de parcela PAID entra no payload de reembolso', () => {
+  it('valor de reembolso informado entra no payload', () => {
     const spy = vi.fn();
     component.confirmed.subscribe(spy);
 
-    internals(component).onRefundToggle('pay-1', { target: { checked: true } } as unknown as Event);
+    internals(component).onApplyRefundToggle(checkEvent(true));
+    internals(component).onRefundAmountInput(inputEvent('120.50'));
     internals(component).printTerm();
     internals(component).onPrintClosed();
     internals(component).onConfirm();
 
     expect(spy).toHaveBeenCalledWith(
-      expect.objectContaining({ refundPaymentIds: ['pay-1'] })
+      expect.objectContaining({ refundAmount: 120.5 })
     );
   });
+
+  it('toggle de reembolso sugere o total pago como valor inicial', () => {
+    internals(component).onApplyRefundToggle(checkEvent(true));
+
+    expect(
+      (component as unknown as { refundAmount(): number | null }).refundAmount()
+    ).toBe(300);
+  });
+
+  it.each([['-10'], ['0'], ['300.01'], ['abc']])(
+    'reembolso inválido (%s) bloqueia a confirmação',
+    raw => {
+      const spy = vi.fn();
+      component.confirmed.subscribe(spy);
+
+      internals(component).onApplyRefundToggle(checkEvent(true));
+      internals(component).onRefundAmountInput(inputEvent(raw));
+      internals(component).printTerm();
+      internals(component).onPrintClosed();
+      internals(component).onConfirm();
+
+      expect(spy).not.toHaveBeenCalled();
+    },
+  );
 
   it('aplica multa rescisória quando applyFine está ativo', () => {
     const spy = vi.fn();

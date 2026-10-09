@@ -12,26 +12,40 @@
       parcelas pendentes. Esta operação é irreversível.
     </p>
 
-    @if (paidPayments().length > 0) {
+    @if (paidTotal() > 0) {
       <section class="refund-section">
         <h3 class="section-title">Devolução de Valores Pagos</h3>
-        <p class="section-hint">Marque as parcelas a reembolsar ao cliente (opcional).</p>
-        <div class="refund-list">
-          @for (payment of paidPayments(); track payment.paymentId) {
-            <label class="refund-row">
-              <input
-                type="checkbox"
-                [checked]="isRefundSelected(payment.paymentId)"
-                (change)="onRefundToggle(payment.paymentId, $event)"
-                [disabled]="busy()"
-              />
-              <span class="refund-label">Parcela {{ payment.installmentNumber }}</span>
-              <span class="refund-value">{{ formatCurrency(payment.value) }}</span>
-            </label>
+        <label class="refund-toggle">
+          <input
+            type="checkbox"
+            [checked]="applyRefund()"
+            (change)="onApplyRefundToggle($event)"
+            [disabled]="busy()"
+          />
+          <span>Devolver valores ao cliente</span>
+        </label>
+        @if (applyRefund()) {
+          <div class="refund-input-row">
+            <span class="currency">R$</span>
+            <input
+              type="number"
+              class="refund-input"
+              [value]="refundAmount() ?? ''"
+              (input)="onRefundAmountInput($event)"
+              step="0.01"
+              min="0.01"
+              [attr.max]="paidTotal()"
+              [disabled]="busy()"
+            />
+          </div>
+          <p class="section-hint">
+            Total pago: {{ formatCurrency(paidTotal()) }} — informe qualquer valor até esse limite.
+          </p>
+          @if (!refundAmountValid()) {
+            <p class="refund-error">
+              O valor deve ser maior que zero e no máximo {{ formatCurrency(paidTotal()) }}.
+            </p>
           }
-        </div>
-        @if (refundTotal() > 0) {
-          <p class="refund-total">Total a devolver: <strong>{{ formatCurrency(refundTotal()) }}</strong></p>
         }
       </section>
     }

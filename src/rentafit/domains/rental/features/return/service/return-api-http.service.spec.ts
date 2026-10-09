@@ -239,11 +239,11 @@ describe('ReturnApiHttpService', () => {
   // ── withdraw (desistência) ──────────────────────────────────────────────────
 
   describe('withdraw', () => {
-    it('faz POST no endpoint /withdraw com refundPaymentIds e multa', () => {
+    it('faz POST no endpoint /withdraw com refundAmount e multa', () => {
       service
         .withdraw(CONTRACT_ID, {
           employeeId: 'emp-1',
-          refundPaymentIds: ['pay-1'],
+          refundAmount: 120.5,
           applyFine: true,
           fineAmount: 300,
         })
@@ -253,7 +253,7 @@ describe('ReturnApiHttpService', () => {
       expect(req.request.method).toBe('POST');
       expect(req.request.body).toEqual({
         employeeId: 'emp-1',
-        refundPaymentIds: ['pay-1'],
+        refundAmount: 120.5,
         applyFine: true,
         fineAmount: 300,
       });
@@ -264,7 +264,7 @@ describe('ReturnApiHttpService', () => {
       service
         .withdraw(CONTRACT_ID, {
           employeeId: 'emp-1',
-          refundPaymentIds: [],
+          refundAmount: 50,
           applyFine: false,
           fineAmount: 300,
         })
@@ -277,7 +277,7 @@ describe('ReturnApiHttpService', () => {
 
     it('propaga erro 422 com mensagem do backend', async () => {
       const promise = lastValueFrom(
-        service.withdraw(CONTRACT_ID, { employeeId: 'e', refundPaymentIds: [], applyFine: false })
+        service.withdraw(CONTRACT_ID, { employeeId: 'e', applyFine: false })
       );
 
       httpMock

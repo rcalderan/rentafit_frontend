@@ -115,7 +115,7 @@ export class ReturnApiHttpService implements ReturnApiPort {
   withdraw(contractId: string, request: WithdrawRequestModel): Observable<void> {
     const body = {
       employeeId: request.employeeId,
-      refundPaymentIds: request.refundPaymentIds,
+      refundAmount: request.refundAmount ?? null,
       applyFine: request.applyFine,
       fineAmount: request.applyFine ? (request.fineAmount ?? null) : null,
     };

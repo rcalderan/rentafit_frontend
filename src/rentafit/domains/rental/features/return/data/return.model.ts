@@ -64,8 +64,8 @@ export interface CloseReturnRequestModel {
 
 export interface WithdrawRequestModel {
   employeeId: string;
-  /** Parcelas PAID a reembolsar — vazio = sem devolução de valores. */
-  refundPaymentIds: string[];
+  /** Valor a devolver ao cliente (0 < x <= total pago). Ausente = sem devolução. */
+  refundAmount?: number;
   applyFine: boolean;
   fineAmount?: number;
 }

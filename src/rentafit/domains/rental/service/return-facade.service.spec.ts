@@ -423,7 +423,7 @@ describe('ReturnFacadeService', () => {
       facade.loadContract('c1');
       let result: boolean | undefined;
       facade
-        .withdraw({ employeeId: 'emp-1', refundPaymentIds: ['pay-1'], applyFine: true, fineAmount: 300 })
+        .withdraw({ employeeId: 'emp-1', refundAmount: 150, applyFine: true, fineAmount: 300 })
         .subscribe(r => { result = r; });
 
       expect(result).toBe(true);
@@ -431,7 +431,7 @@ describe('ReturnFacadeService', () => {
         'contract-uuid-1',
         expect.objectContaining({
           employeeId: 'emp-1',
-          refundPaymentIds: ['pay-1'],
+          refundAmount: 150,
           applyFine: true,
           fineAmount: 300,
         })
@@ -441,7 +441,7 @@ describe('ReturnFacadeService', () => {
 
     it('retorna false sem summary e não chama a API', () => {
       let result: boolean | undefined;
-      facade.withdraw({ employeeId: 'e', refundPaymentIds: [], applyFine: false })
+      facade.withdraw({ employeeId: 'e', applyFine: false })
         .subscribe(r => { result = r; });
 
       expect(result).toBe(false);
@@ -453,7 +453,7 @@ describe('ReturnFacadeService', () => {
       api.withdraw.mockReturnValueOnce(throwError(() => new Error('Desistência falhou')));
 
       let result: boolean | undefined;
-      facade.withdraw({ employeeId: 'emp-1', refundPaymentIds: [], applyFine: false })
+      facade.withdraw({ employeeId: 'emp-1', applyFine: false })
         .subscribe(r => { result = r; });
 
       expect(result).toBe(false);

@@ -290,7 +290,7 @@ describe('ReturnComponent', () => {
       component.showCancellation.set(true);
 
       component.onCancellationConfirmed({
-        refundPaymentIds: ['pay-1'],
+        refundAmount: 300,
         applyFine: true,
         fineAmount: 300,
       });
@@ -298,7 +298,7 @@ describe('ReturnComponent', () => {
       expect(facade.withdraw).toHaveBeenCalledWith(
         expect.objectContaining({
           employeeId: 'emp-1',
-          refundPaymentIds: ['pay-1'],
+          refundAmount: 300,
           applyFine: true,
           fineAmount: 300,
         })
@@ -315,7 +315,7 @@ describe('ReturnComponent', () => {
       const component = makeComponent();
       facade.summary.set(buildReturnSummary());
 
-      component.onCancellationConfirmed({ refundPaymentIds: [], applyFine: false });
+      component.onCancellationConfirmed({ applyFine: false });
 
       expect(facade.withdraw).not.toHaveBeenCalled();
     });
