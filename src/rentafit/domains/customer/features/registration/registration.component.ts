@@ -144,7 +144,8 @@ export class RegistrationComponent implements OnInit, OnDestroy {
         zipCode: ['', [Validators.required, Validators.pattern(/^\d{5}-?\d{3}$/)]]
       }),
       phones: this.fb.array([this.buildPhoneControl()]),
-      email: ['', [Validators.required, Validators.email]],
+      // Opcional no balcão; só o cadastro online (auth/register) exige e-mail.
+      email: ['', [Validators.email, Validators.maxLength(255)]],
       number: ['', Validators.required],
       complement: [''],
       notes: ['']
@@ -420,7 +421,8 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     }
 
     const v = this.form.getRawValue();
-    const customer: ICustomer = v;
+    // Vazio vira null: people.email é UNIQUE e dois clientes com "" colidiriam.
+    const customer: ICustomer = { ...v, email: v.email?.trim() || null };
     this.service.saveCustomer(customer).subscribe(
       {
         next: (customer: ICustomer) => {

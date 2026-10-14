@@ -1,0 +1,53 @@
+<div class="modal-backdrop" (click)="dismissed.emit()"></div>
+<section
+  class="product-created-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="product-created-title"
+>
+  <header class="modal-header">
+    <h2 id="product-created-title" class="modal-title">Produto cadastrado</h2>
+    <button
+      type="button"
+      class="modal-close"
+      (click)="dismissed.emit()"
+      aria-label="Fechar"
+    >×</button>
+  </header>
+
+  <dl class="modal-body summary-list">
+    <div class="summary-row">
+      <dt>Código</dt>
+      <dd class="summary-code">{{ product().legacyId || '—' }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Nome</dt>
+      <dd>{{ product().name || '—' }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Categoria</dt>
+      <dd>{{ product().categoryName || '—' }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Cor</dt>
+      <dd>{{ product().color || '—' }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Descrição</dt>
+      <dd>{{ product().description || '—' }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Valor</dt>
+      <dd>{{ formatCurrency(product().value) }}</dd>
+    </div>
+    <div class="summary-row">
+      <dt>Notas</dt>
+      <dd>{{ product().notes || '—' }}</dd>
+    </div>
+  </dl>
+
+  <footer class="modal-footer">
+    <button type="button" class="btn-primary" (click)="rent.emit()">Locação</button>
+    <button type="button" class="btn-confirm" (click)="confirmed.emit()">OK</button>
+  </footer>
+</section>

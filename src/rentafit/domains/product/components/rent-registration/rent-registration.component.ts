@@ -5,6 +5,8 @@ import { Subject } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { CategoryModalComponent } from '../categories/category-modal.component';
+import { ProductCreatedModalComponent } from '../product-created-modal/product-created-modal.component';
+import { buildRentalDraftWithItem, RENTAL_CONTRACT_FORM_TYPE } from '../../../rental/service/rental-item-draft';
 import {
   IRentalItem,
   IRentalHistoryItem,
@@ -21,7 +23,7 @@ import { TabService } from '../../../../shared/services/tab.service';
 @Component({
   selector: 'rentafit-registration',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ModalComponent, CategoryModalComponent],
+  imports: [CommonModule, ReactiveFormsModule, ModalComponent, CategoryModalComponent, ProductCreatedModalComponent],
   templateUrl: './rent-registration.component.html',
   styleUrl: './rent-registration.component.css',
 })
@@ -41,7 +43,8 @@ export class Registration implements OnInit, OnDestroy {
   isReadOnly = signal(false);
   isCategoryModalOpen = signal(false);
   errorMessage = signal<string[] | string | null>(null);
-  successMessage = signal<string | null>(null);
+  /** Resposta do POST/PUT de rental exibida no modal de resumo; null = fechado. */
+  savedProduct = signal<IRentalItem | null>(null);
 
   conditionOptions: { value: ProductCondition; label: string }[] = [
     { value: 'NEW', label: 'Novo' },
@@ -224,11 +227,10 @@ export class Registration implements OnInit, OnDestroy {
     this.service.saveRentalItem(rentalItem).pipe(takeUntil(this.destroy$)).subscribe({
       next: (saved) => {
         this.formStorage.clearDraft(this.formType, this.draftId);
-        this.tabService.closeActiveIf('/product/registration');
         this.form.patchValue(saved);
         this.isReadOnly.set(true);
         this.form.disable();
-        this.successMessage.set('Produto salvo com sucesso!');
+        this.savedProduct.set(saved);
       },
       error: (error) => this.handleError(error)
     });
@@ -277,8 +279,25 @@ export class Registration implements OnInit, OnDestroy {
     this.errorMessage.set(null);
   }
 
-  clearSuccess(): void {
-    this.successMessage.set(null);
+  /** X/backdrop do modal de resumo: fecha o modal e mantém a aba aberta. */
+  dismissCreatedSummary(): void {
+    this.savedProduct.set(null);
+  }
+
+  /** OK do modal de resumo: fecha o modal e a aba de cadastro. */
+  confirmCreatedSummary(): void {
+    this.savedProduct.set(null);
+    this.tabService.closeActiveIf('/product/registration');
+  }
+
+  /** Locação: abre Nova Locação com o produto salvo já incluído como item. */
+  rentCreatedProduct(): void {
+    const product = this.savedProduct();
+    if (!product) return;
+    const draftId = this.generateDraftId();
+    this.formStorage.saveDraft(RENTAL_CONTRACT_FORM_TYPE, draftId, buildRentalDraftWithItem(product));
+    this.savedProduct.set(null);
+    this.tabService.open('/rental/new', 'Nova Locação', 'rental', draftId);
   }
 
   private scrollToFirstInvalid(): void {

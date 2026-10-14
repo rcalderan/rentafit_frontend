@@ -1,4 +1,5 @@
 import { RentalDraftSnapshot } from '../../data/rental-draft-snapshot';
+import { RENTAL_CONTRACT_FORM_TYPE } from '../../service/rental-item-draft';
 import { copyUnsavedRentalProposal } from '../../service/rental-proposal-copy';
 import {
   AfterViewInit,
@@ -112,7 +113,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
   private readonly route = inject(ActivatedRoute);
-  private readonly formType = 'rental-contract';
+  private readonly formType = RENTAL_CONTRACT_FORM_TYPE;
   private draftId = this.generateDraftId();
 
   // ── Autosave ──

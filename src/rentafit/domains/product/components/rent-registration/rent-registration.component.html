@@ -196,9 +196,10 @@
     </rentafit-modal>
     }
 
-    @if (successMessage()) {
-    <rentafit-modal title="Sucesso" [message]="successMessage() ?? ''" type="info" (close)="clearSuccess()">
-    </rentafit-modal>
+    @if (savedProduct(); as product) {
+    <rentafit-product-created-modal [product]="product" (dismissed)="dismissCreatedSummary()"
+        (confirmed)="confirmCreatedSummary()" (rent)="rentCreatedProduct()">
+    </rentafit-product-created-modal>
     }
 
     @if (isCategoryModalOpen()) {
