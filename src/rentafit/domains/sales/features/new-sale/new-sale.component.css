@@ -14,15 +14,6 @@
   margin-bottom: 1rem;
 }
 
-.btn-back {
-  background: none;
-  border: none;
-  cursor: pointer;
-  font-size: 0.9rem;
-  color: var(--accent-primary, #6c63ff);
-  padding: 0.3rem 0;
-}
-
 .header-info {
   display: flex;
   align-items: center;
