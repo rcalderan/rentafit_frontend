@@ -189,3 +189,29 @@ button[type="submit"]:disabled {
 .login-link a:hover {
   text-decoration: underline;
 }
+
+.field-hint {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.verify-email-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    text-align: left;
+}
+
+.verify-email-panel h3 {
+    margin: 0;
+    color: var(--primary-color);
+}
+
+.verify-email-panel p {
+    margin: 0;
+    font-size: 0.92rem;
+}
+
+.resend-success {
+    color: #1b7f3b;
+}

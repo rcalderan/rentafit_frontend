@@ -5,6 +5,7 @@ import { CommonModule } from '@angular/common';
 import { AuthService } from '../../services/auth.service';
 import { FirstUseFlowService } from '../../services/first-use-flow.service';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
+import { passwordViolations } from '../../validators/credential-rules';
 
 @Component({
   selector: 'rentafit-change-password',
@@ -22,8 +23,6 @@ export class ChangePasswordComponent {
   errorMessage = signal<string | null>(null);
   isLoading = signal(false);
 
-  private static readonly PASSWORD_REGEX = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#+]).{8,}$/;
-
   constructor(
     private readonly authService: AuthService,
     private readonly firstUseFlowService: FirstUseFlowService,
@@ -31,13 +30,7 @@ export class ChangePasswordComponent {
   ) {}
 
   get passwordErrors(): string[] {
-    const errors: string[] = [];
-    if (!this.newPassword) return errors;
-    if (this.newPassword.length < 8) errors.push('Mínimo 8 caracteres');
-    if (!/[A-Z]/.test(this.newPassword)) errors.push('Pelo menos 1 letra maiúscula');
-    if (!/\d/.test(this.newPassword)) errors.push('Pelo menos 1 número');
-    if (!/[@$!%*?&#+]/.test(this.newPassword)) errors.push('Pelo menos 1 caractere especial (@$!%*?&#+)');
-    return errors;
+    return passwordViolations(this.newPassword);
   }
 
   get passwordMismatch(): boolean {
@@ -45,7 +38,7 @@ export class ChangePasswordComponent {
   }
 
   get isFormValid(): boolean {
-    return ChangePasswordComponent.PASSWORD_REGEX.test(this.newPassword)
+    return !!this.newPassword && this.passwordErrors.length === 0
       && this.newPassword === this.confirmPassword;
   }
 

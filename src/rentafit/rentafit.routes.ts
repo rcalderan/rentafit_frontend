@@ -13,6 +13,14 @@ export const routes: Routes = [
         loadComponent: () => import('./domains/auth/features/register/register.component').then(m => m.RegisterComponent)
     },
     {
+        path: 'auth/verify-email',
+        loadComponent: () => import('./domains/auth/features/account-link/verify-email.component').then(m => m.VerifyEmailComponent)
+    },
+    {
+        path: 'auth/unlock',
+        loadComponent: () => import('./domains/auth/features/account-link/unlock.component').then(m => m.UnlockComponent)
+    },
+    {
         path: 'auth/setup-credentials',
         loadComponent: () => import('./domains/auth/features/setup-credentials/setup-credentials.component').then(m => m.SetupCredentialsComponent)
     },

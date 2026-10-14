@@ -46,32 +46,32 @@ describe('SetupCredentialsComponent', () => {
   describe('validações de senha', () => {
     it('reporta erro para senha curta', () => {
       const component = makeComponent();
-      component.newPassword = 'Short1!';
-      expect(component.passwordErrors).toContain('Mínimo 8 caracteres');
+      component.newPassword = 'Short1!x';
+      expect(component.passwordErrors).toContain('Entre 10 e 64 caracteres');
       expect(component.isFormValid).toBe(false);
     });
 
     it('reporta erro para senha sem maiúscula', () => {
       const component = makeComponent();
-      component.newPassword = 'lowercase1!';
+      component.newPassword = 'lowercase1!x';
       expect(component.passwordErrors).toContain('Pelo menos 1 letra maiúscula');
     });
 
     it('reporta erro para senha sem número', () => {
       const component = makeComponent();
-      component.newPassword = 'NoDigitPass!';
+      component.newPassword = 'NoDigitPass!x';
       expect(component.passwordErrors).toContain('Pelo menos 1 número');
     });
 
     it('reporta erro para senha sem caractere especial', () => {
       const component = makeComponent();
-      component.newPassword = 'NoSpecial1';
-      expect(component.passwordErrors).toContain('Pelo menos 1 caractere especial (@$!%*?&#+)');
+      component.newPassword = 'NoSpecial12x';
+      expect(component.passwordErrors).toContain('Pelo menos 1 caractere especial (ex.: @ # $ ! %)');
     });
 
     it('não reporta erros para senha válida', () => {
       const component = makeComponent();
-      component.newPassword = 'ValidP@ss1';
+      component.newPassword = 'Vestido#Azul42';
       expect(component.passwordErrors).toEqual([]);
     });
   });
@@ -95,26 +95,32 @@ describe('SetupCredentialsComponent', () => {
       expect(component.pinError).toBeTruthy();
     });
 
+    it.each(['0000', '1234', '4321', '1212'])('rejeita PIN fraco %s', pin => {
+      const component = makeComponent();
+      component.pin = pin;
+      expect(component.pinError).toBeTruthy();
+    });
+
     it('aceita PIN válido de 4 dígitos', () => {
       const component = makeComponent();
-      component.pin = '1234';
+      component.pin = '4831';
       expect(component.pinError).toBeNull();
     });
   });
 
   it('detecta mismatch entre senha e confirmação', () => {
     const component = makeComponent();
-    component.newPassword = 'ValidP@ss1';
-    component.confirmPassword = 'Different1!';
+    component.newPassword = 'Vestido#Azul42';
+    component.confirmPassword = 'Different1!xyz';
     expect(component.passwordMismatch).toBe(true);
     expect(component.isFormValid).toBe(false);
   });
 
   it('formulário válido quando todos os campos estão corretos', () => {
     const component = makeComponent();
-    component.newPassword = 'ValidP@ss1';
-    component.confirmPassword = 'ValidP@ss1';
-    component.pin = '1234';
+    component.newPassword = 'Vestido#Azul42';
+    component.confirmPassword = 'Vestido#Azul42';
+    component.pin = '4831';
     expect(component.isFormValid).toBe(true);
   });
 
@@ -130,12 +136,12 @@ describe('SetupCredentialsComponent', () => {
       authService.setupCredentials.mockReturnValue(of(undefined));
 
       const component = makeComponent();
-      component.newPassword = 'ValidP@ss1';
-      component.confirmPassword = 'ValidP@ss1';
-      component.pin = '1234';
+      component.newPassword = 'Vestido#Azul42';
+      component.confirmPassword = 'Vestido#Azul42';
+      component.pin = '4831';
       component.submit();
 
-      expect(authService.setupCredentials).toHaveBeenCalledWith('ValidP@ss1', '1234');
+      expect(authService.setupCredentials).toHaveBeenCalledWith('Vestido#Azul42', '4831');
       expect(router.navigate).toHaveBeenCalledWith(['/account/profile']);
       expect(component.isLoading()).toBe(false);
     });
@@ -144,9 +150,9 @@ describe('SetupCredentialsComponent', () => {
       authService.setupCredentials.mockReturnValue(throwError(() => new Error('Erro no servidor')));
 
       const component = makeComponent();
-      component.newPassword = 'ValidP@ss1';
-      component.confirmPassword = 'ValidP@ss1';
-      component.pin = '1234';
+      component.newPassword = 'Vestido#Azul42';
+      component.confirmPassword = 'Vestido#Azul42';
+      component.pin = '4831';
       component.submit();
 
       expect(component.errorMessage()).toBe('Erro no servidor');
