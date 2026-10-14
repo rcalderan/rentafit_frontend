@@ -16,6 +16,8 @@ import { TabService } from '../../../../shared/services/tab.service';
 describe('RetailRegistration', () => {
   let productService: { saveRetailItem: ReturnType<typeof vi.fn> };
   let router: { navigate: ReturnType<typeof vi.fn> };
+  let formStorage: { saveDraft: ReturnType<typeof vi.fn>; loadDraft: ReturnType<typeof vi.fn>; clearDraft: ReturnType<typeof vi.fn> };
+  let tabService: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn>; open: ReturnType<typeof vi.fn> };
 
   const buildValidForm = (component: RetailRegistration) => {
     component.form.patchValue({
@@ -47,6 +49,8 @@ describe('RetailRegistration', () => {
     Element.prototype.scrollIntoView = () => {};
     productService = { saveRetailItem: vi.fn() };
     router = { navigate: vi.fn() };
+    formStorage = { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() };
+    tabService = { closeActiveIf: vi.fn(), getTabId: vi.fn(), updateTitle: vi.fn(), open: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [RetailRegistration],
@@ -55,8 +59,8 @@ describe('RetailRegistration', () => {
         { provide: CategoryService, useValue: { getByType: vi.fn().mockReturnValue(of([])) } },
         { provide: Router, useValue: router },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParams: {} }, queryParams: emptyQueryParams } },
-        { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
-        { provide: TabService, useValue: { closeActiveIf: vi.fn(), getTabId: vi.fn(), updateTitle: vi.fn() } },
+        { provide: SessionFormStorageService, useValue: formStorage },
+        { provide: TabService, useValue: tabService },
         // Stock (child) injeta StockService/AuthService que dependem de HttpClient + APP_CONFIG
         provideHttpClient(),
         provideHttpClientTesting(),
@@ -185,6 +189,81 @@ describe('RetailRegistration', () => {
     expect(productService.saveRetailItem).toHaveBeenCalled();
     expect(component.isReadOnly()).toBe(true);
     expect(component.form.disabled).toBe(true);
+  });
+
+  it('exibe modal de resumo apos salvar produto, sem fechar a aba', () => {
+    productService.saveRetailItem.mockReturnValue(of(buildSavedItem()));
+
+    const fixture = TestBed.createComponent(RetailRegistration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    buildValidForm(component);
+    component.save();
+
+    expect(component.savedProduct()).toEqual(buildSavedItem());
+    expect(tabService.closeActiveIf).not.toHaveBeenCalled();
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('rentafit-product-created-modal')).not.toBeNull();
+  });
+
+  it('X do modal de resumo fecha o modal e mantem a aba', () => {
+    const fixture = TestBed.createComponent(RetailRegistration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set(buildSavedItem());
+    component.dismissCreatedSummary();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(tabService.closeActiveIf).not.toHaveBeenCalled();
+  });
+
+  it('OK do modal de resumo fecha o modal e a aba', () => {
+    const fixture = TestBed.createComponent(RetailRegistration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set(buildSavedItem());
+    component.confirmCreatedSummary();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(tabService.closeActiveIf).toHaveBeenCalledWith('/product/retail-registration');
+  });
+
+  it('Venda do modal abre Nova Venda com o produto como item (1 unidade)', () => {
+    const fixture = TestBed.createComponent(RetailRegistration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set(buildSavedItem());
+    component.sellCreatedProduct();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(formStorage.saveDraft).toHaveBeenCalledWith(
+      'sales-order',
+      expect.any(String),
+      expect.objectContaining({
+        order: expect.objectContaining({
+          status: 'DRAFT',
+          items: [
+            expect.objectContaining({
+              retailProductId: 'p-2',
+              sku: 'SKU-001',
+              unitPrice: 250,
+              quantity: 1,
+              discountValue: 0,
+              itemStatus: 'PENDING',
+              needsTailoring: false,
+            }),
+          ],
+          payments: [],
+        }),
+      })
+    );
+    const draftId = formStorage.saveDraft.mock.calls.find((c: unknown[]) => c[0] === 'sales-order')?.[1];
+    expect(tabService.open).toHaveBeenCalledWith('/sales/new', 'Nova Venda', 'sales', draftId);
   });
 
   it('armazena erros de validação de respostas 400', () => {

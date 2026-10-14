@@ -24,6 +24,7 @@ import { NfeEmissionComponent } from '../../../finance/features/nfe-emission/nfe
 import { IFiscalContext, IFiscalDocument } from '../../../finance/data/fiscal-document.types';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
+import { SALES_ORDER_FORM_TYPE } from '../../service/sale-item-draft';
 
 /** Métodos de pagamento e seus labels (reutilizados do rental) */
 const PAYMENT_METHOD_LABELS: Record<PaymentMethodApi, string> = {
@@ -50,7 +51,7 @@ export class NewSale implements OnInit, OnDestroy {
   private readonly productService = inject(ProductService);
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
-  private readonly formType = 'sales-order';
+  private readonly formType = SALES_ORDER_FORM_TYPE;
   private draftId = this.generateDraftId();
   private draftInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();

@@ -18,7 +18,7 @@
   <dl class="modal-body summary-list">
     <div class="summary-row">
       <dt>Código</dt>
-      <dd class="summary-code">{{ product().legacyId || '—' }}</dd>
+      <dd class="summary-code">{{ code() || '—' }}</dd>
     </div>
     <div class="summary-row">
       <dt>Nome</dt>
@@ -42,12 +42,12 @@
     </div>
     <div class="summary-row">
       <dt>Notas</dt>
-      <dd>{{ product().notes || '—' }}</dd>
+      <dd>{{ notes() || '—' }}</dd>
     </div>
   </dl>
 
   <footer class="modal-footer">
-    <button type="button" class="btn-primary" (click)="rent.emit()">Locação</button>
+    <button type="button" class="btn-primary" (click)="action.emit()">{{ actionLabel() }}</button>
     <button type="button" class="btn-confirm" (click)="confirmed.emit()">OK</button>
   </footer>
 </section>

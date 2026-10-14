@@ -5,7 +5,9 @@ import { Subject } from 'rxjs';
 import { takeUntil, debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { CategoryModalComponent } from '../categories/category-modal.component';
+import { ProductCreatedModalComponent } from '../product-created-modal/product-created-modal.component';
 import { Stock } from '../stock/stock';
+import { buildSaleDraftWithItem, SALES_ORDER_FORM_TYPE } from '../../../sales/service/sale-item-draft';
 import { IRetailItem, ICategory } from '../../data/Product.interface';
 import { ProductService } from '../../service/product.service';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -15,7 +17,7 @@ import { TabService } from '../../../../shared/services/tab.service';
 @Component({
     selector: 'rentafit-retail-registration',
     standalone: true,
-    imports: [ReactiveFormsModule, ModalComponent, CategoryModalComponent, Stock],
+    imports: [ReactiveFormsModule, ModalComponent, CategoryModalComponent, ProductCreatedModalComponent, Stock],
     templateUrl: './retail-registration.component.html',
     styleUrl: './retail-registration.component.css',
 })
@@ -36,6 +38,8 @@ export class RetailRegistration implements OnInit, OnDestroy {
     isCategoryModalOpen = signal(false);
     isSkuSearching = signal(false);
     errorMessage = signal<string[] | string | null>(null);
+    /** Resposta do POST/PUT de retail exibida no modal de resumo; null = fechado. */
+    savedProduct = signal<IRetailItem | null>(null);
 
     constructor() {
         this.form = this.fb.group({
@@ -154,10 +158,10 @@ export class RetailRegistration implements OnInit, OnDestroy {
         this.service.saveRetailItem(retailItem).pipe(takeUntil(this.destroy$)).subscribe({
             next: (saved) => {
                 this.formStorage.clearDraft(this.formType, this.draftId);
-                this.tabService.closeActiveIf('/product/retail-registration');
                 this.form.patchValue(saved);
                 this.isReadOnly.set(true);
                 this.form.disable();
+                this.savedProduct.set(saved);
             },
             error: (error) => this.handleError(error)
         });
@@ -228,6 +232,27 @@ export class RetailRegistration implements OnInit, OnDestroy {
 
     clearError(): void {
         this.errorMessage.set(null);
+    }
+
+    /** X/backdrop do modal de resumo: fecha o modal e mantém a aba aberta. */
+    dismissCreatedSummary(): void {
+        this.savedProduct.set(null);
+    }
+
+    /** OK do modal de resumo: fecha o modal e a aba de cadastro. */
+    confirmCreatedSummary(): void {
+        this.savedProduct.set(null);
+        this.tabService.closeActiveIf('/product/retail-registration');
+    }
+
+    /** Venda: abre Nova Venda com o produto salvo já incluído como item (1 unidade). */
+    sellCreatedProduct(): void {
+        const product = this.savedProduct();
+        if (!product) return;
+        const draftId = this.generateDraftId();
+        this.formStorage.saveDraft(SALES_ORDER_FORM_TYPE, draftId, buildSaleDraftWithItem(product));
+        this.savedProduct.set(null);
+        this.tabService.open('/sales/new', 'Nova Venda', 'sales', draftId);
     }
 
     private scrollToFirstInvalid(): void {

@@ -22,6 +22,9 @@ describe('ProductCreatedModalComponent', () => {
   function render() {
     const fixture = TestBed.createComponent(ProductCreatedModalComponent);
     fixture.componentRef.setInput('product', product);
+    fixture.componentRef.setInput('code', '5583');
+    fixture.componentRef.setInput('notes', 'TESTEEE');
+    fixture.componentRef.setInput('actionLabel', 'Locação');
     fixture.detectChanges();
     return fixture;
   }
@@ -45,6 +48,13 @@ describe('ProductCreatedModalComponent', () => {
     expect(text).toContain('6.000,00');
   });
 
+  it('rotula o botão de ação com actionLabel', () => {
+    const fixture = render();
+    const actionBtn: HTMLElement = fixture.nativeElement.querySelector('.btn-primary');
+
+    expect(actionBtn.textContent).toContain('Locação');
+  });
+
   it('emite dismissed no botão X e no backdrop', () => {
     const fixture = render();
     const dismissed = vi.fn();
@@ -66,13 +76,13 @@ describe('ProductCreatedModalComponent', () => {
     expect(confirmed).toHaveBeenCalledTimes(1);
   });
 
-  it('emite rent no botão Locação', () => {
+  it('emite action no botão principal', () => {
     const fixture = render();
-    const rent = vi.fn();
-    fixture.componentInstance.rent.subscribe(rent);
+    const action = vi.fn();
+    fixture.componentInstance.action.subscribe(action);
 
     fixture.nativeElement.querySelector('.btn-primary').click();
 
-    expect(rent).toHaveBeenCalledTimes(1);
+    expect(action).toHaveBeenCalledTimes(1);
   });
 });
