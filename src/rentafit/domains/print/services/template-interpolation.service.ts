@@ -56,6 +56,7 @@ export interface InterpolationContext {
   itensContrato?: Array<{
     codigo: string;
     descricao: string;
+    subitens?: string[];
     valor: number;
   }>;
   pagamentosContrato?: Array<{
@@ -267,16 +268,24 @@ export class TemplateInterpolationService {
     return out;
   }
 
-  private renderContractItemsTable(html: string, items: Array<{ codigo: string; descricao: string; valor: number }>): string {
+  private renderContractItemsTable(html: string, items: NonNullable<InterpolationContext['itensContrato']>): string {
     const tbodyRows = items
       .map((item) => `
       <tr>
-        <td>${item.codigo}</td>
-        <td>${item.descricao}</td>
+        <td>${this.escapePrintCell(item.codigo)}</td>
+        <td>${this.renderContractItemDescription(item)}</td>
         <td style="text-align: right;">${this.formatCurrency(item.valor)}</td>
       </tr>`)
       .join('');
     return this.replaceRepeatingTableBody(html, 'contract-items', 'contract-items-table', tbodyRows);
+  }
+
+  // Subitens precisam de <br> (como o template padrão): juntá-los com vírgula colava tudo numa linha só.
+  private renderContractItemDescription(item: NonNullable<InterpolationContext['itensContrato']>[number]): string {
+    return [item.descricao, ...(item.subitens ?? [])]
+      .filter(Boolean)
+      .map((line) => this.escapePrintCell(line))
+      .join('<br>');
   }
 
   private renderContractPaymentsTable(
@@ -426,8 +435,9 @@ export class TemplateInterpolationService {
     const table = tablePattern.exec(html);
     if (!table) return html;
     const bodyPattern = /(<tbody\b[^>]*>)[\s\S]*?(<\/tbody>)/i;
-    const replacedTable = table[0].replace(bodyPattern, `$1${rows}$2`);
-    return html.replace(table[0], replacedTable);
+    // Função em vez de string: "$&" vindo da descrição do item seria lido como padrão de substituição.
+    const replacedTable = table[0].replace(bodyPattern, (_, open: string, close: string) => `${open}${rows}${close}`);
+    return html.replace(table[0], () => replacedTable);
   }
 
   private repeatingTablePattern(component: string, legacyClass: string): RegExp {

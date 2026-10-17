@@ -62,6 +62,29 @@ describe('TemplateInterpolationService', () => {
     expect(result).not.toContain('Velho');
   });
 
+  it('deve separar subitens do contrato com <br> dentro da célula da descrição', () => {
+    const template = '<table data-print-component="contract-items"><tbody><tr><td>Antigo</td></tr></tbody></table>';
+    const result = service.interpolate(template, {
+      itensContrato: [
+        { codigo: '1044', descricao: 'VESTIDO MARSALA', subitens: ['PROVAR COM SAPATO', 'VENDA & AJUSTE'], valor: 410 },
+      ],
+    });
+
+    expect(result).toContain('VESTIDO MARSALA<br>PROVAR COM SAPATO<br>VENDA &amp; AJUSTE');
+    expect(result).not.toContain('VESTIDO MARSALA, PROVAR');
+    expect(result).not.toContain('Antigo');
+  });
+
+  it('preserva "$&" na descrição do item sem substituir o conteúdo da tabela', () => {
+    const template = '<table data-print-component="contract-items"><tbody><tr><td>Antigo</td></tr></tbody></table>';
+    const result = service.interpolate(template, {
+      itensContrato: [{ codigo: '1044', descricao: 'CALÇA $& CAMISA', valor: 100 }],
+    });
+
+    expect(result).toContain('CALÇA $&amp; CAMISA');
+    expect(result).not.toContain('Antigo');
+  });
+
   it('mantém a marcação dos subcomponentes ao repetir itens e pagamentos', () => {
     const template = `
       <table data-print-component="contract-items"><tbody><tr><td>Antigo</td></tr></tbody></table>

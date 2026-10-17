@@ -709,6 +709,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
             status: 1,
             tipo: 1,
           };
+          // O código gravado no item é o do produto; o texto digitado pode ser só um termo de busca.
+          this.itemModalCode = item.legacyId ?? code;
           this.itemModalName = item.name;
           this.itemModalMeta = [
             item.size ? `TAM: ${item.size}` : null,
@@ -1428,9 +1430,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private createPrintItems(): NonNullable<InterpolationContext['itensContrato']> {
     return this.contract.itens.map((item) => ({
       codigo: item.codigo,
-      descricao: [item.descricao, ...item.sub.map((meta) => meta.descricao)]
-        .filter(Boolean)
-        .join(', '),
+      descricao: item.descricao,
+      subitens: item.sub.map((meta) => meta.descricao).filter(Boolean),
       valor: item.valor,
     }));
   }

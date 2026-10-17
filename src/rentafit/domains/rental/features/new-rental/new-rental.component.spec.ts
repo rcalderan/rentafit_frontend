@@ -368,7 +368,7 @@ describe('NewRental item attendant', () => {
         valor: 150,
         entregue: false,
         attendantEmployeeId: '',
-        sub: [],
+        sub: [{ tipo: 'observacao', descricao: 'PROVAR COM SAPATO' }],
       },
     ];
     component.contract.pagamentos = [
@@ -391,7 +391,7 @@ describe('NewRental item attendant', () => {
     expect(component.contractPrintData()?.cliente?.nome).toBe('Cliente de teste');
     expect(component.contractPrintData()?.contrato?.numero).toBe('20260929-1');
     expect(component.contractPrintData()?.itensContrato).toEqual([
-      { codigo: '10', descricao: 'Terno', valor: 150 },
+      { codigo: '10', descricao: 'Terno', subitens: ['PROVAR COM SAPATO'], valor: 150 },
     ]);
     component.closeContractPrintPreview();
     expect(component.showContractPrintModal()).toBe(false);
@@ -590,6 +590,19 @@ describe('NewRental item attendant', () => {
     expect(component.showReservationsModal).toBe(true);
     expect(component.itemReservations).toHaveLength(1);
     expect(component.itemReservations[0].customerName).toBe('Ana Lima');
+  });
+
+  it('grava o código legacy do produto encontrado, não o termo digitado na busca', () => {
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '1';
+    component.searchItemByCode();
+    component.itemModalEmployee = 'manager-1';
+    component.confirmAddItem();
+
+    expect(component.contract.itens[0].codigo).toBe('001');
+    expect((component as any).itemRentalIds.get('001')).toBe('item-uuid-1');
   });
 
   it('não abre o modal de reservas quando o item não tem reservas', () => {
