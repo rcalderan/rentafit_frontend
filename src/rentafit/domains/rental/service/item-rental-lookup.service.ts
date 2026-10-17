@@ -21,7 +21,9 @@ export class ItemRentalLookupService {
         if (!item.id) {
           throw new Error(`RentalItem sem id (esperado UUID) para legacyId="${legacyId}"`);
         }
-        return this.rentalContractService.getItemReservations(item.id);
+        // includePendingReturn: responde "onde está a roupa" — inclui FINALIZED
+        // não devolvido com evento passado (exibido como "Devolução Pendente").
+        return this.rentalContractService.getItemReservations(item.id, undefined, true);
       }),
     );
   }

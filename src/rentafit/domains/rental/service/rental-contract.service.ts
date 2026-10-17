@@ -98,14 +98,19 @@ export class RentalContractService {
   /**
    * Reservas ativas do item (SIGNED/FINALIZED, eventDate >= hoje).
    * Chamado ao carregar um item na proposta para alertar reservas existentes.
+   * Com includePendingReturn, inclui FINALIZED ainda não devolvidos com evento passado.
    */
   getItemReservations(
     rentalItemId: string,
     excludeContractId?: string,
+    includePendingReturn?: boolean,
   ): Observable<IItemReservationResponse[]> {
     let httpParams = new HttpParams();
     if (excludeContractId) {
       httpParams = httpParams.set('excludeContractId', excludeContractId);
+    }
+    if (includePendingReturn) {
+      httpParams = httpParams.set('includePendingReturn', 'true');
     }
 
     return this.http

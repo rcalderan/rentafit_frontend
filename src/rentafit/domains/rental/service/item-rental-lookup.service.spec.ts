@@ -41,7 +41,7 @@ describe('ItemRentalLookupService', () => {
   });
 
   it('resolve o legacyId para UUID e retorna as reservas do item', async () => {
-    const item = { id: 'item-uuid-1', legacyId: 42 } as IRentalItem;
+    const item = { id: 'item-uuid-1', legacyId: 42 } as unknown as IRentalItem;
     const reservations = [buildReservation()];
     productService.getRentalItemByLegacyId.mockReturnValue(of(item));
     rentalContractService.getItemReservations.mockReturnValue(of(reservations));
@@ -49,7 +49,7 @@ describe('ItemRentalLookupService', () => {
     const result = await firstValueFrom(service.findActiveContractsByItemLegacyId('42'));
 
     expect(productService.getRentalItemByLegacyId).toHaveBeenCalledWith('42');
-    expect(rentalContractService.getItemReservations).toHaveBeenCalledWith('item-uuid-1');
+    expect(rentalContractService.getItemReservations).toHaveBeenCalledWith('item-uuid-1', undefined, true);
     expect(result).toEqual(reservations);
   });
 

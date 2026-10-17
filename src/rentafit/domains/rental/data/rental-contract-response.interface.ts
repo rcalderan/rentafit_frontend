@@ -53,6 +53,8 @@ export interface IItemReservationResponse {
   returnDate: string;
   status: string;
   statusDescription: string;
+  /** true = FINALIZED ainda não devolvido com evento passado ("Devolução Pendente"). */
+  pendingReturn?: boolean;
 }
 
 export interface IItemMetaResponse {
