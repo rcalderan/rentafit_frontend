@@ -1,0 +1,110 @@
+<section class="day-detail-card" aria-label="Detalhe do dia selecionado">
+  <header class="day-detail-header">
+    <div>
+      <span class="day-subtitle">Movimento do Dia</span>
+      <h2 class="day-title">{{ formattedSelectedDate() }}</h2>
+    </div>
+    @if (summary(); as s) {
+      <div class="day-Quick-totals">
+        <div class="quick-pill realized" [class.negative]="s.netRealizedAmount < 0">
+          <span>Realizado Líquido</span>
+          <strong>{{ s.netRealizedAmount | currency: 'BRL' }}</strong>
+        </div>
+        <div class="quick-pill pending">
+          <span>Previsto</span>
+          <strong>{{ s.pendingAmount | currency: 'BRL' }}</strong>
+        </div>
+      </div>
+    }
+  </header>
+
+  @if (summary(); as s) {
+    @if (s.fineAmount > 0 || s.refundedAmount > 0) {
+      <div class="adjustments-banner">
+        @if (s.fineAmount > 0) {
+          <span class="adj-badge fine">Multas recebidas: +{{ s.fineAmount | currency: 'BRL' }}</span>
+        }
+        @if (s.refundedAmount > 0) {
+          <span class="adj-badge refund">Estornos devolvidos: -{{ s.refundedAmount | currency: 'BRL' }}</span>
+        }
+      </div>
+    }
+  }
+
+  <div class="methods-section">
+    <h3 class="subsection-title">Soma por Forma de Pagamento (Dia)</h3>
+    <div class="methods-grid">
+      @for (item of dayMethodBreakdown(); track item.paymentMethod) {
+        <div class="method-box" [class.active]="item.transactionCount > 0">
+          <span class="method-name">{{ methodLabel(item.paymentMethod) }}</span>
+          <span class="method-realized" [class.negative]="item.netRealizedAmount < 0">
+            {{ item.netRealizedAmount | currency: 'BRL' }}
+          </span>
+          @if (item.pendingAmount > 0) {
+            <span class="method-pending">
+              Previsto: {{ item.pendingAmount | currency: 'BRL' }}
+            </span>
+          }
+        </div>
+      }
+    </div>
+  </div>
+
+  <div class="transactions-section">
+    <h3 class="subsection-title">
+      Lançamentos do Dia ({{ transactions().length }})
+    </h3>
+
+    @if (transactions().length === 0) {
+      <p class="empty-state">Nenhuma parcela registrada para {{ formattedSelectedDate() }}.</p>
+    } @else {
+      <div class="table-wrapper">
+        <table class="tx-table">
+          <thead>
+            <tr>
+              <th>Origem</th>
+              <th>Código</th>
+              <th>Cliente</th>
+              <th>Parc.</th>
+              <th>Forma</th>
+              <th>Status</th>
+              <th class="text-right">Valor</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (tx of transactions(); track tx.paymentId) {
+              <tr
+                class="tx-row"
+                [class.refund-row]="tx.status === 'REFUNDED'"
+                (click)="selectTransaction(tx)"
+                title="Clique para abrir o contrato ou venda"
+              >
+                <td>
+                  <span
+                    class="source-badge"
+                    [class.rental]="tx.source === 'RENTAL'"
+                    [class.sale]="tx.source === 'SALE'"
+                  >
+                    {{ tx.source === 'RENTAL' ? 'Aluguel' : 'Venda' }}
+                  </span>
+                </td>
+                <td class="code-cell">#{{ tx.referenceCode }}</td>
+                <td class="customer-cell">{{ tx.customerName }}</td>
+                <td>{{ tx.installmentNumber }} ({{ tx.installments }}x)</td>
+                <td>{{ methodLabel(tx.paymentMethod) }}</td>
+                <td>
+                  <span class="status-pill" [attr.data-status]="tx.status">
+                    {{ statusLabel(tx.status) }}
+                  </span>
+                </td>
+                <td class="text-right value-cell" [class.negative]="tx.signedValue < 0">
+                  {{ tx.signedValue | currency: 'BRL' }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </div>
+</section>

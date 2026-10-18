@@ -1,0 +1,76 @@
+<section class="calendar-card" aria-label="Calendário de movimentação mensal">
+  <div class="calendar-header">
+    <h2 class="calendar-title">{{ monthTitle() }}</h2>
+    <div class="calendar-legend">
+      <span class="legend-item realized">● Realizado</span>
+      <span class="legend-item pending">● Previsto</span>
+      <span class="legend-item refund">● Estorno / Multa</span>
+    </div>
+  </div>
+
+  <div class="weekday-grid">
+    @for (wd of weekDays; track wd) {
+      <div class="weekday-label">{{ wd }}</div>
+    }
+  </div>
+
+  <div class="days-grid">
+    @for (cell of calendarCells(); track cell.key) {
+      @if (cell.day === null) {
+        <div class="day-cell empty" aria-hidden="true"></div>
+      } @else {
+        @let s = cell.summary;
+        <button
+          type="button"
+          class="day-cell"
+          [class.selected]="cell.isSelected"
+          [class.today]="cell.isToday"
+          [class.has-movement]="s && s.transactionCount > 0"
+          [class.negative-net]="s && s.netRealizedAmount < 0"
+          (click)="selectCell(cell)"
+          [attr.aria-label]="'Dia ' + cell.day"
+          [attr.aria-pressed]="cell.isSelected"
+        >
+          <div class="day-top">
+            <span class="day-number">{{ cell.day }}</span>
+            @if (s && s.transactionCount > 0) {
+              <span class="tx-count" title="Quantidade de lançamentos">{{ s.transactionCount }}x</span>
+            }
+          </div>
+
+          @if (s && s.transactionCount > 0) {
+            <div class="day-amounts">
+              @if (s.netRealizedAmount !== 0 || s.paidAmount > 0 || s.refundedAmount > 0) {
+                <span
+                  class="amount-chip realized"
+                  [class.negative]="s.netRealizedAmount < 0"
+                  title="Caixa líquido realizado no dia"
+                >
+                  {{ s.netRealizedAmount | currency: 'BRL' : 'symbol' : '1.0-2' }}
+                </span>
+              }
+              @if (s.pendingAmount > 0) {
+                <span class="amount-chip pending" title="Valor previsto a receber no dia">
+                  +{{ s.pendingAmount | currency: 'BRL' : 'symbol' : '1.0-2' }}
+                </span>
+              }
+            </div>
+
+            @if (s.fineAmount > 0 || s.refundedAmount > 0) {
+              <div class="day-flags">
+                @if (s.fineAmount > 0) {
+                  <span class="flag-dot fine" title="Contém multa recebida">M</span>
+                }
+                @if (s.refundedAmount > 0) {
+                  <span class="flag-dot refund" title="Contém estorno/reembolso">E</span>
+                }
+              </div>
+            }
+          } @else {
+            <span class="no-movement">—</span>
+          }
+        </button>
+      }
+    }
+  </div>
+</section>

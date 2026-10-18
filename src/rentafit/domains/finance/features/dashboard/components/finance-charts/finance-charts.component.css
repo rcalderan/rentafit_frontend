@@ -1,0 +1,38 @@
+:host {
+  display: block;
+}
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1.8fr 1fr;
+  gap: 1rem;
+}
+
+.chart-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--border-radius, 12px);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-md, 0 2px 8px rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.chart-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: var(--text-color, #1e293b);
+}
+
+.canvas-wrapper {
+  position: relative;
+  height: 260px;
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
