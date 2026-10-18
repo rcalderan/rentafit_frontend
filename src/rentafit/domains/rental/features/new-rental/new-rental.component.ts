@@ -1327,7 +1327,6 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     saveContract$.pipe(finalize(this.refreshView(() => (this.isSaving = false)))).subscribe({
       next: (response) => {
-        this.contract.situacao = ContractStatus.DRAFT;
         this.mapResponseToContract(response);
         this.formStorage.clearDraft(this.formType, this.draftId);
       },

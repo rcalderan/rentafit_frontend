@@ -90,15 +90,16 @@ class FakeRentalContractService {
   readonly saveRequests: unknown[] = [];
   readonly reservationCalls: Array<{ rentalItemId: string; excludeContractId?: string }> = [];
   itemReservations: IItemReservationResponse[] = [];
+  nextResponse: IRentalContractResponse | null = null;
 
   create(request: unknown): Observable<IRentalContractResponse> {
     this.saveRequests.push(request);
-    return EMPTY;
+    return this.nextResponse ? of(this.nextResponse) : EMPTY;
   }
 
   update(_contractId: string, request: unknown): Observable<IRentalContractResponse> {
     this.saveRequests.push(request);
-    return EMPTY;
+    return this.nextResponse ? of(this.nextResponse) : EMPTY;
   }
 
   sign(
@@ -467,6 +468,56 @@ describe('NewRental item attendant', () => {
     expect(operatorService.authorize).toHaveBeenCalledWith(
       expect.objectContaining({ requirePin: true }),
     );
+  });
+
+  it('mantém situacao REVISION ao salvar alteração de contrato', async () => {
+    component.contractId = 'revision-contract';
+    component.contract.situacao = ContractStatus.REVISION;
+    component.customerUuid = 'customer-1';
+    component.contract.pagamentos = [
+      {
+        parcela: 1,
+        data: '2026-09-29',
+        forma: PaymentMethod.CASH,
+        valor: 150,
+        vezes: 1,
+        status: PaymentStatus.PENDING,
+      },
+    ];
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
+    rentalContractService.nextResponse = {
+      id: 'revision-contract',
+      status: 3,
+      statusDescription: 'Revisão',
+      isReturned: false,
+      contractType: 0,
+      customerId: 'customer-1',
+      customerName: 'Cliente de teste',
+      customerDocument: '00000000000',
+      pickupDate: '2026-09-29',
+      eventDate: '2026-10-01',
+      returnDate: '2026-10-02',
+      totalValue: 150,
+      paidValue: 0,
+      remainingValue: 150,
+      items: [],
+      payments: [],
+      createdAt: '2026-09-29T00:00:00Z',
+    };
+
+    component.salvarProposta();
+    await vi.waitFor(() => expect(rentalContractService.saveRequests).toHaveLength(1));
+
+    expect(component.contract.situacao).toBe(ContractStatus.REVISION);
   });
 
   it('não adiciona novo item sem atendente', () => {
