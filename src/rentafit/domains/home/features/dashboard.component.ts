@@ -61,7 +61,7 @@ export class HomeDashboard implements OnInit {
   readonly customerSearchAppliedName = signal('');
 
   // ── Contract search by item (locações ativas de uma roupa) ───────────────
-  readonly contractSearchMode = signal<ContractSearchMode>('contractNumber');
+  readonly contractSearchMode = signal<ContractSearchMode>('itemCode');
   readonly itemRentals = signal<IItemReservationResponse[]>([]);
   readonly itemRentalsApplied = signal(false);
   readonly showItemRentalsModal = signal(false);
@@ -72,7 +72,7 @@ export class HomeDashboard implements OnInit {
   readonly searchPlaceholder = computed(() => {
     switch (this.searchType()) {
       case 'contract': return this.contractSearchMode() === 'itemCode'
-        ? 'Código legado da roupa'
+        ? 'Insira o codigo da roupa'
         : 'Nº do contrato (legacyId)';
       case 'customer': return 'Nome, CPF ou CNPJ';
       case 'product':  return 'Código legado da roupa';
@@ -85,7 +85,7 @@ export class HomeDashboard implements OnInit {
     this.searchResult.set(null);
     this.clearCustomerSearchResults();
     this.clearItemRentals();
-    this.contractSearchMode.set('contractNumber');
+    this.contractSearchMode.set('itemCode');
     this.searchError.set(null);
   }
 

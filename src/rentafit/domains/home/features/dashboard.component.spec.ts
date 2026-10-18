@@ -222,6 +222,7 @@ describe('HomeDashboard', () => {
       );
 
       component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
       component.searchQuery.set('20260101-99');
       component.search();
 
@@ -235,17 +236,19 @@ describe('HomeDashboard', () => {
 
       const component = makeComponent();
       component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
       component.searchQuery.set('20260101-1');
       component.search();
 
       expect(router.navigate).toHaveBeenCalledWith(['/rental/new'], { queryParams: { id: contract.id } });
     });
 
-    it('modo padrão "Nº do contrato" não aciona a busca por roupa', () => {
+    it('modo "Nº do contrato" não aciona a busca por roupa', () => {
       rentalContractService.getByLegacyId.mockReturnValue(of(buildContractSummary()));
 
       const component = makeComponent();
       component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
       component.searchQuery.set('20260101-1');
       component.search();
 
@@ -263,12 +266,12 @@ describe('HomeDashboard', () => {
       component.search();
     };
 
-    it('troca o placeholder no modo "Código da roupa"', () => {
+    it('"Código da roupa" é o modo default da aba Contrato', () => {
       const component = makeComponent();
       component.searchType.set('contract');
 
-      component.setContractSearchMode('itemCode');
-      expect(component.searchPlaceholder()).toBe('Código legado da roupa');
+      expect(component.contractSearchMode()).toBe('itemCode');
+      expect(component.searchPlaceholder()).toBe('Insira o codigo da roupa');
 
       component.setContractSearchMode('contractNumber');
       expect(component.searchPlaceholder()).toBe('Nº do contrato (legacyId)');
