@@ -12,12 +12,15 @@ import {
   IMonthlyBucket,
   IMonthlyMovementResponse,
   IPaymentMethodBreakdown,
+  ISectorMovementBreakdown,
   IYearlyMovementResponse,
   MONTH_NAMES_PT,
   MovementSourceFilter,
   MovementViewMode,
 } from '../../data/financial-movement.model';
 import { FinancialMovementService } from '../../service/financial-movement.service';
+import { Sector } from '../../../sector/data/sector.model';
+import { SectorService } from '../../../sector/service/sector.service';
 import { FinanceCalendarComponent } from './components/finance-calendar/finance-calendar.component';
 import { FinanceChartsComponent } from './components/finance-charts/finance-charts.component';
 import { FinanceDayDetailComponent } from './components/finance-day-detail/finance-day-detail.component';
@@ -41,6 +44,7 @@ import { FinanceDayDetailComponent } from './components/finance-day-detail/finan
 })
 export class Dashboard {
   private readonly movementService = inject(FinancialMovementService);
+  private readonly sectorService = inject(SectorService);
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -50,6 +54,9 @@ export class Dashboard {
 
   protected readonly viewMode = signal<MovementViewMode>('MONTHLY');
   protected readonly sourceFilter = signal<MovementSourceFilter>('ALL');
+  /** '' = todos os setores (caixa de todos os terminais + legados). */
+  protected readonly sectorFilter = signal<string>('');
+  protected readonly sectors = signal<Sector[]>([]);
 
   private readonly now = new Date();
   protected readonly todayIso = this.toIsoDate(
@@ -95,6 +102,11 @@ export class Dashboard {
     return active?.byPaymentMethod ?? [];
   });
 
+  protected readonly activeBySector = computed<ISectorMovementBreakdown[]>(() => {
+    const active = this.viewMode() === 'MONTHLY' ? this.monthlyData() : this.yearlyData();
+    return active?.bySector ?? [];
+  });
+
   protected readonly selectedDaySummary = computed<IDailyMovementSummary | null>(() => {
     const days = this.monthlyData()?.days ?? [];
     return days.find((d) => d.date === this.selectedDate()) ?? null;
@@ -116,6 +128,10 @@ export class Dashboard {
       initials: event.initials ?? 'OK',
     });
     this.isUnlocked.set(true);
+    this.sectorService
+      .list(true)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ next: (list) => this.sectors.set(list), error: () => {} });
     this.reload();
   }
 
@@ -137,6 +153,12 @@ export class Dashboard {
   protected setSourceFilter(source: MovementSourceFilter): void {
     if (this.sourceFilter() === source) return;
     this.sourceFilter.set(source);
+    this.reload();
+  }
+
+  protected setSectorFilter(sectorId: string): void {
+    if (this.sectorFilter() === sectorId) return;
+    this.sectorFilter.set(sectorId);
     this.reload();
   }
 
@@ -193,7 +215,7 @@ export class Dashboard {
 
   private loadMonthly(): void {
     this.movementService
-      .getMonthlyMovement(this.selectedYear(), this.selectedMonth(), this.sourceFilter())
+      .getMonthlyMovement(this.selectedYear(), this.selectedMonth(), this.sourceFilter(), this.sectorFilter() || null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {
@@ -209,7 +231,7 @@ export class Dashboard {
 
   private loadYearly(): void {
     this.movementService
-      .getYearlyMovement(this.selectedYear(), this.sourceFilter())
+      .getYearlyMovement(this.selectedYear(), this.sourceFilter(), this.sectorFilter() || null)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (response) => {

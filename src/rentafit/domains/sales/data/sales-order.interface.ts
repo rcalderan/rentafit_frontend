@@ -19,6 +19,8 @@ export interface ISalesOrderItem {
   tailoringNotes?: string;
   deliveredAt?: string;
   deliveredByEmployeeId?: UUID;
+  /** Setor onde o item foi entregue. */
+  deliveredSectorId?: UUID | null;
   warrantyDays?: number;
 }
 
@@ -34,6 +36,8 @@ export interface ISalesPayment {
   processedByEmployeeId?: UUID;
   status: string;
   statusDescription?: string;
+  /** Setor do caixa que recebeu a parcela. */
+  sectorId?: UUID | null;
 }
 
 /** Pedido de venda detalhado — resposta da API (SalesOrderDetailsDTO) */
@@ -46,6 +50,8 @@ export interface ISalesOrder {
   customerName?: string;
   customerDocument?: string;
   createdByEmployeeId?: UUID;
+  /** Setor de origem do pedido de venda. */
+  sectorId?: UUID | null;
   notes?: string;
   discountValue: number;
   invoiceStatus: InvoiceStatusApi;
@@ -88,5 +94,7 @@ export interface ISalesOrderSummary {
   totalValue: number;
   paidValue: number;
   itemCount: number;
+  /** Setor de origem do pedido. */
+  sectorId?: UUID | null;
   createdAt: string;
 }

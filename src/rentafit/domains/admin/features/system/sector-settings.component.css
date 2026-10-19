@@ -1,0 +1,204 @@
+:host {
+  display: block;
+  /* Tabela de setores ocupa as duas colunas do admin-grid */
+  grid-column: 1 / -1;
+}
+
+.section-card {
+  background: var(--card-bg);
+  border-radius: var(--border-radius);
+  padding: var(--section-padding);
+  border: var(--surface-border);
+  box-shadow: var(--shadow-md);
+}
+
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 0.8rem;
+  display: block;
+}
+
+.hint {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  margin: 0 0 1rem;
+}
+
+.terminal-block {
+  margin-bottom: 1.5rem;
+}
+
+.terminal-block > label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.terminal-row {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.terminal-row select {
+  flex: 1;
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  border: var(--surface-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.terminal-current {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+.terminal-warn {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+  color: var(--warn-color, #b45309);
+}
+
+.sector-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.5rem;
+  font-size: 0.9rem;
+}
+
+.sector-table th,
+.sector-table td {
+  text-align: left;
+  padding: 0.6rem 0.5rem;
+  border-bottom: 1px solid var(--surface-border, #e2e8f0);
+  color: var(--text-color);
+}
+
+.sector-table th {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sector-table tr.inactive td {
+  opacity: 0.55;
+}
+
+.sector-table code {
+  background: var(--input-bg);
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+}
+
+.actions-col {
+  white-space: nowrap;
+}
+
+.actions-col button {
+  margin-right: 0.4rem;
+}
+
+.create-form {
+  border-top: 1px solid var(--surface-border, #e2e8f0);
+  padding-top: 1.2rem;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.field label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.field input,
+.field select {
+  min-height: 40px;
+  padding: 0.5rem 0.75rem;
+  border: var(--surface-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.check-field {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: var(--text-color);
+}
+
+.btn-update {
+  background-color: var(--input-bg);
+  color: var(--primary-color);
+  border: none;
+  border-radius: var(--input-radius);
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-update:hover {
+  background-color: var(--control-hover-bg);
+}
+
+.btn-update:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid var(--surface-border, #e2e8f0);
+  border-radius: var(--input-radius);
+  padding: 0.4rem 0.8rem;
+  font-size: 0.82rem;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.btn-ghost:hover {
+  background: var(--input-bg);
+}
+
+.code-input {
+  width: 110px;
+  text-transform: uppercase;
+}
+
+.sector-table input[type='text'] {
+  width: 100%;
+  min-height: 34px;
+  padding: 0.3rem 0.5rem;
+  border: var(--surface-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+.feedback {
+  margin-top: 0.8rem;
+  font-size: 0.85rem;
+  color: var(--primary-color);
+}

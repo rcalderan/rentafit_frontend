@@ -19,33 +19,42 @@ export class FinancialMovementService {
 
   /**
    * Busca o consolidado mensal (totais, dias do calendário, formas de pagamento e extrato).
+   * `sectorId` restringe às parcelas recebidas no caixa daquele setor.
    *
-   * Exemplo: `service.getMonthlyMovement(2026, 10, 'ALL')`
+   * Exemplo: `service.getMonthlyMovement(2026, 10, 'ALL', null)`
    */
   getMonthlyMovement(
     year: number,
     month: number,
     source: MovementSourceFilter = 'ALL',
+    sectorId: string | null = null,
   ): Observable<IMonthlyMovementResponse> {
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('year', String(year))
       .set('month', String(month))
       .set('source', source);
+    if (sectorId) {
+      params = params.set('sectorId', sectorId);
+    }
     return this.http.get<IMonthlyMovementResponse>(`${this.baseUrl}/monthly`, { params });
   }
 
   /**
-   * Busca o consolidado anual (12 meses de Jan a Dez e formas de pagamento).
+   * Busca o consolidado anual (12 meses de Jan a Dez, formas de pagamento e setores).
    *
-   * Exemplo: `service.getYearlyMovement(2026, 'ALL')`
+   * Exemplo: `service.getYearlyMovement(2026, 'ALL', null)`
    */
   getYearlyMovement(
     year: number,
     source: MovementSourceFilter = 'ALL',
+    sectorId: string | null = null,
   ): Observable<IYearlyMovementResponse> {
-    const params = new HttpParams()
+    let params = new HttpParams()
       .set('year', String(year))
       .set('source', source);
+    if (sectorId) {
+      params = params.set('sectorId', sectorId);
+    }
     return this.http.get<IYearlyMovementResponse>(`${this.baseUrl}/yearly`, { params });
   }
 }

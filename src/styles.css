@@ -513,14 +513,10 @@ button {
     transform: none;
 }
 
-[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-name {
+[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .sector-context {
     order: 0;
     flex-basis: auto;
     max-width: 140px;
-    font-size: 0.76rem;
-    font-weight: 600;
-    color: #55474f;
-    text-align: left;
 }
 
 [data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-list {

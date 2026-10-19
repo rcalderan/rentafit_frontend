@@ -153,18 +153,21 @@
                         <span class="operator-badge">{{ operator.initials || '??' }}</span>
                         <span class="operator-caret" aria-hidden="true">{{ operatorsOpen() ? '▴' : '▾' }}</span>
                     </button>
-                    <span class="operator-name" [title]="operator.name">{{ operator.name || 'Usuário' }}</span>
+                    <rentafit-terminal-sector-chip />
                     } @else {
                     <button type="button" class="operator-current empty" (click)="authenticateOperator()"
                             aria-label="Autenticar usuário">
                         <span class="operator-badge">?</span>
                     </button>
-                    <span class="operator-name">Autenticar usuário</span>
+                    <rentafit-terminal-sector-chip />
                     }
                 </div>
 
                 @if (operatorsOpen() && currentOperator()) {
                 <div class="operator-list" role="menu">
+                    <div class="operator-sector-header" aria-hidden="true">
+                        {{ terminalSector.sector()?.name ?? 'Sem setor' }}{{ terminalSector.sector() ? ' — ' + terminalSector.sector()!.code : '' }}
+                    </div>
                     @for (item of operators(); track item.employeeId) {
                     <div class="operator-item" role="menuitem"
                          [class.active]="item.employeeId === operatorService.currentOperatorId()">
@@ -196,6 +199,7 @@
     </aside>
 
     <main class="main-content">
+        @if (isMobile() || uiVariant.activeVariant() === 'legacy') {
         <header class="top-bar">
             <div class="left-section">
                 @if (isMobile()) {
@@ -205,6 +209,7 @@
                 }
             </div>
         </header>
+        }
 
         <nav class="tab-bar" aria-label="Abas abertas">
             @for (tab of tabs(); track tab.id) {

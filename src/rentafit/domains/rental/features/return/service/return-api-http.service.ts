@@ -31,6 +31,8 @@ interface BackendReturnSummary {
   isFullyReturned: boolean;
   delayDays: number;
   suggestedFine: number;
+  sectorId?: string | null;
+  returnSectorId?: string | null;
   items: BackendReturnItem[];
   paymentsPreview: BackendPaymentPreview[];
 }
@@ -166,6 +168,8 @@ export class ReturnApiHttpService implements ReturnApiPort {
       isFullyReturned: raw.isFullyReturned,
       delayDays: raw.delayDays,
       suggestedFine: raw.suggestedFine,
+      sectorId: raw.sectorId ?? null,
+      returnSectorId: raw.returnSectorId ?? null,
       items,
       paymentsPreview,
     };

@@ -21,6 +21,12 @@ export interface IFinancialTransaction {
   status: MovementPaymentStatus;
   value: number;
   signedValue: number;
+  /** Setor do caixa que recebeu a parcela (null = legado pré-V44). */
+  sectorId?: string | null;
+  sectorName?: string | null;
+  sectorCode?: string | null;
+  /** CNPJ da Matriz/Filial dona do setor. */
+  issuerCnpj?: string | null;
 }
 
 export interface IPaymentMethodBreakdown {
@@ -44,6 +50,20 @@ export interface IDailyMovementSummary {
   saleNetAmount: number;
   rentalPendingAmount: number;
   salePendingAmount: number;
+  transactionCount: number;
+}
+
+/** Consolidado por setor de caixa (sectorId nulo = lançamentos legados). */
+export interface ISectorMovementBreakdown {
+  sectorId: string | null;
+  sectorName: string | null;
+  sectorCode: string | null;
+  issuerCnpj: string | null;
+  paidAmount: number;
+  fineAmount: number;
+  refundedAmount: number;
+  netRealizedAmount: number;
+  pendingAmount: number;
   transactionCount: number;
 }
 
@@ -74,6 +94,7 @@ export interface IMonthlyMovementResponse {
   rentalPendingTotal: number;
   salePendingTotal: number;
   byPaymentMethod: IPaymentMethodBreakdown[];
+  bySector?: ISectorMovementBreakdown[];
   days: IDailyMovementSummary[];
   transactions: IFinancialTransaction[];
 }
@@ -91,6 +112,7 @@ export interface IYearlyMovementResponse {
   rentalPendingTotal: number;
   salePendingTotal: number;
   byPaymentMethod: IPaymentMethodBreakdown[];
+  bySector?: ISectorMovementBreakdown[];
   months: IMonthlyBucket[];
 }
 

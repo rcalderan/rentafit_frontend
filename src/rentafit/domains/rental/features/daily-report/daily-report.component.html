@@ -12,6 +12,17 @@
       <input id="endDate" type="date" [min]="startDate()" [ngModel]="endDate()"
         (ngModelChange)="endDate.set($event)" />
     </div>
+    @if (sectors().length) {
+    <div class="field">
+      <label for="sectorFilter">Setor</label>
+      <select id="sectorFilter" [ngModel]="sectorId()" (ngModelChange)="sectorId.set($event)">
+        <option value="">Todos os setores</option>
+        @for (s of sectors(); track s.id) {
+        <option [value]="s.id">{{ s.name }}</option>
+        }
+      </select>
+    </div>
+    }
     <button class="btn btn-ghost" (click)="generate()" [disabled]="isLoading()">Gerar</button>
     <button class="btn btn-primary" (click)="print()" [disabled]="!report() || isLoading()">
       Imprimir
@@ -91,6 +102,9 @@
             <td>
               {{ item.customerName }}
               <div class="meta-line">Contrato {{ item.contractLegacyId }}</div>
+              @if (item.sectorName) {
+              <div class="meta-line sector-line">Setor: {{ item.sectorName }}</div>
+              }
             </td>
             <td class="retirada">{{ formatDate(item.pickupDate) }}</td>
           </tr>

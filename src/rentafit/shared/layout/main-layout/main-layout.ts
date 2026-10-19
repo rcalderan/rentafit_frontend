@@ -22,6 +22,8 @@ import {
 import { UiVariantService } from '../../services/ui-variant.service';
 import { TabService } from '../../services/tab.service';
 import { TabGroup } from '../../data/tab.model';
+import { TerminalSectorChipComponent } from '../../../domains/sector/features/terminal-sector-chip/terminal-sector-chip.component';
+import { TerminalSectorService } from '../../../domains/sector/service/terminal-sector.service';
 
 @Component({
   selector: 'rentafit-main-layout',
@@ -31,7 +33,7 @@ import { TabGroup } from '../../data/tab.model';
     '(document:focusin)': 'dismissOutsideMenu($event)',
     '(document:keydown.escape)': 'dismissMenus()',
   },
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, EmployeeVerifyComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, EmployeeVerifyComponent, TerminalSectorChipComponent],
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.css',
 })
@@ -41,6 +43,7 @@ export class MainLayout {
   private readonly activatedRoute = inject(ActivatedRoute);
   protected readonly authService = inject(AuthService);
   protected readonly operatorService = inject(TerminalOperatorService);
+  protected readonly terminalSector = inject(TerminalSectorService);
   protected readonly uiVariant = inject(UiVariantService);
   protected readonly tabService = inject(TabService);
 
@@ -92,6 +95,7 @@ export class MainLayout {
           this.isSidebarVisible.set(false);
         }
       });
+
   }
 
   protected dismissOutsideMenu(event: Event): void {

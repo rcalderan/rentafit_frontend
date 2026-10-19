@@ -40,6 +40,10 @@ export interface ReturnSummaryModel {
   delayDays: number;
   suggestedFine: number;
   returnerName?: string;
+  /** Setor de origem do contrato (retirada). */
+  sectorId?: string | null;
+  /** Setor onde a devolução está sendo processada. */
+  returnSectorId?: string | null;
   items: ReturnItemModel[];
   paymentsPreview: PaymentPreviewModel[];
 }

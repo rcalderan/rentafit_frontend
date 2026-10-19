@@ -88,6 +88,22 @@
             Vendas
           </button>
         </div>
+
+        @if (sectors().length) {
+          <div class="sector-filter" role="group" aria-label="Filtro por setor">
+            <label for="finance-sector">Setor</label>
+            <select
+              id="finance-sector"
+              [value]="sectorFilter()"
+              (change)="setSectorFilter($any($event.target).value)"
+            >
+              <option value="">Todos os setores</option>
+              @for (s of sectors(); track s.id) {
+                <option [value]="s.id" [selected]="sectorFilter() === s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+        }
       </div>
     </header>
 
@@ -134,6 +150,45 @@
         <span class="summary-sub">Previsão de fechamento do período</span>
       </div>
     </section>
+
+    @if (activeBySector().length) {
+      <section class="sector-breakdown" aria-label="Fechamento por setor">
+        <h2 class="section-title">Caixa por Setor</h2>
+        <table class="sector-table">
+          <thead>
+            <tr>
+              <th>Setor</th>
+              <th class="num">Lanç.</th>
+              <th class="num">Pago</th>
+              <th class="num">Multas</th>
+              <th class="num">Estornos</th>
+              <th class="num">Líquido Realizado</th>
+              <th class="num">Previsto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of activeBySector(); track s.sectorId ?? 'legacy') {
+              <tr>
+                <td>
+                  <strong>{{ s.sectorName ?? 'Sem setor (legado)' }}</strong>
+                  @if (s.sectorCode) {
+                    <span class="sector-code">{{ s.sectorCode }}</span>
+                  }
+                </td>
+                <td class="num">{{ s.transactionCount }}</td>
+                <td class="num">{{ s.paidAmount | currency: 'BRL' }}</td>
+                <td class="num">{{ s.fineAmount | currency: 'BRL' }}</td>
+                <td class="num">{{ s.refundedAmount | currency: 'BRL' }}</td>
+                <td class="num" [class.negative]="s.netRealizedAmount < 0">
+                  <strong>{{ s.netRealizedAmount | currency: 'BRL' }}</strong>
+                </td>
+                <td class="num">{{ s.pendingAmount | currency: 'BRL' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
 
     @if (isLoading()) {
       <div class="loading-box">Carregando movimentação financeira…</div>

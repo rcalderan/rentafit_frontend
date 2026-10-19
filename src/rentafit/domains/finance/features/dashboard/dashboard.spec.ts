@@ -14,11 +14,18 @@ import {
   IChartInstanceHandle,
 } from '../../service/chart-canvas-renderer.service';
 import { FinancialMovementService } from '../../service/financial-movement.service';
+import { SectorService } from '../../../sector/service/sector.service';
 import { Dashboard } from './dashboard';
 
 class FakeFinancialMovementService {
-  lastMonthlyArgs: { year: number; month: number; source: MovementSourceFilter } | null = null;
-  lastYearlyArgs: { year: number; source: MovementSourceFilter } | null = null;
+  lastMonthlyArgs: {
+    year: number;
+    month: number;
+    source: MovementSourceFilter;
+    sectorId: string | null;
+  } | null = null;
+  lastYearlyArgs: { year: number; source: MovementSourceFilter; sectorId: string | null } | null =
+    null;
 
   monthlyResponse: IMonthlyMovementResponse = {
     year: 2026,
@@ -147,16 +154,18 @@ class FakeFinancialMovementService {
     year: number,
     month: number,
     source: MovementSourceFilter,
+    sectorId: string | null = null,
   ): Observable<IMonthlyMovementResponse> {
-    this.lastMonthlyArgs = { year, month, source };
+    this.lastMonthlyArgs = { year, month, source, sectorId };
     return of(this.monthlyResponse);
   }
 
   getYearlyMovement(
     year: number,
     source: MovementSourceFilter,
+    sectorId: string | null = null,
   ): Observable<IYearlyMovementResponse> {
-    this.lastYearlyArgs = { year, source };
+    this.lastYearlyArgs = { year, source, sectorId };
     return of(this.yearlyResponse);
   }
 }
@@ -192,6 +201,7 @@ describe('Finance Dashboard', () => {
       imports: [Dashboard],
       providers: [
         { provide: FinancialMovementService, useValue: movementService },
+        { provide: SectorService, useValue: { list: () => of([]) } },
         { provide: ChartCanvasRendererService, useClass: FakeChartCanvasRendererService },
         { provide: EmployeeService, useClass: FakeEmployeeService },
         { provide: AuthService, useClass: FakeAuthService },

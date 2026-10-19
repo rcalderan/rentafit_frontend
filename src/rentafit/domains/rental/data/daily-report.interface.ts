@@ -17,6 +17,10 @@ export interface IReportItem {
   color?: string;
   pickupDate: string;
   adjustments: IReportAdjustment[];
+  /** Setor do contrato (retirada) — null em registros legados pré-V44. */
+  sectorId?: string | null;
+  sectorName?: string | null;
+  sectorCode?: string | null;
 }
 
 export interface IClothingTypeGroup {

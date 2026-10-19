@@ -343,3 +343,80 @@ h1 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* -- Filtro por setor --------------------------------------------- */
+.sector-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sector-filter label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.sector-filter select {
+  min-height: 36px;
+  padding: 0.35rem 0.7rem;
+  border: var(--surface-border);
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
+}
+
+/* -- Fechamento de caixa por setor -------------------------------- */
+.sector-breakdown {
+  background: var(--card-bg);
+  border: var(--surface-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow-md);
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.sector-breakdown .section-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-color);
+  margin: 0 0 0.75rem;
+}
+
+.sector-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.sector-table th,
+.sector-table td {
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  border-bottom: 1px solid var(--surface-border, #e2e8f0);
+  color: var(--text-color);
+}
+
+.sector-table th {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.sector-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sector-table .negative {
+  color: #b91c1c;
+}
+
+.sector-code {
+  margin-left: 0.4rem;
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
