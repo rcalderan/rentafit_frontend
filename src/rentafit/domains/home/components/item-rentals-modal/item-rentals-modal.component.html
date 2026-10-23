@@ -1,0 +1,52 @@
+<div class="modal-backdrop" (click)="closed.emit()"></div>
+<div class="modal modal-item-rentals"
+     role="dialog"
+     aria-modal="true"
+     aria-labelledby="item-rentals-title">
+    <div class="modal-header">
+        <span class="modal-title" id="item-rentals-title">Locações ativas — roupa {{ itemLabel() }}</span>
+        <button class="modal-close" type="button" (click)="closed.emit()" aria-label="Fechar">
+            <i aria-hidden="true">✕</i>
+        </button>
+    </div>
+    <div class="modal-body">
+        <table class="rentals-table">
+            <thead>
+                <tr>
+                    <th>Nº</th>
+                    <th>Nome</th>
+                    <th>Data do evento</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (rental of rentals(); track rental.contractId) {
+                    <tr>
+                        <td class="legacy-id">{{ rental.legacyId || '—' }}</td>
+                        <td>{{ rental.customerName }}</td>
+                        <td>{{ formatDate(rental.eventDate) }}</td>
+                        <td>
+                            @if (rental.pendingReturn) {
+                                <span class="pending-return-badge">Devolução Pendente</span>
+                            } @else {
+                                {{ rental.statusDescription }}
+                            }
+                        </td>
+                        <td>
+                            <a class="action-link"
+                               [routerLink]="['/rental/new']"
+                               [queryParams]="{ id: rental.contractId }"
+                               title="Abrir contrato">
+                                Abrir →
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn-close-modal" (click)="closed.emit()">Fechar</button>
+    </div>
+</div>

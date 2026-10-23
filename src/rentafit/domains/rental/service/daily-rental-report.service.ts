@@ -12,11 +12,17 @@ export class DailyRentalReportService {
 
   constructor(private readonly http: HttpClient) {}
 
-  /** Relatório de locação por período (YYYY-MM-DD). Se endDate omitido, relatório de dia único. */
-  getByPeriod(startDate: string, endDate?: string): Observable<IDailyRentalReport> {
+  /**
+   * Relatório de locação por período (YYYY-MM-DD). Se endDate omitido, relatório de dia único.
+   * `sectorId` restringe aos contratos abertos naquele setor (locais de retirada).
+   */
+  getByPeriod(startDate: string, endDate?: string, sectorId?: string | null): Observable<IDailyRentalReport> {
     let params = new HttpParams().set('date', startDate);
     if (endDate && endDate !== startDate) {
       params = params.set('endDate', endDate);
+    }
+    if (sectorId) {
+      params = params.set('sectorId', sectorId);
     }
     return this.http
       .get<IDailyRentalReport>(`${this.apiUrl}/daily`, { params })

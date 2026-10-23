@@ -1,7 +1,8 @@
 export interface PaymentPreviewModel {
+  paymentId: string;
   installmentNumber: number;
   value: number;
-  status: 'PENDING' | 'PAID' | 'MULTA';
+  status: 'PENDING' | 'PAID' | 'CANCELLED' | 'MULTA' | 'REFUNDED';
   paymentDate?: string;
 }
 
@@ -27,13 +28,22 @@ export interface ReturnSummaryModel {
   contractId: string;
   legacyId: string;
   customerName: string;
+  customerId?: string;
+  contractStatus: string;
+  pickupDate?: string;
+  eventDate?: string;
   returnDate: string;
   actualReturnDate?: string;
+  totalValue: number;
   pendingCount: number;
   isFullyReturned: boolean;
   delayDays: number;
   suggestedFine: number;
   returnerName?: string;
+  /** Setor de origem do contrato (retirada). */
+  sectorId?: string | null;
+  /** Setor onde a devolução está sendo processada. */
+  returnSectorId?: string | null;
   items: ReturnItemModel[];
   paymentsPreview: PaymentPreviewModel[];
 }
@@ -52,6 +62,14 @@ export interface MarkReturnRequestModel {
 
 export interface CloseReturnRequestModel {
   employeeId: string;
+  applyFine: boolean;
+  fineAmount?: number;
+}
+
+export interface WithdrawRequestModel {
+  employeeId: string;
+  /** Valor a devolver ao cliente (0 < x <= total pago). Ausente = sem devolução. */
+  refundAmount?: number;
   applyFine: boolean;
   fineAmount?: number;
 }

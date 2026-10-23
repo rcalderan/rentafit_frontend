@@ -52,10 +52,16 @@ export interface ISignUpAddress {
 
 export interface SignUpRequest {
   name: string;
+  username: string;
   email: string;
   document: string;
   phones: string[];
   address: ISignUpAddress;
   number?: string;
   complement?: string;
+}
+
+/** Cadastro aceito: a conta aguarda a confirmação do e-mail. */
+export interface SignUpResponse {
+  maskedEmail: string;
 }

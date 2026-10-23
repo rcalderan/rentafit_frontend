@@ -1,7 +1,6 @@
 <div class="new-sale">
   <!-- Header -->
   <header class="page-header">
-    <button class="btn-back" (click)="goBack()">← Voltar</button>
     <div class="header-info">
       @if (order()?.legacyId) {
         <h2>{{ order()!.legacyId }}</h2>
@@ -256,6 +255,9 @@
       <h3>Adicionar Item</h3>
       <input type="text" [(ngModel)]="productSearch" (input)="filterProducts()"
              placeholder="Buscar produto por nome ou SKU..." class="input" />
+      @if (selectedOutOfStock) {
+        <div class="modal-warning">Sem estoque</div>
+      }
 
       <div class="product-list">
         @for (p of filteredProducts(); track p.id) {
@@ -300,7 +302,7 @@
       }
       <div class="modal-actions">
         <button class="btn" (click)="showItemModal.set(false)">Cancelar</button>
-        <button class="btn btn-primary" [disabled]="!selectedProduct" (click)="confirmAddItem()">Adicionar</button>
+        <button class="btn btn-primary" [disabled]="!selectedProduct || selectedOutOfStock" (click)="confirmAddItem()">Adicionar</button>
       </div>
     </div>
   </div>

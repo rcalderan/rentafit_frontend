@@ -1,0 +1,12 @@
+<div class="link-container">
+    <div class="link-card">
+        <h2>Confirmação de e-mail</h2>
+        @if (errorMessage(); as message) {
+        <div class="error-message" role="alert">{{ message }}</div>
+        <p>Peça um novo link na tela de login, em "Reenviar e-mail de confirmação".</p>
+        <a routerLink="/auth/login">Ir para o login</a>
+        } @else {
+        <p>Confirmando seu e-mail...</p>
+        }
+    </div>
+</div>

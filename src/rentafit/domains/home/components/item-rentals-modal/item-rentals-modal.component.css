@@ -1,0 +1,144 @@
+/* ── Modal: locações ativas da roupa (mesmo padrão visual do new-rental) ── */
+
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    z-index: 100;
+}
+
+.modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 101;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+    width: 90%;
+    max-width: 560px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--input-bg);
+}
+
+.modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+.modal-close {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.modal-close:hover {
+    color: var(--danger-color);
+}
+
+.modal-body {
+    padding: 1.25rem 1.5rem;
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--input-bg);
+    display: flex;
+    justify-content: flex-end;
+}
+
+/* ── Tabela (espelha "Últimos Contratos") ── */
+
+.rentals-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.rentals-table th {
+    padding: 0.6rem 0.75rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--input-bg);
+    text-align: left;
+}
+
+.rentals-table td {
+    padding: 0.7rem 0.75rem;
+    border-bottom: 1px solid var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.rentals-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.legacy-id {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.action-link {
+    color: var(--primary-color);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+.action-link:hover {
+    background: var(--input-bg);
+}
+
+/* Devolução pendente: contrato FINALIZED não devolvido com evento passado */
+.pending-return-badge {
+    display: inline-block;
+    padding: 0.2rem 0.55rem;
+    border-radius: 4px;
+    background: #fff3e0;
+    color: #ef6c00;
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-close-modal {
+    padding: 0.55rem 1.4rem;
+    background: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: var(--border-radius);
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s;
+}
+
+.btn-close-modal:hover {
+    opacity: 0.88;
+}

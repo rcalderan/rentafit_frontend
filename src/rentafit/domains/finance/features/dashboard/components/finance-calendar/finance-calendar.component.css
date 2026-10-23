@@ -1,0 +1,197 @@
+:host {
+  display: block;
+}
+
+.calendar-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--border-radius, 12px);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-md, 0 2px 8px rgba(0, 0, 0, 0.08));
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.calendar-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-color, #1e293b);
+}
+
+.calendar-legend {
+  display: flex;
+  gap: 0.85rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.legend-item.realized {
+  color: #15803d;
+}
+
+.legend-item.pending {
+  color: #0369a1;
+}
+
+.legend-item.refund {
+  color: #b91c1c;
+}
+
+.weekday-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+  margin-bottom: 0.4rem;
+}
+
+.weekday-label {
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted, #64748b);
+  padding: 0.25rem 0;
+}
+
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.day-cell {
+  min-height: 78px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  padding: 0.4rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  align-items: stretch;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, transform 0.1s ease, background-color 0.15s ease;
+}
+
+.day-cell.empty {
+  background: transparent;
+  border-color: transparent;
+  cursor: default;
+}
+
+.day-cell:not(.empty):hover {
+  border-color: var(--primary-color, #3b82f6);
+  background: #ffffff;
+}
+
+.day-cell.has-movement {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.day-cell.today {
+  border-color: #6366f1;
+  box-shadow: inset 0 0 0 1px #6366f1;
+}
+
+.day-cell.selected {
+  border-color: var(--primary-color, #2563eb);
+  background: #eff6ff;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.25);
+}
+
+.day-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.day-number {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text-color, #1e293b);
+}
+
+.tx-count {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #475569;
+  background: #e2e8f0;
+  padding: 0.05rem 0.3rem;
+  border-radius: 999px;
+}
+
+.day-amounts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  margin-top: 0.2rem;
+}
+
+.amount-chip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.amount-chip.realized {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.amount-chip.realized.negative {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.amount-chip.pending {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.day-flags {
+  display: flex;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  margin-top: 0.15rem;
+}
+
+.flag-dot {
+  font-size: 0.62rem;
+  font-weight: 800;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.flag-dot.fine {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.flag-dot.refund {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.no-movement {
+  font-size: 0.75rem;
+  color: #cbd5e1;
+  align-self: center;
+  margin-bottom: 0.25rem;
+}

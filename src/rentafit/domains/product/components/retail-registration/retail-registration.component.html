@@ -128,6 +128,13 @@
     </rentafit-modal>
     }
 
+    @if (savedProduct(); as product) {
+    <rentafit-product-created-modal [product]="product" [code]="product.sku ?? ''"
+        [notes]="product.details ?? ''" actionLabel="Venda" (dismissed)="dismissCreatedSummary()"
+        (confirmed)="confirmCreatedSummary()" (action)="sellCreatedProduct()">
+    </rentafit-product-created-modal>
+    }
+
     @if (isCategoryModalOpen()) {
     <rentafit-category-modal productType="RETAIL" (closed)="closeCategoryModal()"
         (categorySelected)="onCategorySelected($event)">

@@ -38,6 +38,12 @@ describe('PrintSubcomponentStyleService', () => {
     expect(compiled).toContain('tr:has(> th[data-print-table-header="true"])');
   });
 
+  it('alinha células ao topo, como a folha do editor, para linhas com subitens não centralizarem', () => {
+    const compiled = service.compile('', service.scopeToken('template-42'));
+
+    expect(compiled).toContain('vertical-align: top;');
+  });
+
   it('rejects invalid css-facing values loaded from persisted style data', () => {
     const invalid = JSON.stringify({
       version: 1,

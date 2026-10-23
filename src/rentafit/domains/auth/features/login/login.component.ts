@@ -7,6 +7,7 @@ import { User } from '../../data/user.model';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { FirstUseFlowService } from '../../services/first-use-flow.service';
 import { resolveHomeRoute } from '../../utils/role-route.util';
+import { describeLoginFailure } from './login-feedback';
 
 @Component({
   selector: 'rentafit-login',
@@ -21,9 +22,13 @@ export class Login implements OnInit {
   
   username = '';
   password = '';
+  resendEmail = '';
   errorMessage = signal<string | null>(null);
+  warningMessage = signal<string | null>(null);
   isLoading = signal(false);
   readonly showPassword = signal(false);
+  readonly offerResendVerification = signal(false);
+  readonly resendStatus = signal<'idle' | 'sending' | 'sent'>('idle');
 
   constructor(
     private authService: AuthService,
@@ -48,15 +53,37 @@ export class Login implements OnInit {
 
     this.isLoading.set(true);
     this.errorMessage.set(null);
+    this.warningMessage.set(null);
 
     this.authService.login(this.username, this.password).subscribe({
       next: (user) => this.handleLoginSuccess(user),
-      error: (error) => {
-        this.isLoading.set(false);
-        this.errorMessage.set(error.message || 'Erro ao realizar login');
-        console.error('Erro no login:', error);
+      error: (error: unknown) => this.handleLoginFailure(error)
+    });
+  }
+
+  resendVerification(): void {
+    const email = this.resendEmail.trim();
+    if (!email) {
+      this.errorMessage.set('Informe o e-mail usado no cadastro para reenviar o link.');
+      return;
+    }
+    this.resendStatus.set('sending');
+    this.authService.resendVerification(email).subscribe({
+      next: () => this.resendStatus.set('sent'),
+      error: (error: Error) => {
+        this.resendStatus.set('idle');
+        this.errorMessage.set(error.message);
       }
     });
+  }
+
+  private handleLoginFailure(error: unknown): void {
+    this.isLoading.set(false);
+    const feedback = describeLoginFailure(error);
+    this.errorMessage.set(feedback.error);
+    this.warningMessage.set(feedback.warning);
+    this.offerResendVerification.set(feedback.offerResendVerification);
+    this.resendStatus.set('idle');
   }
 
   private handleLoginSuccess(user: User): void {

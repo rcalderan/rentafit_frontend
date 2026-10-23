@@ -1,0 +1,20 @@
+<div class="link-container">
+    <div class="link-card">
+        <h2>Desbloqueio de conta</h2>
+        @switch (state()) {
+        @case ('done') {
+        <div class="success-message" role="status">Conta desbloqueada. Você já pode entrar novamente.</div>
+        <p>Se não foi você quem errou a senha, troque-a assim que entrar.</p>
+        <a routerLink="/auth/login">Ir para o login</a>
+        }
+        @case ('error') {
+        <div class="error-message" role="alert">{{ errorMessage() }}</div>
+        <p>O bloqueio também expira sozinho em 30 minutos.</p>
+        <a routerLink="/auth/login">Ir para o login</a>
+        }
+        @default {
+        <p>Desbloqueando sua conta...</p>
+        }
+        }
+    </div>
+</div>

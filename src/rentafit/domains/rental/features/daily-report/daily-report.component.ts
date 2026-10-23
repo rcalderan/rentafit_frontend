@@ -3,6 +3,8 @@ import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DailyRentalReportService } from '../../service/daily-rental-report.service';
 import { IDailyRentalReport } from '../../data/daily-report.interface';
+import { Sector } from '../../../sector/data/sector.model';
+import { SectorService } from '../../../sector/service/sector.service';
 
 @Component({
   selector: 'rentafit-daily-report',
@@ -13,9 +15,13 @@ import { IDailyRentalReport } from '../../data/daily-report.interface';
 })
 export class DailyReportComponent implements OnInit {
   private readonly reportService = inject(DailyRentalReportService);
+  private readonly sectorService = inject(SectorService);
 
   protected readonly startDate = signal<string>(DailyReportComponent.today());
   protected readonly endDate = signal<string>(DailyReportComponent.today());
+  protected readonly sectors = signal<Sector[]>([]);
+  /** '' = todos os setores (inclui legados sem setor). */
+  protected readonly sectorId = signal<string>('');
   protected readonly report = signal<IDailyRentalReport | null>(null);
   protected readonly isLoading = signal(false);
   protected readonly errorMsg = signal<string | null>(null);
@@ -28,6 +34,10 @@ export class DailyReportComponent implements OnInit {
   });
 
   ngOnInit(): void {
+    this.sectorService.list(true).subscribe({
+      next: (list) => this.sectors.set(list),
+      error: () => this.sectors.set([]),
+    });
     this.generate();
   }
 
@@ -44,7 +54,7 @@ export class DailyReportComponent implements OnInit {
     }
     this.isLoading.set(true);
     this.errorMsg.set(null);
-    this.reportService.getByPeriod(start, end).subscribe({
+    this.reportService.getByPeriod(start, end, this.sectorId() || null).subscribe({
       next: (data) => {
         this.report.set(data);
         this.isLoading.set(false);

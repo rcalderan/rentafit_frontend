@@ -7,7 +7,8 @@ export interface ICustomer {
   name: string;
   document: string;
   isAuthenticated: boolean;
-  email: string;
+  /** Opcional para clientes cadastrados no balcão; obrigatório só no cadastro online. */
+  email?: string | null;
   notes: string;
   complement: string;  
   number: string;

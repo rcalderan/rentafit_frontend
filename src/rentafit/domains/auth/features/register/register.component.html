@@ -1,11 +1,27 @@
 <div class="register-container">
     <div class="register-card">
         <h2>Criar Conta</h2>
-        <p class="subtitle">Preencha seus dados para se cadastrar</p>
 
         @if (errorMessage()) {
         <div class="error-message">{{ errorMessage() }}</div>
         }
+
+        @if (registeredEmail(); as maskedEmail) {
+        <div class="verify-email-panel">
+            <h3>Confirme seu e-mail</h3>
+            <p>Enviamos um link de confirmação para <strong>{{ maskedEmail }}</strong>.</p>
+            <p>Abra o e-mail e clique no link para ativar sua conta e definir sua senha. O link vale por 24 horas.</p>
+            @if (resendStatus() === 'sent') {
+            <p class="resend-success">Novo link enviado.</p>
+            } @else {
+            <button type="button" class="btn-secondary" (click)="resendVerification()"
+                [disabled]="resendStatus() === 'sending'">
+                {{ resendStatus() === 'sending' ? 'Enviando...' : 'Reenviar e-mail' }}
+            </button>
+            }
+        </div>
+        } @else {
+        <p class="subtitle">Preencha seus dados para se cadastrar</p>
 
         <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
 
@@ -15,6 +31,17 @@
                 <input id="name" type="text" formControlName="name" placeholder="Seu nome completo">
                 @if (fieldError('name')) {
                 <span class="field-error">{{ fieldError('name') }}</span>
+                }
+            </div>
+
+            <!-- Username -->
+            <div class="form-group" [class.invalid]="fieldStatus('username') === 'INVALID'">
+                <label for="username">Usuário (login) *</label>
+                <input id="username" type="text" formControlName="username" placeholder="ex.: joao.silva"
+                    autocomplete="username" autocapitalize="none" spellcheck="false">
+                <span class="field-hint">3 a 30 caracteres: letras minúsculas, números, ".", "_" ou "-", começando com letra.</span>
+                @if (fieldError('username')) {
+                <span class="field-error">{{ fieldError('username') }}</span>
                 }
             </div>
 
@@ -127,6 +154,7 @@
             </button>
 
         </form>
+        }
 
         <p class="login-link">Já tem conta? <a routerLink="/auth/login">Entrar</a></p>
     </div>

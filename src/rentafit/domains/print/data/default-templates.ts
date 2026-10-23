@@ -152,7 +152,7 @@ export const DEFAULT_CANCELLATION_TEMPLATE: PrintTemplate = {
     Eu, <strong>{{cliente.nome}}</strong>, portador(a) do CPF <strong>{{cliente.documento}}</strong> e do RG <strong>{{cliente.rg}}</strong>, residente em {{cliente.endereco}} - {{cliente.cidade}}/{{cliente.uf}}, declaro por meio deste termo que estou <strong>DESISTINDO</strong> formally da locação do(s) seguinte(s) artigo(s):
   </p>
 
-  <table class="print-table" style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 20px 0; border: 1px solid #ccc;">
+  <table data-print-component="contract-items" class="print-table" style="width: 100%; border-collapse: collapse; font-size: 12px; margin: 20px 0; border: 1px solid #ccc;">
     <thead>
       <tr style="background: #f0f0f0;">
         <th style="padding: 6px 10px; border: 1px solid #ccc; text-align: left;">Código</th>

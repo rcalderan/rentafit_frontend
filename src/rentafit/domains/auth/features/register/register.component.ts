@@ -1,11 +1,12 @@
 import { Component, signal, inject, OnDestroy } from '@angular/core';
 import { FormArray, FormBuilder, FormControl, FormGroup, ReactiveFormsModule, Validators, AbstractControl, ValidationErrors } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { EMPTY, Subject } from 'rxjs';
 import { catchError, finalize, switchMap, takeUntil, tap } from 'rxjs/operators';
 import { AuthService } from '../../services/auth.service';
 import { AddressService } from '../../../customer/service/address.service';
 import { SignUpRequest } from '../../data/user.model';
+import { normalizeUsername, usernameValidator, USERNAME_MAX, USERNAME_MIN } from '../../validators/credential-rules';
 
 function cpfCnpjValidator(control: AbstractControl): ValidationErrors | null {
   const value = control.value?.replace(/[^\d]+/g, '');
@@ -53,7 +54,6 @@ export class RegisterComponent implements OnDestroy {
   private readonly fb = inject(FormBuilder);
   private readonly authService = inject(AuthService);
   private readonly addressService = inject(AddressService);
-  private readonly router = inject(Router);
 
   private readonly phonePattern = /^\(?\d{2}\)?\s?\d{4,5}-?\d{4}$/;
   private readonly maxPhones = 5;
@@ -63,9 +63,13 @@ export class RegisterComponent implements OnDestroy {
   isLoading = signal(false);
   isSearchingZip = signal(false);
   errorMessage = signal<string | null>(null);
+  /** E-mail mascarado devolvido pelo backend após o cadastro; exibe a tela "confirme seu e-mail". */
+  readonly registeredEmail = signal<string | null>(null);
+  readonly resendStatus = signal<'idle' | 'sending' | 'sent'>('idle');
 
   readonly form: FormGroup = this.fb.group({
     name: ['', [Validators.required, Validators.minLength(3), Validators.maxLength(255)]],
+    username: ['', [Validators.required, Validators.minLength(USERNAME_MIN), Validators.maxLength(USERNAME_MAX), usernameValidator]],
     email: ['', [Validators.required, Validators.email, Validators.maxLength(255)]],
     document: ['', [Validators.required, cpfCnpjValidator]],
     phones: this.fb.array([this.buildPhoneControl()]),
@@ -169,6 +173,7 @@ export class RegisterComponent implements OnDestroy {
     const v = this.form.getRawValue();
     const payload: SignUpRequest = {
       name: v.name,
+      username: normalizeUsername(v.username),
       email: v.email,
       document: v.document,
       phones: v.phones,
@@ -178,13 +183,24 @@ export class RegisterComponent implements OnDestroy {
     };
 
     this.authService.signUp(payload).subscribe({
-      next: () => {
+      next: (response) => {
         this.isLoading.set(false);
-        this.router.navigate(['/auth/setup-credentials']);
+        this.registeredEmail.set(response.maskedEmail);
       },
       error: (err: Error) => {
         this.isLoading.set(false);
         this.errorMessage.set(err.message || 'Erro ao criar conta.');
+      }
+    });
+  }
+
+  resendVerification(): void {
+    this.resendStatus.set('sending');
+    this.authService.resendVerification(this.form.getRawValue().email).subscribe({
+      next: () => this.resendStatus.set('sent'),
+      error: (err: Error) => {
+        this.resendStatus.set('idle');
+        this.errorMessage.set(err.message);
       }
     });
   }

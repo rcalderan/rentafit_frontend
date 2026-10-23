@@ -1,0 +1,132 @@
+<section class="section-card">
+  <span class="section-title">Setores de atendimento</span>
+  <p class="hint">
+    Setores separam onde a ação aconteceu (balcão, depósito, filial) dentro do mesmo
+    estabelecimento — cada terminal trabalha em um setor e o caixa é fechado por setor.
+  </p>
+
+  <div class="terminal-block">
+    <label for="terminal-sector">Setor deste terminal</label>
+    <div class="terminal-row">
+      <select id="terminal-sector" [formControl]="terminalSelect">
+        <option value="">— Não configurado —</option>
+        @for (s of sectors(); track s.id) {
+          @if (s.active) {
+            <option [value]="s.id">{{ s.name }} · {{ establishmentLabel(s.issuerCnpj) }}</option>
+          }
+        }
+      </select>
+      <button type="button" class="btn-update" (click)="assignTerminal()">Aplicar</button>
+    </div>
+    @if (terminalSector.sector(); as current) {
+      <p class="terminal-current">Este terminal está em <strong>{{ current.name }}</strong> ({{ current.code }}).</p>
+    } @else {
+      <p class="terminal-warn">
+        Sem setor configurado: criação de contratos/vendas e baixa de parcelas serão bloqueadas neste terminal.
+      </p>
+    }
+  </div>
+
+  @if (sectors().length) {
+    <table class="sector-table">
+      <thead>
+        <tr>
+          <th>Setor</th>
+          <th>Sigla</th>
+          <th>Estabelecimento</th>
+          <th>Status</th>
+          <th>Padrão</th>
+          @if (canManage) {
+            <th class="actions-col">Ações</th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (s of sectors(); track s.id) {
+          <tr [class.inactive]="!s.active">
+            @if (editingId() === s.id) {
+              <td><input type="text" [formControl]="editForm.controls.name" maxlength="100" /></td>
+              <td><input type="text" [formControl]="editForm.controls.code" maxlength="20" class="code-input" /></td>
+              <td>{{ establishmentLabel(s.issuerCnpj) }}</td>
+              <td>{{ s.active ? 'Ativo' : 'Inativo' }}</td>
+              <td>{{ s.isDefault ? 'Sim' : '—' }}</td>
+              <td class="actions-col">
+                <button type="button" class="btn-update" [disabled]="editForm.invalid || busy()"
+                        (click)="saveEdit(s)">Salvar</button>
+                <button type="button" class="btn-ghost" (click)="cancelEdit()">Cancelar</button>
+              </td>
+            } @else {
+              <td>{{ s.name }}</td>
+              <td><code>{{ s.code }}</code></td>
+              <td>{{ establishmentLabel(s.issuerCnpj) }}</td>
+              <td>{{ s.active ? 'Ativo' : 'Inativo' }}</td>
+              <td>{{ s.isDefault ? 'Sim' : '—' }}</td>
+              @if (canManage) {
+                <td class="actions-col">
+                  <button type="button" class="btn-ghost" (click)="startEdit(s)">Editar</button>
+                  <button type="button" class="btn-ghost" [disabled]="busy()" (click)="toggleActive(s)">
+                    {{ s.active ? 'Desativar' : 'Ativar' }}
+                  </button>
+                  @if (!s.isDefault) {
+                    <button type="button" class="btn-ghost" [disabled]="busy()" (click)="markDefault(s)">
+                      Tornar padrão
+                    </button>
+                  }
+                </td>
+              }
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else if (!busy()) {
+    <p class="hint">Nenhum setor cadastrado.</p>
+  }
+
+  @if (canManage) {
+    <form class="create-form" [formGroup]="createForm" (ngSubmit)="create()">
+      <span class="section-title">Novo setor</span>
+      <div class="form-grid">
+        <div class="field">
+          <label for="sector-issuer">Estabelecimento (Matriz/Filial)</label>
+          @if (establishments().length > 1) {
+            <select id="sector-issuer" [formControl]="createForm.controls.issuerCnpj">
+              <option value="">Selecione…</option>
+              @for (e of establishments(); track e.cnpj) {
+                <option [value]="e.cnpj">{{ e.label }}</option>
+              }
+            </select>
+          } @else {
+            <input
+              id="sector-issuer"
+              type="text"
+              [formControl]="createForm.controls.issuerCnpj"
+              placeholder="CNPJ (14 dígitos)"
+            />
+          }
+        </div>
+        <div class="field">
+          <label for="sector-name">Nome</label>
+          <input id="sector-name" type="text" [formControl]="createForm.controls.name"
+                 placeholder="Ex.: Balcão" maxlength="100" />
+        </div>
+        <div class="field">
+          <label for="sector-code">Sigla</label>
+          <input id="sector-code" type="text" [formControl]="createForm.controls.code"
+                 placeholder="Ex.: BALCAO" maxlength="20" />
+        </div>
+        <label class="check-field">
+          <input type="checkbox" [formControl]="createForm.controls.isDefault" />
+          Setor padrão do estabelecimento
+        </label>
+      </div>
+      <button type="submit" class="btn-update" [disabled]="createForm.invalid || busy()">
+        {{ busy() ? 'Salvando…' : 'Adicionar setor' }}
+      </button>
+    </form>
+  }
+
+  @if (feedback()) {
+    <p role="status" class="feedback">{{ feedback() }}</p>
+  }
+</section>

@@ -5,6 +5,7 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { routes } from './rentafit.routes';
 import { authInterceptor } from './domains/auth/interceptors/auth.interceptor';
 import { loadingInterceptor } from './shared/interceptors/loading.interceptor';
+import { terminalSectorInterceptor } from './domains/sector/interceptors/terminal-sector.interceptor';
 import { environment } from '../environments/environment';
 import { APP_CONFIG } from './shared/data/app-config.token';
 import { SilentLocationStrategy } from './shared/strategies/silent-location.strategy';
@@ -17,7 +18,7 @@ export const rentafitConfig: ApplicationConfig = {
     provideZoneChangeDetection({ eventCoalescing: true }),
     provideRouter(routes),
     provideHttpClient(
-      withInterceptors([authInterceptor, loadingInterceptor])
+      withInterceptors([authInterceptor, terminalSectorInterceptor, loadingInterceptor])
     ),
     { provide: APP_CONFIG, useValue: environment },
     { provide: FiscalDocumentService, useClass: FiscalDocumentHttpService },

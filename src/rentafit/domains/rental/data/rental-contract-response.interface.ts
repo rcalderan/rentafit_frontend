@@ -34,6 +34,8 @@ export interface IRentalContractSummaryResponse {
   returned: boolean;
   totalValue: number;
   paidValue: number;
+  /** Setor de origem do contrato (null em registros legados pré-V44). */
+  sectorId?: string | null;
   createdAt: string;
 }
 
@@ -53,6 +55,8 @@ export interface IItemReservationResponse {
   returnDate: string;
   status: string;
   statusDescription: string;
+  /** true = FINALIZED ainda não devolvido com evento passado ("Devolução Pendente"). */
+  pendingReturn?: boolean;
 }
 
 export interface IItemMetaResponse {
@@ -70,6 +74,10 @@ export interface IRentalContractItemResponse {
   value: number;
   isDelivered: boolean;
   attendantEmployeeId?: string;
+  /** Setor onde o item foi entregue/retirado. */
+  deliveredSectorId?: string | null;
+  /** Setor onde o item foi devolvido. */
+  returnedSectorId?: string | null;
   metadata: IItemMetaResponse[];
 }
 
@@ -82,6 +90,8 @@ export interface IRentalPaymentResponse {
   installments: number;
   processedByEmployeeId?: string;
   status: PaymentStatusApi;
+  /** Setor do caixa que recebeu a parcela (null em registros legados). */
+  sectorId?: string | null;
 }
 
 export interface IRentalContractResponse {
@@ -101,6 +111,10 @@ export interface IRentalContractResponse {
   customerDocument: string;
   createdByEmployeeId?: string;
   returnedByEmployeeId?: string;
+  /** Setor de origem do contrato (onde ocorre a retirada). */
+  sectorId?: string | null;
+  /** Setor onde a devolução foi processada. */
+  returnSectorId?: string | null;
   pickupDate: string;
   eventDate: string;
   returnDate: string;

@@ -10,7 +10,8 @@ import { PendingReturnsService } from '../../rental/features/return/service/pend
 import { Router } from '@angular/router';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 import { IRentalItem } from '../../product/data/Product.interface';
-import { IRentalContractSummaryResponse } from '../../rental/data/rental-contract-response.interface';
+import { IItemReservationResponse, IRentalContractSummaryResponse } from '../../rental/data/rental-contract-response.interface';
+import { ItemRentalLookupService } from '../../rental/service/item-rental-lookup.service';
 
 const buildRentalItem = (overrides: Partial<IRentalItem> = {}): IRentalItem => ({
   id: 'item-1',
@@ -30,6 +31,21 @@ const buildContractSummary = (): IRentalContractSummaryResponse => ({
   status: 'SIGNED',
 } as IRentalContractSummaryResponse);
 
+const buildReservation = (
+  overrides: Partial<IItemReservationResponse> = {}
+): IItemReservationResponse => ({
+  contractId: 'contract-1',
+  legacyId: '20260101-1',
+  customerId: 'customer-1',
+  customerName: 'Maria Silva',
+  eventDate: '2026-07-10',
+  pickupDate: '2026-07-08',
+  returnDate: '2026-07-12',
+  status: 'SIGNED',
+  statusDescription: 'Assinado',
+  ...overrides,
+});
+
 describe('HomeDashboard', () => {
   let rentalContractService: {
     getByLegacyId: ReturnType<typeof vi.fn>;
@@ -44,6 +60,9 @@ describe('HomeDashboard', () => {
   };
   let pendingReturnsService: {
     getPendingReturns: ReturnType<typeof vi.fn>;
+  };
+  let itemRentalLookupService: {
+    findActiveContractsByItemLegacyId: ReturnType<typeof vi.fn>;
   };
   let router: { navigate: ReturnType<typeof vi.fn> };
 
@@ -64,6 +83,9 @@ describe('HomeDashboard', () => {
     pendingReturnsService = {
       getPendingReturns: vi.fn().mockReturnValue(of([])),
     };
+    itemRentalLookupService = {
+      findActiveContractsByItemLegacyId: vi.fn(),
+    };
     router = { navigate: vi.fn() };
 
     await TestBed.configureTestingModule({
@@ -73,6 +95,7 @@ describe('HomeDashboard', () => {
         { provide: CustomerService, useValue: customerService },
         { provide: ProductService, useValue: productService },
         { provide: PendingReturnsService, useValue: pendingReturnsService },
+        { provide: ItemRentalLookupService, useValue: itemRentalLookupService },
         { provide: Router, useValue: router },
         { provide: APP_CONFIG, useValue: { apiBaseUrl: '' } },
       ],
@@ -199,6 +222,7 @@ describe('HomeDashboard', () => {
       );
 
       component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
       component.searchQuery.set('20260101-99');
       component.search();
 
@@ -212,10 +236,121 @@ describe('HomeDashboard', () => {
 
       const component = makeComponent();
       component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
       component.searchQuery.set('20260101-1');
       component.search();
 
       expect(router.navigate).toHaveBeenCalledWith(['/rental/new'], { queryParams: { id: contract.id } });
+    });
+
+    it('modo "Nº do contrato" não aciona a busca por roupa', () => {
+      rentalContractService.getByLegacyId.mockReturnValue(of(buildContractSummary()));
+
+      const component = makeComponent();
+      component.searchType.set('contract');
+      component.setContractSearchMode('contractNumber');
+      component.searchQuery.set('20260101-1');
+      component.search();
+
+      expect(itemRentalLookupService.findActiveContractsByItemLegacyId).not.toHaveBeenCalled();
+    });
+  });
+
+  // ── Busca por Contrato — código da roupa ─────────────────────────────────
+
+  describe('busca por Contrato — código da roupa', () => {
+    const searchByItemCode = (component: HomeDashboard, code = '42') => {
+      component.searchType.set('contract');
+      component.setContractSearchMode('itemCode');
+      component.searchQuery.set(code);
+      component.search();
+    };
+
+    it('"Código da roupa" é o modo default da aba Contrato', () => {
+      const component = makeComponent();
+      component.searchType.set('contract');
+
+      expect(component.contractSearchMode()).toBe('itemCode');
+      expect(component.searchPlaceholder()).toBe('Insira o codigo da roupa');
+
+      component.setContractSearchMode('contractNumber');
+      expect(component.searchPlaceholder()).toBe('Nº do contrato (legacyId)');
+    });
+
+    it('abre o modal com os contratos quando há locações ativas', () => {
+      const reservations = [buildReservation()];
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(of(reservations));
+
+      const component = makeComponent();
+      searchByItemCode(component);
+
+      expect(itemRentalLookupService.findActiveContractsByItemLegacyId).toHaveBeenCalledWith('42');
+      expect(component.itemRentals()).toEqual(reservations);
+      expect(component.itemRentalsApplied()).toBe(true);
+      expect(component.showItemRentalsModal()).toBe(true);
+      expect(component.appliedItemCode()).toBe('42');
+    });
+
+    it('não abre o modal quando a roupa não tem locação ativa', () => {
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(of([]));
+
+      const component = makeComponent();
+      searchByItemCode(component);
+
+      expect(component.showItemRentalsModal()).toBe(false);
+      expect(component.itemRentalsApplied()).toBe(true);
+      expect(component.itemRentals()).toEqual([]);
+      expect(component.searchError()).toBeNull();
+    });
+
+    it('exibe "Roupa não encontrada." quando a API retorna 404', () => {
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 404 }))
+      );
+
+      const component = makeComponent();
+      searchByItemCode(component, '99');
+
+      expect(component.searchError()).toBe('Roupa não encontrada.');
+      expect(component.showItemRentalsModal()).toBe(false);
+    });
+
+    it('exibe fallback genérico para erro que não é 404', () => {
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(
+        throwError(() => new HttpErrorResponse({ status: 500 }))
+      );
+
+      const component = makeComponent();
+      searchByItemCode(component);
+
+      expect(component.searchError()).toBe('Ocorreu um erro. Tente novamente.');
+    });
+
+    it('closeItemRentalsModal fecha o modal mantendo os resultados', () => {
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(
+        of([buildReservation()])
+      );
+
+      const component = makeComponent();
+      searchByItemCode(component);
+      component.closeItemRentalsModal();
+
+      expect(component.showItemRentalsModal()).toBe(false);
+      expect(component.itemRentals()).toHaveLength(1);
+    });
+
+    it('mudar de modo ou de aba limpa o estado da busca por roupa', () => {
+      itemRentalLookupService.findActiveContractsByItemLegacyId.mockReturnValue(
+        of([buildReservation()])
+      );
+
+      const component = makeComponent();
+      searchByItemCode(component);
+      component.setContractSearchMode('contractNumber');
+
+      expect(component.itemRentals()).toEqual([]);
+      expect(component.showItemRentalsModal()).toBe(false);
+      expect(component.itemRentalsApplied()).toBe(false);
     });
   });
 

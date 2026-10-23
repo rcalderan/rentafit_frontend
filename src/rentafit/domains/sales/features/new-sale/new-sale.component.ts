@@ -24,6 +24,7 @@ import { NfeEmissionComponent } from '../../../finance/features/nfe-emission/nfe
 import { IFiscalContext, IFiscalDocument } from '../../../finance/data/fiscal-document.types';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
+import { SALES_ORDER_FORM_TYPE } from '../../service/sale-item-draft';
 
 /** Métodos de pagamento e seus labels (reutilizados do rental) */
 const PAYMENT_METHOD_LABELS: Record<PaymentMethodApi, string> = {
@@ -50,7 +51,7 @@ export class NewSale implements OnInit, OnDestroy {
   private readonly productService = inject(ProductService);
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
-  private readonly formType = 'sales-order';
+  private readonly formType = SALES_ORDER_FORM_TYPE;
   private draftId = this.generateDraftId();
   private draftInterval: ReturnType<typeof setInterval> | null = null;
   private destroy$ = new Subject<void>();
@@ -341,6 +342,8 @@ export class NewSale implements OnInit, OnDestroy {
   }
 
   private persistDraft(): void {
+    // Pedido já persistido carrega via ?id= — não ressuscitar draft stale pelo intervalo.
+    if (this.order()?.id) return;
     this.formStorage.saveDraft(this.formType, this.draftId, this.createDraftSnapshot());
   }
 
@@ -444,8 +447,13 @@ export class NewSale implements OnInit, OnDestroy {
     this.selectedProduct = product;
   }
 
+  /** Produto sem registro de estoque equivale a zero disponível — mesmo fallback do backend. */
+  protected get selectedOutOfStock(): boolean {
+    return !!this.selectedProduct && (this.selectedProduct.stock?.quantityAvailable ?? 0) <= 0;
+  }
+
   protected confirmAddItem(): void {
-    if (!this.selectedProduct) return;
+    if (!this.selectedProduct || this.selectedOutOfStock) return;
 
     if (this.itemQuantity <= 0) {
       this.itemModalError = 'Quantidade deve ser maior que zero.';
@@ -657,8 +665,10 @@ export class NewSale implements OnInit, OnDestroy {
         next: (created) => {
           this.order.set(created);
           this.formStorage.clearDraft(this.formType, this.draftId);
+          // Mantém o draftId na URL: sem ele o TabService trata ?id= como nova aba
+          // e a mudança de draftId resetaria o estado via subscription de queryParams.
           this.router.navigate(['/sales/new'], {
-            queryParams: { id: created.id },
+            queryParams: { id: created.id, draftId: this.draftId },
           });
           this.showSuccess('Pedido criado: ' + created.legacyId);
         },
@@ -814,10 +824,6 @@ export class NewSale implements OnInit, OnDestroy {
 
   protected formatCurrency(value: number): string {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-  }
-
-  protected goBack(): void {
-    this.router.navigate(['/sales/management']);
   }
 
   private showSuccess(msg: string): void {

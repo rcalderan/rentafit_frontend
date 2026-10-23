@@ -9,6 +9,7 @@ export interface EmployeeConfirmedEvent {
   employeeId: string;
   employeeName: string;
   initials?: string;
+  role?: string;
   session?: StoredOperatorSession;
 }
 
@@ -37,6 +38,8 @@ export class EmployeeVerifyComponent implements AfterViewInit {
   @Input() mode: EmployeeVerifyMode = 'pin';
   /** Operador fixo nos modos 'pin'/'target'. */
   @Input() employee: EmployeePinOnly | null = null;
+  /** Roles permitidas ao validar iniciais + PIN (ex.: ['ADMIN', 'MANAGER']). */
+  @Input() allowedRoles: string[] = [];
 
   @Output() confirmed = new EventEmitter<EmployeeConfirmedEvent>();
   @Output() cancelled = new EventEmitter<void>();
@@ -120,6 +123,10 @@ export class EmployeeVerifyComponent implements AfterViewInit {
             this.error = 'Credenciais não pertencem ao usuário selecionado.';
             return;
           }
+          if (this.allowedRoles.length > 0 && (!employee.role || !this.allowedRoles.includes(employee.role))) {
+            this.error = 'Acesso permitido apenas para Gerente ou Administrador.';
+            return;
+          }
           this.emit(employee);
         },
         error: (err: unknown) => {
@@ -158,11 +165,12 @@ export class EmployeeVerifyComponent implements AfterViewInit {
       });
   }
 
-  private emit(employee: { id: string; name?: string; initials?: string }): void {
+  private emit(employee: { id: string; name?: string; initials?: string; role?: string }): void {
     this.confirmed.emit({
       employeeId: employee.id,
       employeeName: employee.name ?? '',
       initials: employee.initials,
+      role: employee.role,
     });
     this.reset();
   }

@@ -4,15 +4,19 @@ import { Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RentalContractService } from '../../rental/service/rental-contract.service';
-import { IRentalContractResponse, IRentalContractSummaryResponse } from '../../rental/data/rental-contract-response.interface';
+import { IItemReservationResponse, IRentalContractResponse, IRentalContractSummaryResponse } from '../../rental/data/rental-contract-response.interface';
+import { ItemRentalLookupService } from '../../rental/service/item-rental-lookup.service';
 import { ContractStatusApi } from '../../rental/data/rental-api.types';
 import { CustomerService, ICustomerPageResponse } from '../../customer/service/customer.service';
 import { ICustomer } from '../../customer/data/Customer.interface';
 import { ProductService } from '../../product/service/product.service';
 import { IRentalItem } from '../../product/data/Product.interface';
 import { PendingReturnsService, PendingReturnItem } from '../../rental/features/return/service/pending-returns.service';
+import { ItemRentalsModalComponent } from '../components/item-rentals-modal/item-rentals-modal.component';
+import { formatDateBr } from '../../../shared/utils/date-format';
 
 export type SearchType = 'contract' | 'customer' | 'product';
+export type ContractSearchMode = 'contractNumber' | 'itemCode';
 
 type SearchResult =
   | { type: 'contract'; data: IRentalContractResponse }
@@ -21,7 +25,7 @@ type SearchResult =
 @Component({
   selector: 'rentafit-home-dashboard',
   standalone: true,
-  imports: [CommonModule, RouterLink, FormsModule],
+  imports: [CommonModule, RouterLink, FormsModule, ItemRentalsModalComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })
@@ -30,6 +34,7 @@ export class HomeDashboard implements OnInit {
   private readonly customerService = inject(CustomerService);
   private readonly productService = inject(ProductService);
   private readonly pendingReturnsService = inject(PendingReturnsService);
+  private readonly itemRentalLookup = inject(ItemRentalLookupService);
   private readonly router = inject(Router);
 
   // ── Recent contracts ──────────────────────────────────────────────────────
@@ -55,11 +60,20 @@ export class HomeDashboard implements OnInit {
   readonly customerSearchTotalElements = signal(0);
   readonly customerSearchAppliedName = signal('');
 
+  // ── Contract search by item (locações ativas de uma roupa) ───────────────
+  readonly contractSearchMode = signal<ContractSearchMode>('itemCode');
+  readonly itemRentals = signal<IItemReservationResponse[]>([]);
+  readonly itemRentalsApplied = signal(false);
+  readonly showItemRentalsModal = signal(false);
+  readonly appliedItemCode = signal('');
+
   private readonly customerSearchPageSize = 10;
 
   readonly searchPlaceholder = computed(() => {
     switch (this.searchType()) {
-      case 'contract': return 'Nº do contrato (legacyId)';
+      case 'contract': return this.contractSearchMode() === 'itemCode'
+        ? 'Insira o codigo da roupa'
+        : 'Nº do contrato (legacyId)';
       case 'customer': return 'Nome, CPF ou CNPJ';
       case 'product':  return 'Código legado da roupa';
     }
@@ -70,6 +84,16 @@ export class HomeDashboard implements OnInit {
     this.searchQuery.set('');
     this.searchResult.set(null);
     this.clearCustomerSearchResults();
+    this.clearItemRentals();
+    this.contractSearchMode.set('itemCode');
+    this.searchError.set(null);
+  }
+
+  setContractSearchMode(mode: ContractSearchMode): void {
+    this.contractSearchMode.set(mode);
+    this.searchQuery.set('');
+    this.searchResult.set(null);
+    this.clearItemRentals();
     this.searchError.set(null);
   }
 
@@ -84,6 +108,10 @@ export class HomeDashboard implements OnInit {
 
     switch (this.searchType()) {
       case 'contract':
+        if (this.contractSearchMode() === 'itemCode') {
+          this.searchContractsByItemCode(q);
+          break;
+        }
         this.rentalContractService.getByLegacyId(q).subscribe({
           next: (data) => {
             this.handleSingleSearchResult({ type: 'contract', data });
@@ -112,6 +140,33 @@ export class HomeDashboard implements OnInit {
         });
         break;
     }
+  }
+
+  /** Busca contratos com locação ativa da roupa e abre o modal com a lista. */
+  private searchContractsByItemCode(itemCode: string): void {
+    this.appliedItemCode.set(itemCode);
+    this.itemRentalLookup.findActiveContractsByItemLegacyId(itemCode).subscribe({
+      next: (rentals) => {
+        this.itemRentals.set(rentals);
+        this.itemRentalsApplied.set(true);
+        this.showItemRentalsModal.set(rentals.length > 0);
+        this.isSearching.set(false);
+      },
+      error: (err: unknown) => {
+        this.searchError.set(this.resolveHttpError(err, 404, 'Roupa não encontrada.'));
+        this.isSearching.set(false);
+      },
+    });
+  }
+
+  private clearItemRentals(): void {
+    this.itemRentals.set([]);
+    this.itemRentalsApplied.set(false);
+    this.showItemRentalsModal.set(false);
+  }
+
+  closeItemRentalsModal(): void {
+    this.showItemRentalsModal.set(false);
   }
 
   searchCustomerNextPage(): void {
@@ -319,8 +374,6 @@ export class HomeDashboard implements OnInit {
   }
 
   formatDate(dateStr: string | undefined): string {
-    if (!dateStr) return '—';
-    const [y, m, d] = dateStr.split('-');
-    return `${d}/${m}/${y}`;
+    return formatDateBr(dateStr);
   }
 }

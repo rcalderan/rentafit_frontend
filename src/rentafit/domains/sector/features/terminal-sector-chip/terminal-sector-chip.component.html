@@ -1,0 +1,38 @@
+<button
+  type="button"
+  class="sector-chip"
+  [class.missing]="!terminalSector.sector()"
+  (click)="toggle()"
+  [attr.aria-expanded]="pickerOpen()"
+  aria-label="Setor do terminal"
+  [title]="
+    terminalSector.sector()
+      ? 'Ações deste terminal saem no setor ' + terminalSector.sector()!.name
+      : 'Terminal sem setor — clique para configurar'
+  "
+>
+  <i class="sector-icon" aria-hidden="true">◈</i>
+  <span class="sector-chip-label">{{ terminalSector.sector()?.name ?? 'Sem setor' }}</span>
+  <span class="sector-caret" aria-hidden="true">{{ pickerOpen() ? '▴' : '▾' }}</span>
+</button>
+
+@if (pickerOpen()) {
+  <div class="sector-menu" role="menu" aria-label="Setores disponíveis">
+    <div class="sector-menu-title">Setor deste terminal</div>
+    @for (s of availableSectors(); track s.id) {
+      <button
+        type="button"
+        class="sector-item"
+        role="menuitem"
+        [class.active]="s.id === terminalSector.sectorId()"
+        (click)="pick(s)"
+      >
+        <span>{{ s.name }}</span>
+        <span class="sector-item-code">{{ s.code }}</span>
+      </button>
+    }
+    @if (availableSectors().length === 0) {
+      <p class="sector-empty">Nenhum setor ativo. Cadastre em Admin → Sistema.</p>
+    }
+  </div>
+}

@@ -9,6 +9,21 @@
             <button [class.active]="searchType() === 'product'"  (click)="setSearchType('product')">Roupa</button>
         </div>
 
+        @if (searchType() === 'contract') {
+            <div class="contract-search-modes" role="group" aria-label="Tipo de busca de contrato">
+                <button type="button"
+                        [class.active]="contractSearchMode() === 'contractNumber'"
+                        (click)="setContractSearchMode('contractNumber')">
+                    Nº do contrato
+                </button>
+                <button type="button"
+                        [class.active]="contractSearchMode() === 'itemCode'"
+                        (click)="setContractSearchMode('itemCode')">
+                    Código da roupa
+                </button>
+            </div>
+        }
+
         <div class="search-input-row">
             <input type="text"
                    [placeholder]="searchPlaceholder()"
@@ -76,6 +91,15 @@
             </div>
         } @else if (searchType() === 'customer' && !isSearching() && !searchError() && customerSearchTotalElements() === 0 && customerSearchAppliedName() !== '') {
             <div class="empty-state">Nenhum cliente encontrado.</div>
+        }
+
+        @if (searchType() === 'contract'
+             && contractSearchMode() === 'itemCode'
+             && itemRentalsApplied()
+             && !isSearching()
+             && !searchError()
+             && itemRentals().length === 0) {
+            <div class="empty-state">Nenhuma locação ativa para esta roupa.</div>
         }
 
         @if (searchResult(); as r) {
@@ -228,4 +252,11 @@
         }
 
     </div>
+
+    @if (showItemRentalsModal()) {
+        <rentafit-item-rentals-modal
+            [rentals]="itemRentals()"
+            [itemLabel]="appliedItemCode()"
+            (closed)="closeItemRentalsModal()" />
+    }
 </div>

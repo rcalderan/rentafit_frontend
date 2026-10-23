@@ -1,0 +1,251 @@
+:host {
+  display: block;
+}
+
+.day-detail-card {
+  background: var(--card-bg, #ffffff);
+  border-radius: var(--border-radius, 12px);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-md, 0 2px 8px rgba(0, 0, 0, 0.08));
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.day-detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 0.75rem;
+}
+
+.day-subtitle {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text-muted, #64748b);
+}
+
+.day-title {
+  margin: 0.15rem 0 0;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--text-color, #1e293b);
+}
+
+.day-Quick-totals {
+  display: flex;
+  gap: 0.65rem;
+}
+
+.quick-pill {
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  font-size: 0.75rem;
+}
+
+.quick-pill.realized {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.quick-pill.realized.negative {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.quick-pill.pending {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.quick-pill strong {
+  font-size: 0.98rem;
+}
+
+.adjustments-banner {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.adj-badge {
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 0.25rem 0.6rem;
+  border-radius: 6px;
+}
+
+.adj-badge.fine {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.adj-badge.refund {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.subsection-title {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--text-muted, #64748b);
+  font-weight: 700;
+}
+
+.methods-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 0.5rem;
+}
+
+.method-box {
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.method-box.active {
+  background: #ffffff;
+  border-color: #cbd5e1;
+}
+
+.method-name {
+  font-size: 0.75rem;
+  color: #475569;
+  font-weight: 600;
+}
+
+.method-realized {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #15803d;
+}
+
+.method-realized.negative {
+  color: #b91c1c;
+}
+
+.method-pending {
+  font-size: 0.7rem;
+  color: #0369a1;
+  font-weight: 600;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.tx-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.tx-table th {
+  text-align: left;
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+  color: #64748b;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+}
+
+.tx-table td {
+  padding: 0.55rem 0.5rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tx-row {
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+
+.tx-row:hover {
+  background: #f8fafc;
+}
+
+.tx-row.refund-row {
+  background: #fff5f5;
+}
+
+.source-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 4px;
+}
+
+.source-badge.rental {
+  background: #ede9fe;
+  color: #5b21b6;
+}
+
+.source-badge.sale {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.code-cell {
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.status-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
+
+.status-pill[data-status='PAID'] {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.status-pill[data-status='PENDING'] {
+  background: #e0f2fe;
+  color: #075985;
+}
+
+.status-pill[data-status='MULTA'] {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-pill[data-status='REFUNDED'] {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.value-cell {
+  font-weight: 700;
+  color: #15803d;
+}
+
+.value-cell.negative {
+  color: #b91c1c;
+}
+
+.empty-state {
+  margin: 0.5rem 0;
+  color: #64748b;
+  font-size: 0.88rem;
+}

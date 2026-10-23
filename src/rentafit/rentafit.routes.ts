@@ -13,6 +13,14 @@ export const routes: Routes = [
         loadComponent: () => import('./domains/auth/features/register/register.component').then(m => m.RegisterComponent)
     },
     {
+        path: 'auth/verify-email',
+        loadComponent: () => import('./domains/auth/features/account-link/verify-email.component').then(m => m.VerifyEmailComponent)
+    },
+    {
+        path: 'auth/unlock',
+        loadComponent: () => import('./domains/auth/features/account-link/unlock.component').then(m => m.UnlockComponent)
+    },
+    {
         path: 'auth/setup-credentials',
         loadComponent: () => import('./domains/auth/features/setup-credentials/setup-credentials.component').then(m => m.SetupCredentialsComponent)
     },
@@ -86,6 +94,12 @@ export const routes: Routes = [
                 loadComponent: () => import('./domains/rental/features/management/management').then(m => m.Management),
                 canActivate: [roleGuard],
                 data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Gestão de Locações' }
+            },
+            {
+                path: 'rental/return',
+                loadComponent: () => import('./domains/rental/features/return/return.component').then(m => m.ReturnComponent),
+                canActivate: [roleGuard],
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Devolução', tabGroup: 'rental' }
             },
             {
                 path: 'rental/return/:contractId',

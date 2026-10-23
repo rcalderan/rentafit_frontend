@@ -1,4 +1,5 @@
 import { RentalDraftSnapshot } from '../../data/rental-draft-snapshot';
+import { RENTAL_CONTRACT_FORM_TYPE } from '../../service/rental-item-draft';
 import { copyUnsavedRentalProposal } from '../../service/rental-proposal-copy';
 import {
   AfterViewInit,
@@ -90,10 +91,11 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     [PaymentStatus.PAID]: 'Pago',
     [PaymentStatus.CANCELLED]: 'Cancelado',
     [PaymentStatus.MULTA]: 'Multa',
+    [PaymentStatus.REFUNDED]: 'Reembolsado',
   };
-  // CANCELLED is set only via chargeBack; MULTA remains unavailable until its workflow is implemented.
+  // CANCELLED/REFUNDED são definidos pela desistência; MULTA por fechamento com atraso.
   paymentStatusKeys = Object.values(PaymentStatus).filter(
-    (v) => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA,
+    (v) => typeof v === 'number' && v !== PaymentStatus.CANCELLED && v !== PaymentStatus.MULTA && v !== PaymentStatus.REFUNDED,
   ) as PaymentStatus[];
 
   // ── Services ──
@@ -111,7 +113,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private readonly formStorage = inject(SessionFormStorageService);
   private readonly tabService = inject(TabService);
   private readonly route = inject(ActivatedRoute);
-  private readonly formType = 'rental-contract';
+  private readonly formType = RENTAL_CONTRACT_FORM_TYPE;
   private draftId = this.generateDraftId();
 
   // ── Autosave ──
@@ -137,6 +139,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
     [PaymentStatus.PAID]: 'PAID',
     [PaymentStatus.CANCELLED]: 'CANCELLED',
     [PaymentStatus.MULTA]: 'MULTA',
+    [PaymentStatus.REFUNDED]: 'REFUNDED',
   };
 
   // ── Backend contract state ──
@@ -706,6 +709,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
             status: 1,
             tipo: 1,
           };
+          // O código gravado no item é o do produto; o texto digitado pode ser só um termo de busca.
+          this.itemModalCode = item.legacyId ?? code;
           this.itemModalName = item.name;
           this.itemModalMeta = [
             item.size ? `TAM: ${item.size}` : null,
@@ -1322,7 +1327,6 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
 
     saveContract$.pipe(finalize(this.refreshView(() => (this.isSaving = false)))).subscribe({
       next: (response) => {
-        this.contract.situacao = ContractStatus.DRAFT;
         this.mapResponseToContract(response);
         this.formStorage.clearDraft(this.formType, this.draftId);
       },
@@ -1425,9 +1429,8 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
   private createPrintItems(): NonNullable<InterpolationContext['itensContrato']> {
     return this.contract.itens.map((item) => ({
       codigo: item.codigo,
-      descricao: [item.descricao, ...item.sub.map((meta) => meta.descricao)]
-        .filter(Boolean)
-        .join(', '),
+      descricao: item.descricao,
+      subitens: item.sub.map((meta) => meta.descricao).filter(Boolean),
       valor: item.valor,
     }));
   }
@@ -1710,6 +1713,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       3: ContractStatus.REVISION,
       4: ContractStatus.SUPERSEDED,
       5: ContractStatus.CLOSED,
+      6: ContractStatus.CANCELLED,
     };
 
     const METHOD_FROM_API: Record<PaymentMethodApi, PaymentMethod> = {
@@ -1725,6 +1729,7 @@ export class NewRental implements OnInit, AfterViewInit, OnDestroy {
       PAID: PaymentStatus.PAID,
       CANCELLED: PaymentStatus.CANCELLED,
       MULTA: PaymentStatus.MULTA,
+      REFUNDED: PaymentStatus.REFUNDED,
     };
 
     if (this.selectedCustomerDetails?.id !== response.customerId) {

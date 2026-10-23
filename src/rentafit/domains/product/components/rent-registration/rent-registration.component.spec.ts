@@ -14,6 +14,8 @@ import { TabService } from '../../../../shared/services/tab.service';
 describe('Registration', () => {
   let productService: { saveRentalItem: ReturnType<typeof vi.fn>; getRentalItemByLegacyId: ReturnType<typeof vi.fn> };
   let router: { navigate: ReturnType<typeof vi.fn> };
+  let formStorage: { saveDraft: ReturnType<typeof vi.fn>; loadDraft: ReturnType<typeof vi.fn>; clearDraft: ReturnType<typeof vi.fn> };
+  let tabService: { closeActiveIf: ReturnType<typeof vi.fn>; getTabId: ReturnType<typeof vi.fn>; updateTitle: ReturnType<typeof vi.fn>; open: ReturnType<typeof vi.fn> };
 
   const buildValidForm = (component: Registration) => {
     component.form.patchValue({
@@ -36,6 +38,8 @@ describe('Registration', () => {
       getRentalItemByLegacyId: vi.fn()
     };
     router = { navigate: vi.fn() };
+    formStorage = { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() };
+    tabService = { closeActiveIf: vi.fn(), getTabId: vi.fn(), updateTitle: vi.fn(), open: vi.fn() };
 
     await TestBed.configureTestingModule({
       imports: [Registration],
@@ -44,8 +48,8 @@ describe('Registration', () => {
         { provide: CategoryService, useValue: { getByType: vi.fn().mockReturnValue(of([])) } },
         { provide: Router, useValue: router },
         { provide: ActivatedRoute, useValue: { snapshot: { queryParams: {} }, queryParams: emptyQueryParams } },
-        { provide: SessionFormStorageService, useValue: { saveDraft: vi.fn(), loadDraft: vi.fn().mockReturnValue(null), clearDraft: vi.fn() } },
-        { provide: TabService, useValue: { closeActiveIf: vi.fn(), getTabId: vi.fn(), updateTitle: vi.fn() } }
+        { provide: SessionFormStorageService, useValue: formStorage },
+        { provide: TabService, useValue: tabService }
       ]
     }).compileComponents();
   });
@@ -268,7 +272,7 @@ describe('Registration', () => {
     expect(productService.saveRentalItem).not.toHaveBeenCalled();
   });
 
-  it('exibe mensagem de sucesso apos salvar produto', () => {
+  it('exibe modal de resumo apos salvar produto, sem fechar a aba', () => {
     const saved: IRentalItem = {
       id: 'p-1', legacyId: 'L-1001', name: 'Terno Azul', status: 'AVAILABLE',
       value: 120, categoryName: 'Vestidos', size: 'M', color: 'Azul',
@@ -283,7 +287,73 @@ describe('Registration', () => {
     buildValidForm(component);
     component.save();
 
-    expect(component.successMessage()).toBe('Produto salvo com sucesso!');
+    expect(component.savedProduct()).toEqual(saved);
+    expect(tabService.closeActiveIf).not.toHaveBeenCalled();
+
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('rentafit-product-created-modal')).not.toBeNull();
+  });
+
+  it('X do modal de resumo fecha o modal e mantem a aba', () => {
+    const fixture = TestBed.createComponent(Registration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set({ id: 'p-1' } as IRentalItem);
+    component.dismissCreatedSummary();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(tabService.closeActiveIf).not.toHaveBeenCalled();
+  });
+
+  it('OK do modal de resumo fecha o modal e a aba', () => {
+    const fixture = TestBed.createComponent(Registration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set({ id: 'p-1' } as IRentalItem);
+    component.confirmCreatedSummary();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(tabService.closeActiveIf).toHaveBeenCalledWith('/product/registration');
+  });
+
+  it('Locacao do modal abre Nova Locação com o produto como item do rascunho', () => {
+    const saved: IRentalItem = {
+      id: 'uuid-1', legacyId: '5583', name: 'Costume turco', status: 'AVAILABLE',
+      value: 6000, categoryName: 'Rigor', size: '48', color: 'PRETO',
+      brand: 'TURCO', description: 'Desc', notes: 'Notas', condition: 'NEW'
+    };
+
+    const fixture = TestBed.createComponent(Registration);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    component.savedProduct.set(saved);
+    component.rentCreatedProduct();
+
+    expect(component.savedProduct()).toBeNull();
+    expect(formStorage.saveDraft).toHaveBeenCalledWith(
+      'rental-contract',
+      expect.any(String),
+      expect.objectContaining({
+        contractLoaded: true,
+        itemRentalIds: [['5583', 'uuid-1']],
+        contract: expect.objectContaining({
+          itens: [
+            expect.objectContaining({
+              codigo: '5583',
+              descricao: 'Costume turco',
+              valor: 6000,
+              entregue: false,
+              sub: [{ tipo: 'observacao', descricao: 'TAM: 48 | COR: PRETO' }],
+            }),
+          ],
+        }),
+      })
+    );
+    const draftId = formStorage.saveDraft.mock.calls.find((c: unknown[]) => c[0] === 'rental-contract')?.[1];
+    expect(tabService.open).toHaveBeenCalledWith('/rental/new', 'Nova Locação', 'rental', draftId);
   });
 
   it('stores validation errors from 400 responses', () => {

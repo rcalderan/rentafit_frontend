@@ -1,0 +1,125 @@
+:host {
+  position: relative;
+  display: inline-block;
+}
+
+.sector-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--input-bg);
+  border: var(--surface-border);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.sector-chip:hover {
+  background: var(--control-hover-bg);
+}
+
+.sector-icon {
+  font-style: normal;
+  color: var(--primary-color);
+}
+
+.sector-chip.missing {
+  border-style: dashed;
+  color: var(--text-muted);
+}
+
+.sector-chip.missing .sector-icon,
+.sector-caret,
+.sector-item-code,
+.sector-empty {
+  color: var(--text-muted);
+}
+
+.sector-caret,
+.sector-item-code {
+  font-size: 0.68rem;
+}
+
+.sector-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  min-width: 220px;
+  background: var(--card-bg);
+  border: var(--surface-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+  padding: 0.4rem;
+}
+
+.sector-menu-title {
+  padding: 0.4rem 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.sector-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.82rem;
+  color: var(--text-color);
+  cursor: pointer;
+  text-align: left;
+}
+
+.sector-item:hover,
+.sector-item.active {
+  background: var(--input-bg);
+}
+
+.sector-item.active {
+  font-weight: 700;
+  color: var(--primary-color);
+}
+
+.sector-empty {
+  margin: 0.4rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+:host-context([data-ui='legacy']) .sector-chip {
+  padding: 0 0.4rem;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--ui-font);
+  font-size: 0.78rem;
+}
+:host-context([data-ui='legacy']) .sector-chip:hover {
+  background: #316ac5;
+  color: #ffffff;
+}
+:host-context([data-ui='legacy']) .sector-chip:hover .sector-icon,
+:host-context([data-ui='legacy']) .sector-chip:hover .sector-caret,
+:host-context([data-ui='legacy']) .sector-chip.missing .sector-icon {
+  color: inherit;
+}
+:host-context([data-ui='legacy']) .sector-menu {
+  left: auto;
+  right: 0;
+  transform: none;
+  border-radius: 0;
+  border: 1px solid var(--control-border-color);
+  box-shadow: 2px 2px 4px #00000055;
+  background: #f0f0f0;
+}

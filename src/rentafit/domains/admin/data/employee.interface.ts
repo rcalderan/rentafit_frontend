@@ -8,13 +8,14 @@
   legacyId?: number;
 }
 
+export type AttendantRole = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
+
 export interface IEmployeeCheckResponse {
   id: string;
   initials?: string;
   name?: string;
+  role?: AttendantRole | string;
 }
-
-export type AttendantRole = 'EMPLOYEE' | 'MANAGER' | 'ADMIN';
 
 export interface IActiveAttendant {
   id: string;

@@ -8,6 +8,8 @@ import { Router, ActivatedRoute } from '@angular/router';
 import { APP_CONFIG } from '../../../../shared/data/app-config.token';
 import { User, UserRole } from '../../data/user.model';
 import { resolveHomeRoute } from '../../utils/role-route.util';
+import { LoginFailure } from '../../data/login-failure';
+import { LAST_ATTEMPT_WARNING } from './login-feedback';
 
 const buildUser = (overrides: Partial<User> = {}): User => ({
   id: 'u-1',
@@ -21,6 +23,7 @@ const buildUser = (overrides: Partial<User> = {}): User => ({
 
 const makeAuthService = (isAuth = false, user: User | null = null) => ({
   login: vi.fn(),
+  resendVerification: vi.fn().mockReturnValue(of(undefined)),
   isAuthenticated: vi.fn().mockReturnValue(isAuth),
   getCurrentUser: vi.fn().mockReturnValue(user ?? buildUser()),
 });
@@ -213,5 +216,44 @@ describe('Login', () => {
 
     expect(component.errorMessage()).toBe('Credenciais inválidas');
     expect(component.isLoading()).toBe(false);
+  });
+
+  it('na 4ª senha errada exibe aviso de bloqueio iminente', async () => {
+    const { fixture, component, authService } = await setupTestBed();
+    authService.login.mockReturnValue(throwError(() => new LoginFailure('INVALID_CREDENTIALS', 'x', 1)));
+    fixture.detectChanges();
+
+    component.username = 'joao.silva';
+    component.password = 'errada';
+    component.login();
+    fixture.detectChanges();
+
+    expect(component.warningMessage()).toBe(LAST_ATTEMPT_WARNING);
+    expect(fixture.nativeElement.querySelector('.warning-message')?.textContent).toContain('bloqueará');
+  });
+
+  it('e-mail não verificado oferece reenvio e chama o serviço', async () => {
+    const { fixture, component, authService } = await setupTestBed();
+    authService.login.mockReturnValue(throwError(() => new LoginFailure('EMAIL_NOT_VERIFIED', 'x')));
+    fixture.detectChanges();
+
+    component.username = 'joao.silva';
+    component.password = 'qualquer';
+    component.login();
+    component.resendEmail = ' ana@ex.com ';
+    component.resendVerification();
+
+    expect(component.offerResendVerification()).toBe(true);
+    expect(authService.resendVerification).toHaveBeenCalledWith('ana@ex.com');
+    expect(component.resendStatus()).toBe('sent');
+  });
+
+  it('reenvio sem e-mail exibe erro e não chama o serviço', async () => {
+    const { component, authService } = await setupTestBed();
+
+    component.resendVerification();
+
+    expect(authService.resendVerification).not.toHaveBeenCalled();
+    expect(component.errorMessage()).toContain('e-mail');
   });
 });

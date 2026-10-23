@@ -1,0 +1,21 @@
+<section class="charts-grid" aria-label="Gráficos de movimentação financeira">
+  <div class="chart-card">
+    <h3 class="chart-title">
+      @if (viewMode() === 'MONTHLY') {
+        Evolução Diária no Mês (Aluguel vs Venda vs Previsto)
+      } @else {
+        Evolução Mensal no Ano (Jan a Dez)
+      }
+    </h3>
+    <div class="canvas-wrapper">
+      <canvas #barCanvas aria-label="Gráfico de barras de evolução financeira"></canvas>
+    </div>
+  </div>
+
+  <div class="chart-card">
+    <h3 class="chart-title">Distribuição por Forma de Pagamento</h3>
+    <div class="canvas-wrapper">
+      <canvas #doughnutCanvas aria-label="Gráfico de rosca por forma de pagamento"></canvas>
+    </div>
+  </div>
+</section>

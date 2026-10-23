@@ -90,15 +90,16 @@ class FakeRentalContractService {
   readonly saveRequests: unknown[] = [];
   readonly reservationCalls: Array<{ rentalItemId: string; excludeContractId?: string }> = [];
   itemReservations: IItemReservationResponse[] = [];
+  nextResponse: IRentalContractResponse | null = null;
 
   create(request: unknown): Observable<IRentalContractResponse> {
     this.saveRequests.push(request);
-    return EMPTY;
+    return this.nextResponse ? of(this.nextResponse) : EMPTY;
   }
 
   update(_contractId: string, request: unknown): Observable<IRentalContractResponse> {
     this.saveRequests.push(request);
-    return EMPTY;
+    return this.nextResponse ? of(this.nextResponse) : EMPTY;
   }
 
   sign(
@@ -368,7 +369,7 @@ describe('NewRental item attendant', () => {
         valor: 150,
         entregue: false,
         attendantEmployeeId: '',
-        sub: [],
+        sub: [{ tipo: 'observacao', descricao: 'PROVAR COM SAPATO' }],
       },
     ];
     component.contract.pagamentos = [
@@ -391,7 +392,7 @@ describe('NewRental item attendant', () => {
     expect(component.contractPrintData()?.cliente?.nome).toBe('Cliente de teste');
     expect(component.contractPrintData()?.contrato?.numero).toBe('20260929-1');
     expect(component.contractPrintData()?.itensContrato).toEqual([
-      { codigo: '10', descricao: 'Terno', valor: 150 },
+      { codigo: '10', descricao: 'Terno', subitens: ['PROVAR COM SAPATO'], valor: 150 },
     ]);
     component.closeContractPrintPreview();
     expect(component.showContractPrintModal()).toBe(false);
@@ -467,6 +468,56 @@ describe('NewRental item attendant', () => {
     expect(operatorService.authorize).toHaveBeenCalledWith(
       expect.objectContaining({ requirePin: true }),
     );
+  });
+
+  it('mantém situacao REVISION ao salvar alteração de contrato', async () => {
+    component.contractId = 'revision-contract';
+    component.contract.situacao = ContractStatus.REVISION;
+    component.customerUuid = 'customer-1';
+    component.contract.pagamentos = [
+      {
+        parcela: 1,
+        data: '2026-09-29',
+        forma: PaymentMethod.CASH,
+        valor: 150,
+        vezes: 1,
+        status: PaymentStatus.PENDING,
+      },
+    ];
+    component.contract.itens = [
+      {
+        codigo: '10',
+        descricao: 'Terno',
+        valor: 150,
+        entregue: false,
+        attendantEmployeeId: 'employee-1',
+        sub: [],
+      },
+    ];
+    rentalContractService.nextResponse = {
+      id: 'revision-contract',
+      status: 3,
+      statusDescription: 'Revisão',
+      isReturned: false,
+      contractType: 0,
+      customerId: 'customer-1',
+      customerName: 'Cliente de teste',
+      customerDocument: '00000000000',
+      pickupDate: '2026-09-29',
+      eventDate: '2026-10-01',
+      returnDate: '2026-10-02',
+      totalValue: 150,
+      paidValue: 0,
+      remainingValue: 150,
+      items: [],
+      payments: [],
+      createdAt: '2026-09-29T00:00:00Z',
+    };
+
+    component.salvarProposta();
+    await vi.waitFor(() => expect(rentalContractService.saveRequests).toHaveLength(1));
+
+    expect(component.contract.situacao).toBe(ContractStatus.REVISION);
   });
 
   it('não adiciona novo item sem atendente', () => {
@@ -590,6 +641,19 @@ describe('NewRental item attendant', () => {
     expect(component.showReservationsModal).toBe(true);
     expect(component.itemReservations).toHaveLength(1);
     expect(component.itemReservations[0].customerName).toBe('Ana Lima');
+  });
+
+  it('grava o código legacy do produto encontrado, não o termo digitado na busca', () => {
+    productService.getRentalItemByLegacyId.mockReturnValue(of(rentalItemResult));
+
+    component.openItemModal();
+    component.itemModalCode = '1';
+    component.searchItemByCode();
+    component.itemModalEmployee = 'manager-1';
+    component.confirmAddItem();
+
+    expect(component.contract.itens[0].codigo).toBe('001');
+    expect((component as any).itemRentalIds.get('001')).toBe('item-uuid-1');
   });
 
   it('não abre o modal de reservas quando o item não tem reservas', () => {

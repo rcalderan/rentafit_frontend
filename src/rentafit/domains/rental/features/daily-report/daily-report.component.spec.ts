@@ -3,6 +3,7 @@ import { of, throwError } from 'rxjs';
 import { vi } from 'vitest';
 import { DailyReportComponent } from './daily-report.component';
 import { DailyRentalReportService } from '../../service/daily-rental-report.service';
+import { SectorService } from '../../../sector/service/sector.service';
 import { IDailyRentalReport } from '../../data/daily-report.interface';
 
 const buildReport = (overrides: Partial<IDailyRentalReport> = {}): IDailyRentalReport => ({
@@ -45,7 +46,10 @@ describe('DailyReportComponent', () => {
 
     TestBed.configureTestingModule({
       imports: [DailyReportComponent],
-      providers: [{ provide: DailyRentalReportService, useValue: service }],
+      providers: [
+        { provide: DailyRentalReportService, useValue: service },
+        { provide: SectorService, useValue: { list: () => of([]) } },
+      ],
     });
 
     await TestBed.compileComponents();

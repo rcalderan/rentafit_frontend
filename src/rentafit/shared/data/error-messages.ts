@@ -7,6 +7,8 @@ export enum ErrorMessages {
   NOT_FOUND = 'Registro não encontrado.',
   TIMEOUT = 'A requisição expirou. Tente novamente.',
   SERVER_ERROR = 'Erro interno no servidor. Tente novamente mais tarde.',
+  PAYLOAD_TOO_LARGE = 'Arquivo ou requisição maior que o permitido.',
+  RATE_LIMITED = 'Muitas requisições deste dispositivo. Aguarde alguns instantes e tente novamente.',
   UNKNOWN_ERROR = 'Ocorreu um erro inesperado.',
   
   // Mensagens específicas (opcional, ou manter genéricas)
@@ -22,5 +24,7 @@ export const HTTP_ERROR_MAP: Record<number, string> = {
   400: ErrorMessages.INVALID_FORMAT,
   404: ErrorMessages.NOT_FOUND,
   408: ErrorMessages.TIMEOUT,
+  413: ErrorMessages.PAYLOAD_TOO_LARGE,
+  429: ErrorMessages.RATE_LIMITED,
   500: ErrorMessages.SERVER_ERROR
 };

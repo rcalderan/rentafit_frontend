@@ -1,65 +1,261 @@
-<div class="dashboard-container">
-    <h1>Painel Financeiro</h1>
+@if (!isUnlocked()) {
+  <div class="finance-locked-shell">
+    <rentafit-employee-verify
+      title="Acesso ao Financeiro (Sigla + PIN)"
+      mode="target"
+      [employee]="null"
+      [allowedRoles]="allowedRoles"
+      (confirmed)="onAccessConfirmed($event)"
+      (cancelled)="onAccessCancelled()"
+    />
+  </div>
+} @else {
+  @let totals = activeTotals();
+  <div class="dashboard-container">
+    <header class="finance-topbar">
+      <div class="title-block">
+        <h1>Movimentação Financeira</h1>
+        @if (authorizedOperator(); as op) {
+          <span class="operator-pill" title="Autorizado por Sigla e PIN">
+            <strong>{{ op.initials }}</strong> · {{ op.name }}
+          </span>
+        }
+      </div>
 
-    <!-- Financial KPIs -->
-    <div class="summary-grid">
-        <div class="summary-card income">
-            <span class="summary-label">Receita (Mês)</span>
-            <span class="summary-value">R$ 12.450,00</span>
-        </div>
-        <div class="summary-card expense">
-            <span class="summary-label">Despesas (Mês)</span>
-            <span class="summary-value">R$ 4.200,00</span>
-        </div>
-        <div class="summary-card profit">
-            <span class="summary-label">Saldo</span>
-            <span class="summary-value">R$ 8.250,00</span>
-        </div>
-    </div>
-
-    <div class="dashboard-grid">
-        <!-- Recent Transactions -->
-        <div class="section-card transactions">
-            <span class="section-title">Últimos Lançamentos</span>
-            <div class="table-responsive">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>Data</th>
-                            <th>Descrição</th>
-                            <th>Valor</th>
-                            <th>Tipo</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>29/12/2023</td>
-                            <td>LOCAÇÃO Nº 2024-001</td>
-                            <td>R$ 450,00</td>
-                            <td><span class="type-badge type-income">C</span></td>
-                        </tr>
-                        <tr>
-                            <td>28/12/2023</td>
-                            <td>CONSERTO DE TRAJE</td>
-                            <td>R$ 80,00</td>
-                            <td><span class="type-badge type-expense">D</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+      <div class="toolbar-controls">
+        <div class="segmented-group" role="group" aria-label="Modo de visão">
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="viewMode() === 'MONTHLY'"
+            (click)="setViewMode('MONTHLY')"
+          >
+            Mensal / Diário
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="viewMode() === 'YEARLY'"
+            (click)="setViewMode('YEARLY')"
+          >
+            Anual (Jan–Dez)
+          </button>
         </div>
 
-        <!-- Cash Flow Mockup -->
-        <div class="section-card chart-card">
-            <span class="section-title">Fluxo de Caixa (mockup)</span>
-            <div class="chart-mockup">
-                <div class="bar" style="height: 40%"></div>
-                <div class="bar" style="height: 60%"></div>
-                <div class="bar" style="height: 35%"></div>
-                <div class="bar" style="height: 80%"></div>
-                <div class="bar" style="height: 50%"></div>
-                <div class="bar" style="height: 90%"></div>
-            </div>
+        <div class="period-navigator">
+          <button
+            type="button"
+            class="nav-arrow"
+            (click)="navigatePeriod(-1)"
+            aria-label="Período anterior"
+          >
+            ‹
+          </button>
+          <span class="period-label">{{ periodLabel() }}</span>
+          <button
+            type="button"
+            class="nav-arrow"
+            (click)="navigatePeriod(1)"
+            aria-label="Próximo período"
+          >
+            ›
+          </button>
         </div>
-    </div>
-</div>
+
+        <div class="segmented-group" role="group" aria-label="Filtro de origem">
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="sourceFilter() === 'ALL'"
+            (click)="setSourceFilter('ALL')"
+          >
+            Todos
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="sourceFilter() === 'RENTAL'"
+            (click)="setSourceFilter('RENTAL')"
+          >
+            Aluguéis
+          </button>
+          <button
+            type="button"
+            class="seg-btn"
+            [class.active]="sourceFilter() === 'SALE'"
+            (click)="setSourceFilter('SALE')"
+          >
+            Vendas
+          </button>
+        </div>
+
+        @if (sectors().length) {
+          <div class="sector-filter" role="group" aria-label="Filtro por setor">
+            <label for="finance-sector">Setor</label>
+            <select
+              id="finance-sector"
+              [value]="sectorFilter()"
+              (change)="setSectorFilter($any($event.target).value)"
+            >
+              <option value="">Todos os setores</option>
+              @for (s of sectors(); track s.id) {
+                <option [value]="s.id" [selected]="sectorFilter() === s.id">{{ s.name }}</option>
+              }
+            </select>
+          </div>
+        }
+      </div>
+    </header>
+
+    @if (errorMessage(); as err) {
+      <div class="error-banner" role="alert">
+        <span>{{ err }}</span>
+        <button type="button" class="retry-btn" (click)="reload()">Tentar novamente</button>
+      </div>
+    }
+
+    <!-- KPIs do Período -->
+    <section class="summary-grid" aria-label="Indicadores do período">
+      <div class="summary-card realized" [class.negative]="totals.netRealizedTotal < 0">
+        <span class="summary-label">Caixa Líquido Realizado</span>
+        <span class="summary-value">{{ totals.netRealizedTotal | currency: 'BRL' }}</span>
+        <span class="summary-sub">
+          Aluguéis: {{ totals.rentalNetTotal | currency: 'BRL' }} · Vendas:
+          {{ totals.saleNetTotal | currency: 'BRL' }}
+        </span>
+      </div>
+
+      <div class="summary-card pending">
+        <span class="summary-label">Previsto a Receber (Pendente)</span>
+        <span class="summary-value">{{ totals.pendingTotal | currency: 'BRL' }}</span>
+        <span class="summary-sub">Parcelas agendadas no período</span>
+      </div>
+
+      <div class="summary-card adjustments">
+        <span class="summary-label">Multas & Estornos</span>
+        <div class="adj-values">
+          <span class="fine-val" title="Multas por atraso ou rescisão">
+            +{{ totals.fineTotal | currency: 'BRL' }}
+          </span>
+          <span class="refund-val" title="Estornos / reembolsos de desistência">
+            -{{ totals.refundedTotal | currency: 'BRL' }}
+          </span>
+        </div>
+        <span class="summary-sub">Bruto pago: {{ totals.paidTotal | currency: 'BRL' }}</span>
+      </div>
+
+      <div class="summary-card projected">
+        <span class="summary-label">Total Projetado (Líquido + Previsto)</span>
+        <span class="summary-value">{{ totals.projectedTotal | currency: 'BRL' }}</span>
+        <span class="summary-sub">Previsão de fechamento do período</span>
+      </div>
+    </section>
+
+    @if (activeBySector().length) {
+      <section class="sector-breakdown" aria-label="Fechamento por setor">
+        <h2 class="section-title">Caixa por Setor</h2>
+        <table class="sector-table">
+          <thead>
+            <tr>
+              <th>Setor</th>
+              <th class="num">Lanç.</th>
+              <th class="num">Pago</th>
+              <th class="num">Multas</th>
+              <th class="num">Estornos</th>
+              <th class="num">Líquido Realizado</th>
+              <th class="num">Previsto</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (s of activeBySector(); track s.sectorId ?? 'legacy') {
+              <tr>
+                <td>
+                  <strong>{{ s.sectorName ?? 'Sem setor (legado)' }}</strong>
+                  @if (s.sectorCode) {
+                    <span class="sector-code">{{ s.sectorCode }}</span>
+                  }
+                </td>
+                <td class="num">{{ s.transactionCount }}</td>
+                <td class="num">{{ s.paidAmount | currency: 'BRL' }}</td>
+                <td class="num">{{ s.fineAmount | currency: 'BRL' }}</td>
+                <td class="num">{{ s.refundedAmount | currency: 'BRL' }}</td>
+                <td class="num" [class.negative]="s.netRealizedAmount < 0">
+                  <strong>{{ s.netRealizedAmount | currency: 'BRL' }}</strong>
+                </td>
+                <td class="num">{{ s.pendingAmount | currency: 'BRL' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </section>
+    }
+
+    @if (isLoading()) {
+      <div class="loading-box">Carregando movimentação financeira…</div>
+    } @else if (viewMode() === 'MONTHLY') {
+      <div class="monthly-workspace">
+        <rentafit-finance-calendar
+          [year]="selectedYear()"
+          [month]="selectedMonth()"
+          [days]="monthlyData()?.days ?? []"
+          [selectedDate]="selectedDate()"
+          [todayDate]="todayIso"
+          (daySelected)="onDaySelected($event)"
+        />
+
+        <rentafit-finance-day-detail
+          [selectedDate]="selectedDate()"
+          [summary]="selectedDaySummary()"
+          [transactions]="selectedDayTransactions()"
+          (transactionSelected)="openTransaction($event)"
+        />
+      </div>
+    } @else {
+      <section class="yearly-months-card" aria-label="Resumo mensal do ano">
+        <h2 class="section-title">Meses de {{ selectedYear() }} (Clique para abrir o calendário)</h2>
+        <div class="months-grid">
+          @for (bucket of yearlyData()?.months ?? []; track bucket.month) {
+            <button
+              type="button"
+              class="month-bucket-btn"
+              [class.has-data]="bucket.transactionCount > 0"
+              (click)="openMonthFromYearly(bucket)"
+            >
+              <div class="month-bucket-top">
+                <strong>{{ monthName(bucket.month) }}</strong>
+                <span class="bucket-count">{{ bucket.transactionCount }} lanç.</span>
+              </div>
+              <div class="month-bucket-row">
+                <span>Realizado Líq.:</span>
+                <strong class="realized-text" [class.negative]="bucket.netRealizedAmount < 0">
+                  {{ bucket.netRealizedAmount | currency: 'BRL' }}
+                </strong>
+              </div>
+              <div class="month-bucket-row">
+                <span>Previsto:</span>
+                <strong class="pending-text">{{ bucket.pendingAmount | currency: 'BRL' }}</strong>
+              </div>
+              @if (bucket.fineAmount > 0 || bucket.refundedAmount > 0) {
+                <div class="month-bucket-flags">
+                  @if (bucket.fineAmount > 0) {
+                    <span class="mini-flag fine">Multa: +{{ bucket.fineAmount | currency: 'BRL' }}</span>
+                  }
+                  @if (bucket.refundedAmount > 0) {
+                    <span class="mini-flag refund">Estorno: -{{ bucket.refundedAmount | currency: 'BRL' }}</span>
+                  }
+                </div>
+              }
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <rentafit-finance-charts
+      [viewMode]="viewMode()"
+      [days]="monthlyData()?.days ?? []"
+      [months]="yearlyData()?.months ?? []"
+      [byPaymentMethod]="activeByPaymentMethod()"
+    />
+  </div>
+}

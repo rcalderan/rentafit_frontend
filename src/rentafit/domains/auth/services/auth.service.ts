@@ -4,7 +4,8 @@ import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { CryptoService } from './crypto.service';
-import { User, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest } from '../data/user.model';
+import { User, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest, SignUpResponse } from '../data/user.model';
+import { LoginFailure } from '../data/login-failure';
 import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 
@@ -58,8 +59,18 @@ export class AuthService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('AuthService error:', error);
-    const errorMessage = HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
+    // Regras de username/senha/PIN chegam como erro de campo (400) ou regra de negócio (422):
+    // a mensagem do backend é mais útil que a genérica do status.
+    const fieldMessage: string | undefined = error.error?.errors?.[0]?.message;
+    const errorMessage = fieldMessage || (error.status === 422 ? error.error?.message : undefined)
+      || HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
     return throwError(() => new Error(errorMessage));
+  }
+
+  private handleLoginError(error: unknown): Observable<never> {
+    if (!(error instanceof HttpErrorResponse)) return throwError(() => error);
+    const fallback = HTTP_ERROR_MAP[error.status] || ErrorMessages.UNKNOWN_ERROR;
+    return throwError(() => LoginFailure.fromHttp(error, fallback));
   }
 
   /**
@@ -73,12 +84,12 @@ export class AuthService {
       password: password
     };
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, loginRequest).pipe(
+      catchError(error => this.handleLoginError(error)),
       tap(response => this.storeTokens(response)),
       switchMap(() => this.fetchUserProfile(() => {
         sessionStorage.removeItem('rentafit.terminalOperators');
         this.terminalLoginSubject.next();
-      })),
-      catchError(this.handleError.bind(this))
+      }))
     );
   }
 
@@ -353,14 +364,44 @@ export class AuthService {
   }
 
   /**
-   * Public self-registration: creates Customer + UserAccount (CUSTOMER role) and returns tokens.
-   * The backend returns tokens for auto-login; the frontend routes to /auth/setup-credentials.
+   * Public self-registration: creates Customer + UserAccount (CUSTOMER role) pending e-mail confirmation.
+   * No session is created here — the user logs in by confirming the e-mail link (/auth/verify-email).
    * Usage: `authService.signUp(payload)`
    */
-  signUp(payload: SignUpRequest): Observable<User> {
-    return this.http.post<LoginResponse>(`${this.config.apiBaseUrl}/api/v1/customers/signup`, payload).pipe(
+  signUp(payload: SignUpRequest): Observable<SignUpResponse> {
+    return this.http.post<SignUpResponse>(`${this.config.apiBaseUrl}/api/v1/customers/signup`, payload).pipe(
+      catchError(this.handleError.bind(this))
+    );
+  }
+
+  /**
+   * Confirms the e-mail from the activation link and starts the session (next step: setup-credentials).
+   * Usage: `authService.verifyEmail(tokenFromQueryParam)`
+   */
+  verifyEmail(token: string): Observable<User> {
+    return this.http.post<LoginResponse>(`${this.apiUrl}/verify-email`, { token }).pipe(
+      catchError(this.handleError.bind(this)),
       tap(response => this.storeTokens(response)),
-      switchMap(() => this.fetchUserProfile()),
+      switchMap(() => this.fetchUserProfile())
+    );
+  }
+
+  /**
+   * Requests a new activation e-mail. The backend answers 202 whether or not the e-mail exists.
+   * Usage: `authService.resendVerification('ana@ex.com')`
+   */
+  resendVerification(email: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/resend-verification`, { email }).pipe(
+      catchError(this.handleError.bind(this))
+    );
+  }
+
+  /**
+   * Unlocks an account locked by failed logins, using the link sent by e-mail.
+   * Usage: `authService.unlockAccount(tokenFromQueryParam)`
+   */
+  unlockAccount(token: string): Observable<void> {
+    return this.http.post<void>(`${this.apiUrl}/unlock`, { token }).pipe(
       catchError(this.handleError.bind(this))
     );
   }

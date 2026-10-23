@@ -302,6 +302,34 @@ describe('RegistrationComponent', () => {
     expect(component.form.disabled).toBe(true);
   });
 
+  it('e-mail é opcional no balcão: salva sem e-mail enviando null', () => {
+    customerService.saveCustomer.mockReturnValue(of(buildSavedCustomer({ email: null })));
+
+    const fixture = TestBed.createComponent(RegistrationComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    buildValidForm(component);
+    component.form.patchValue({ email: '' });
+    expect(component.form.get('email')?.valid).toBe(true);
+
+    component.save();
+
+    expect(customerService.saveCustomer).toHaveBeenCalledWith(expect.objectContaining({ email: null }));
+  });
+
+  it('e-mail informado com formato inválido continua bloqueando o salvamento', () => {
+    const fixture = TestBed.createComponent(RegistrationComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    buildValidForm(component);
+    component.form.patchValue({ email: 'nao-e-email' });
+    component.save();
+
+    expect(customerService.saveCustomer).not.toHaveBeenCalled();
+  });
+
   it('exibe mensagem de sucesso e carrega cliente salvo após criar', () => {
     const saved = buildSavedCustomer();
     customerService.saveCustomer.mockReturnValue(of(saved));
