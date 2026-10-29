@@ -8,6 +8,7 @@ import { CustomerService } from '../../service/customer.service';
 import { AddressService } from '../../service/address.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
 import { HttpErrorResponse } from '@angular/common/http';
+import { apiErrorMessages } from '../../../../shared/utils/api-error';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
 
@@ -446,18 +447,21 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     }
   }
 
-  private handleError(error: any) {
+  private handleError(error: unknown) {
     if (error instanceof HttpErrorResponse) {
-      if (error.status === 400) {
-        this.errorMessage.set(
-          error.error
-            ? error.error.errors?.map((err: any) => err.message || err)
-            : 'Erros de validação ocorreram. Verifique os dados informados.');
+      if (error.status === 400 && !error.error) {
+        this.errorMessage.set('Erros de validação ocorreram. Verifique os dados informados.');
         return;
       }
+      this.errorMessage.set(apiErrorMessages(error, 'Ocorreu um erro ao salvar os dados do cliente.'));
+      return;
     }
     console.error('Erro ao salvar cliente:', error);
-    this.errorMessage.set('Ocorreu um erro ao salvar os dados do cliente.');
+    this.errorMessage.set(
+      error instanceof Error && error.message.trim()
+        ? error.message
+        : 'Ocorreu um erro ao salvar os dados do cliente.'
+    );
   }
 
   clearError() {

@@ -11,6 +11,7 @@ import { buildSaleDraftWithItem, SALES_ORDER_FORM_TYPE } from '../../../sales/se
 import { IRetailItem, ICategory } from '../../data/Product.interface';
 import { ProductService } from '../../service/product.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { apiErrorMessages } from '../../../../shared/utils/api-error';
 import { SessionFormStorageService } from '../../../../shared/services/session-form-storage.service';
 import { TabService } from '../../../../shared/services/tab.service';
 
@@ -267,16 +268,25 @@ export class RetailRegistration implements OnInit, OnDestroy {
 
     private handleError(error: unknown): void {
         if (error instanceof HttpErrorResponse) {
-            if (error.status === 400) {
-                this.errorMessage.set(
-                    error.error
-                        ? error.error.errors?.map((err: any) => err.message || err)
-                        : 'Erros de validação ocorreram. Verifique os dados informados.'
-                );
+            if (error.status === 400 && !error.error) {
+                this.errorMessage.set('Erros de validação ocorreram. Verifique os dados informados.');
                 return;
             }
+            this.errorMessage.set(
+                apiErrorMessages(
+                    error,
+                    error.status === 400
+                        ? 'Erros de validação ocorreram. Verifique os dados informados.'
+                        : 'Ocorreu um erro ao salvar os dados do produto de varejo.'
+                )
+            );
+            return;
         }
         console.error('Erro ao salvar produto de varejo:', error);
-        this.errorMessage.set('Ocorreu um erro ao salvar os dados do produto de varejo.');
+        this.errorMessage.set(
+            error instanceof Error && error.message.trim()
+                ? error.message
+                : 'Ocorreu um erro ao salvar os dados do produto de varejo.'
+        );
     }
 }

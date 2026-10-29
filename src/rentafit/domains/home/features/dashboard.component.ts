@@ -13,6 +13,7 @@ import { ProductService } from '../../product/service/product.service';
 import { IRentalItem } from '../../product/data/Product.interface';
 import { PendingReturnsService, PendingReturnItem } from '../../rental/features/return/service/pending-returns.service';
 import { ItemRentalsModalComponent } from '../components/item-rentals-modal/item-rentals-modal.component';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { formatDateBr } from '../../../shared/utils/date-format';
 
 export type SearchType = 'contract' | 'customer' | 'product';
@@ -368,7 +369,7 @@ export class HomeDashboard implements OnInit {
   ): string {
     if (err instanceof HttpErrorResponse) {
       if (notFoundStatus !== null && err.status === notFoundStatus) return notFoundMsg;
-      return fallbackMsg;
+      return apiErrorMessage(err, fallbackMsg);
     }
     return fallbackMsg;
   }

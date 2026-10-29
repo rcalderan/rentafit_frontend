@@ -7,6 +7,7 @@ import { CryptoService } from './crypto.service';
 import { User, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest, SignUpResponse } from '../data/user.model';
 import { LoginFailure } from '../data/login-failure';
 import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 
 /** Snapshot da sessão de um usuário autenticado no terminal (multi-operador). */
@@ -59,12 +60,7 @@ export class AuthService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('AuthService error:', error);
-    // Regras de username/senha/PIN chegam como erro de campo (400) ou regra de negócio (422):
-    // a mensagem do backend é mais útil que a genérica do status.
-    const fieldMessage: string | undefined = error.error?.errors?.[0]?.message;
-    const errorMessage = fieldMessage || (error.status === 422 ? error.error?.message : undefined)
-      || HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
-    return throwError(() => new Error(errorMessage));
+    return throwError(() => new Error(apiErrorMessage(error)));
   }
 
   private handleLoginError(error: unknown): Observable<never> {
@@ -162,7 +158,7 @@ export class AuthService {
     const message = error instanceof HttpErrorResponse
       ? (error.status === 401 || error.status === 403
         ? 'Credenciais inválidas ou usuário não habilitado para operar.'
-        : HTTP_ERROR_MAP[error.status] ?? ErrorMessages.UNKNOWN_ERROR)
+        : apiErrorMessage(error))
       : error instanceof Error ? error.message : ErrorMessages.UNKNOWN_ERROR;
     return throwError(() => new Error(message));
   }

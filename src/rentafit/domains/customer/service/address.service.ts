@@ -3,7 +3,8 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError, map, timeout } from 'rxjs/operators';
 import { IAddress, AddressResponse } from '../data/address.model';
-import { HTTP_ERROR_MAP, ErrorMessages } from '../../../shared/data/error-messages';
+import { ErrorMessages } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 
 /**
@@ -84,11 +85,9 @@ export class AddressService {
     let errorMessage = 'Erro ao buscar endereço';
 
     if (error instanceof HttpErrorResponse) {
-      errorMessage = HTTP_ERROR_MAP[error.status] || error.message || ErrorMessages.UNKNOWN_ERROR;
-
-      // Especialização para CEP se for 400 ou 404
       if (error.status === 400) errorMessage = ErrorMessages.ZIP_CODE_INVALID;
-      if (error.status === 404) errorMessage = ErrorMessages.ZIP_CODE_NOT_FOUND;
+      else if (error.status === 404) errorMessage = ErrorMessages.ZIP_CODE_NOT_FOUND;
+      else errorMessage = apiErrorMessage(error);
 
       console.error('Erro HTTP:', {
         status: error.status,

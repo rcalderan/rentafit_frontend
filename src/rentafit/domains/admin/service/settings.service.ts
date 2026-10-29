@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError, map } from 'rxjs/operators';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
-import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 
 export interface ISettingEntry {
   key: string;
@@ -46,7 +46,6 @@ export class SettingsService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('SettingsService error:', error);
-    const msg = HTTP_ERROR_MAP[error.status] ?? error.error?.message ?? ErrorMessages.UNKNOWN_ERROR;
-    return throwError(() => new Error(msg));
+    return throwError(() => new Error(apiErrorMessage(error)));
   }
 }

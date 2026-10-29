@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { ICustomer } from '../data/Customer.interface';
 import { catchError, map, switchMap } from 'rxjs/operators';
 import { Observable, throwError } from 'rxjs';
-import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 
 export interface ICustomerPageResponse {
@@ -33,8 +33,7 @@ export class CustomerService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('CustomerService error:', error);
-    const errorMessage = HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
-    return throwError(() => new Error(errorMessage));
+    return throwError(() => new Error(apiErrorMessage(error)));
   }
 
   public getCustomerById(customerId: string): Observable<ICustomer> {

@@ -4,7 +4,7 @@ import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 import { IUserSummary, IUpdateRoleRequest, IPagedResponse } from '../data/user-admin.model';
-import { HTTP_ERROR_MAP, ErrorMessages } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 
 @Injectable({ providedIn: 'root' })
 export class UserAdminService {
@@ -26,7 +26,6 @@ export class UserAdminService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    const msg = HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
-    return throwError(() => new Error(msg));
+    return throwError(() => new Error(apiErrorMessage(error)));
   }
 }
