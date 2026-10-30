@@ -4,7 +4,8 @@ import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, Subject, throwError } from 'rxjs';
 import { catchError, map, switchMap, tap } from 'rxjs/operators';
 import { CryptoService } from './crypto.service';
-import { User, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest, SignUpResponse } from '../data/user.model';
+import { User, UserPreferencesPatch, UserRole, LoginRequest, LoginResponse, RefreshTokenRequest, SignUpRequest, SignUpResponse } from '../data/user.model';
+import { isUiVariant } from '../../../shared/data/ui-variant.model';
 import { LoginFailure } from '../data/login-failure';
 import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
 import { apiErrorMessage } from '../../../shared/utils/api-error';
@@ -150,6 +151,8 @@ export class AuthService {
       id: profile.id, username: profile.username, email: profile.email, name: profile.name,
       legacyId: profile.legacyId, pinConfigured: profile.pinConfigured, role, active: profile.active,
       passwordExpired: profile.passwordExpired ?? false, issuerCnpj: profile.issuerCnpj,
+      uiVariant: isUiVariant(profile.uiVariant) ? profile.uiVariant : undefined,
+      sidebarVisible: typeof profile.sidebarVisible === 'boolean' ? profile.sidebarVisible : undefined,
       createdAt: profile.createdAt,
     };
   }
@@ -452,6 +455,30 @@ export class AuthService {
           this.currentUserSubject.next(user);
           localStorage.setItem('currentUser', JSON.stringify(user));
         }
+      }),
+      catchError(this.handleError.bind(this))
+    );
+  }
+
+  /**
+   * Persiste preferências de interface do usuário autenticado (variante de UI e visibilidade da sidebar).
+   * Usage: `authService.updatePreferences({ uiVariant: 'atelier', sidebarVisible: false })`
+   */
+  updatePreferences(preferences: UserPreferencesPatch): Observable<User> {
+    return this.http.put<UserProfilePayload>(`${this.apiUrl}/me/preferences`, preferences).pipe(
+      map(response => {
+        const mapped = this.mapUserProfile(response);
+        const current = this.currentUserSubject.value;
+        const merged: User = current
+          ? {
+              ...current,
+              uiVariant: mapped.uiVariant ?? preferences.uiVariant ?? current.uiVariant,
+              sidebarVisible: mapped.sidebarVisible ?? preferences.sidebarVisible ?? current.sidebarVisible,
+            }
+          : mapped;
+        this.currentUserSubject.next(merged);
+        localStorage.setItem('currentUser', JSON.stringify(merged));
+        return merged;
       }),
       catchError(this.handleError.bind(this))
     );

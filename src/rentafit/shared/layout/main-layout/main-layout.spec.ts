@@ -16,6 +16,13 @@ class MockUiVariantService {
 }
 
 class MockAuthService {
+  currentUserSubject = new Subject<any>();
+  currentUser$ = this.currentUserSubject.asObservable();
+  currentUser: any = null;
+  updatePreferences = vi.fn().mockReturnValue(of({}));
+  getCurrentUser() {
+    return this.currentUser;
+  }
   hasRole() {
     return true;
   }
@@ -199,5 +206,19 @@ describe('MainLayout', () => {
 
     expect(tabService.open).toHaveBeenCalledWith('/customer/registration', 'Clientes', 'customer');
     expect(component['isCustomerSubmenuOpen']()).toBe(false);
+  });
+
+  it('persists desktop sidebar visibility locally and to authenticated user preferences', () => {
+    localStorage.clear();
+    fixture.detectChanges();
+    const authService = TestBed.inject(AuthService) as unknown as MockAuthService;
+    authService.currentUser = { id: 'u1', username: 'admin' };
+
+    expect(component['isSidebarVisible']()).toBe(true);
+    (component as any).toggleSidebar();
+
+    expect(component['isSidebarVisible']()).toBe(false);
+    expect(localStorage.getItem('rentafit.ui.sidebarVisible.v1')).toBe('false');
+    expect(authService.updatePreferences).toHaveBeenCalledWith({ sidebarVisible: false });
   });
 });

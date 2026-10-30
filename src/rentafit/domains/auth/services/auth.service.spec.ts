@@ -202,4 +202,30 @@ describe('AuthService terminal login', () => {
     expect(isOperationalUser({ id: '1', username: 'u', role: UserRole.ADMIN, active: false })).toBe(false);
     expect(isOperationalUser({ id: '1', username: 'u', role: UserRole.CUSTOMER, active: true })).toBe(false);
   });
+
+  it('atualiza preferências de interface do usuário autenticado e persiste na sessão', async () => {
+    keepCurrentSession();
+    const result = lastValueFrom(auth.updatePreferences({ uiVariant: 'atelier', sidebarVisible: false }));
+    const request = http.expectOne('/api/auth/me/preferences');
+    expect(request.request.method).toBe('PUT');
+    expect(request.request.body).toEqual({ uiVariant: 'atelier', sidebarVisible: false });
+    request.flush({
+      id: 'admin-1',
+      username: 'admin',
+      roles: ['ADMIN'],
+      active: true,
+      uiVariant: 'atelier',
+      sidebarVisible: false,
+    });
+
+    await expect(result).resolves.toMatchObject({
+      id: 'admin-1',
+      uiVariant: 'atelier',
+      sidebarVisible: false,
+    });
+    expect(auth.getCurrentUser()).toMatchObject({
+      uiVariant: 'atelier',
+      sidebarVisible: false,
+    });
+  });
 });
