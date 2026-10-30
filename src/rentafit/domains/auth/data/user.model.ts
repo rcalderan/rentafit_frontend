@@ -1,3 +1,5 @@
+import { UiVariant } from '../../../shared/data/ui-variant.model';
+
 export enum UserRole {
   ADMIN = 'ADMIN',
   MANAGER = 'MANAGER',
@@ -24,7 +26,14 @@ export interface User {
   active: boolean;
   passwordExpired?: boolean;
   issuerCnpj?: string;
+  uiVariant?: UiVariant;
+  sidebarVisible?: boolean;
   createdAt?: string;
+}
+
+export interface UserPreferencesPatch {
+  uiVariant?: UiVariant;
+  sidebarVisible?: boolean;
 }
 
 export interface LoginRequest {

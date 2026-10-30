@@ -20,6 +20,7 @@ import {
   EmployeeVerifyComponent,
 } from '../../../domains/rental/features/employee-verify/employee-verify.component';
 import { UiVariantService } from '../../services/ui-variant.service';
+import { UiPreferenceStorage } from '../../services/ui-preference-storage';
 import { TabService } from '../../services/tab.service';
 import { TabGroup } from '../../data/tab.model';
 import { TerminalSectorChipComponent } from '../../../domains/sector/features/terminal-sector-chip/terminal-sector-chip.component';
@@ -45,10 +46,13 @@ export class MainLayout {
   protected readonly operatorService = inject(TerminalOperatorService);
   protected readonly terminalSector = inject(TerminalSectorService);
   protected readonly uiVariant = inject(UiVariantService);
+  private readonly uiPreferenceStorage = inject(UiPreferenceStorage);
   protected readonly tabService = inject(TabService);
 
   protected readonly isMobile = this.uiVariant.isMobile;
-  protected readonly isSidebarVisible = signal(!this.isMobile());
+  protected readonly isSidebarVisible = signal(
+    this.isMobile() ? false : this.uiPreferenceStorage.readSidebarVisible(),
+  );
   protected readonly isCustomerSubmenuOpen = signal(false);
   protected readonly isProductSubmenuOpen = signal(false);
   protected readonly isRentalSubmenuOpen = signal(false);
@@ -96,6 +100,15 @@ export class MainLayout {
         }
       });
 
+    this.authService.currentUser$
+      ?.pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((user) => {
+        if (!this.isMobile() && typeof user?.sidebarVisible === 'boolean') {
+          this.isSidebarVisible.set(user.sidebarVisible);
+          this.uiPreferenceStorage.writeSidebarVisible(user.sidebarVisible);
+        }
+      });
+
   }
 
   protected dismissOutsideMenu(event: Event): void {
@@ -112,7 +125,17 @@ export class MainLayout {
 
   protected toggleSidebar(): void {
     this.dismissMenus();
-    this.isSidebarVisible.update((visible) => !visible);
+    const next = !this.isSidebarVisible();
+    this.isSidebarVisible.set(next);
+    if (!this.isMobile()) {
+      this.uiPreferenceStorage.writeSidebarVisible(next);
+      if (this.authService.getCurrentUser?.()) {
+        this.authService
+          .updatePreferences?.({ sidebarVisible: next })
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe({ error: () => undefined });
+      }
+    }
   }
 
   public closeAllSubmenus(): void {

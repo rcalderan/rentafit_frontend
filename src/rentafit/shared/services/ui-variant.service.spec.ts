@@ -1,6 +1,9 @@
 import { BreakpointObserver, BreakpointState } from '@angular/cdk/layout';
 import { TestBed } from '@angular/core/testing';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, of } from 'rxjs';
+import { vi } from 'vitest';
+import { User, UserRole } from '../../domains/auth/data/user.model';
+import { AuthService } from '../../domains/auth/services/auth.service';
 import { UiPreferenceStorage } from './ui-preference-storage';
 import { UiVariantService } from './ui-variant.service';
 
@@ -24,9 +27,20 @@ class FakeUiPreferenceStorage {
   }
 }
 
+class FakeAuthService {
+  readonly currentUserSubject = new BehaviorSubject<User | null>(null);
+  readonly currentUser$ = this.currentUserSubject.asObservable();
+  readonly updatePreferences = vi.fn().mockReturnValue(of({}));
+
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+}
+
 describe('UiVariantService', () => {
   let breakpoints: FakeBreakpointObserver;
   let storage: FakeUiPreferenceStorage;
+  let auth: FakeAuthService;
   let service: UiVariantService;
 
   beforeEach(() => {
@@ -35,10 +49,12 @@ describe('UiVariantService', () => {
         UiVariantService,
         { provide: BreakpointObserver, useClass: FakeBreakpointObserver },
         { provide: UiPreferenceStorage, useClass: FakeUiPreferenceStorage },
+        { provide: AuthService, useClass: FakeAuthService },
       ],
     });
     breakpoints = TestBed.inject(BreakpointObserver) as unknown as FakeBreakpointObserver;
     storage = TestBed.inject(UiPreferenceStorage) as unknown as FakeUiPreferenceStorage;
+    auth = TestBed.inject(AuthService) as unknown as FakeAuthService;
     service = TestBed.inject(UiVariantService);
   });
 
@@ -81,5 +97,21 @@ describe('UiVariantService', () => {
 
     expect(service.activeVariant()).toBe('legacy');
     expect(document.documentElement.dataset['ui']).toBe('legacy');
+  });
+
+  it('sincroniza variante do usuário ao autenticar e envia ao backend ao selecionar', () => {
+    auth.currentUserSubject.next({
+      id: 'u1',
+      username: 'ana',
+      role: UserRole.ADMIN,
+      active: true,
+      uiVariant: 'atelier',
+    });
+
+    expect(service.preferredVariant()).toBe('atelier');
+    expect(storage.stored).toBe('atelier');
+
+    service.selectVariant('legacy');
+    expect(auth.updatePreferences).toHaveBeenCalledWith({ uiVariant: 'legacy' });
   });
 });
