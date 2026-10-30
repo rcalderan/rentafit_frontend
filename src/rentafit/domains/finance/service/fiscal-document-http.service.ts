@@ -326,10 +326,12 @@ export class FiscalDocumentHttpService extends FiscalDocumentService {
     let xml: string | undefined;
 
     if (body && typeof body === 'object') {
+      const isRentafit = typeof body.status === 'number' || typeof body.path === 'string';
       backendMessage =
-        (typeof body.statusMessage === 'string' ? body.statusMessage : undefined) ??
-        (typeof body.error === 'string' ? body.error : undefined) ??
-        (typeof body.message === 'string' ? body.message : undefined) ??
+        (typeof body.statusMessage === 'string' && body.statusMessage.trim() ? body.statusMessage : undefined) ??
+        (typeof body.message === 'string' && body.message.trim() ? body.message : undefined) ??
+        (!isRentafit && typeof body.error === 'string' && body.error.trim() ? body.error : undefined) ??
+        (typeof body.error === 'string' && body.error.trim() ? body.error : undefined) ??
         error.message;
       xml = typeof body.data === 'string' ? body.data : undefined;
     } else if (typeof body === 'string') {

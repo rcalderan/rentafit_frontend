@@ -2,7 +2,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
-import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { CategoryProductType, ICategory } from '../data/Product.interface';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
 
@@ -17,8 +17,7 @@ export class CategoryService {
 
     private handleError(error: HttpErrorResponse): Observable<never> {
         console.error('CategoryService error:', error);
-        const errorMessage = HTTP_ERROR_MAP[error.status] || error.error?.message || ErrorMessages.UNKNOWN_ERROR;
-        return throwError(() => new Error(errorMessage));
+        return throwError(() => new Error(apiErrorMessage(error)));
     }
 
     /**

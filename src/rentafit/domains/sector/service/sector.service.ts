@@ -3,7 +3,7 @@ import { inject, Injectable } from '@angular/core';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
-import { ErrorMessages, HTTP_ERROR_MAP } from '../../../shared/data/error-messages';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { CreateSectorRequest, Sector, UpdateSectorRequest } from '../data/sector.model';
 
 /**
@@ -44,8 +44,6 @@ export class SectorService {
 
   private handleError(error: HttpErrorResponse): Observable<never> {
     console.error('SectorService error:', error);
-    const msg =
-      HTTP_ERROR_MAP[error.status] ?? error.error?.message ?? ErrorMessages.UNKNOWN_ERROR;
-    return throwError(() => new Error(msg));
+    return throwError(() => new Error(apiErrorMessage(error)));
   }
 }

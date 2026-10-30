@@ -7,6 +7,7 @@ import { DatePipe } from '@angular/common';
 import { StockService } from '../../service/stock.service';
 import { AuthService } from '../../../auth/services/auth.service';
 import { ModalComponent } from '../../../../shared/components/modal/modal.component';
+import { apiErrorMessages } from '../../../../shared/utils/api-error';
 import { IStockDTO, IStockMovementDTO } from '../../data/Product.interface';
 
 type MovementOp = 'add' | 'remove';
@@ -130,15 +131,11 @@ export class Stock implements OnChanges {
   }
 
   private handleError(error: HttpErrorResponse): void {
-    if (error.status === 400 && error.error?.errors) {
-      this.errorMessage.set(error.error.errors.map((e: { message?: string }) => e.message ?? e));
-      return;
-    }
-    if (error.status === 422) {
-      this.errorMessage.set(error.error?.message ?? 'Estoque insuficiente para realizar a baixa.');
-      return;
-    }
-    this.errorMessage.set('Ocorreu um erro ao processar a operação de estoque.');
+    const fallback =
+      error.status === 422
+        ? 'Estoque insuficiente para realizar a baixa.'
+        : 'Ocorreu um erro ao processar a operação de estoque.';
+    this.errorMessage.set(apiErrorMessages(error, fallback));
   }
 
   protected movementLabel(type: string): string {

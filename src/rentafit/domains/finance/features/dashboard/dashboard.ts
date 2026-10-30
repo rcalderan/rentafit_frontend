@@ -21,6 +21,7 @@ import {
 import { FinancialMovementService } from '../../service/financial-movement.service';
 import { Sector } from '../../../sector/data/sector.model';
 import { SectorService } from '../../../sector/service/sector.service';
+import { apiErrorMessage } from '../../../../shared/utils/api-error';
 import { FinanceCalendarComponent } from './components/finance-calendar/finance-calendar.component';
 import { FinanceChartsComponent } from './components/finance-charts/finance-charts.component';
 import { FinanceDayDetailComponent } from './components/finance-day-detail/finance-day-detail.component';
@@ -222,8 +223,8 @@ export class Dashboard {
           this.monthlyData.set(response);
           this.isLoading.set(false);
         },
-        error: () => {
-          this.errorMessage.set('Não foi possível carregar a movimentação mensal.');
+        error: (err: unknown) => {
+          this.errorMessage.set(apiErrorMessage(err, 'Não foi possível carregar a movimentação mensal.'));
           this.isLoading.set(false);
         },
       });
@@ -238,8 +239,8 @@ export class Dashboard {
           this.yearlyData.set(response);
           this.isLoading.set(false);
         },
-        error: () => {
-          this.errorMessage.set('Não foi possível carregar a movimentação anual.');
+        error: (err: unknown) => {
+          this.errorMessage.set(apiErrorMessage(err, 'Não foi possível carregar a movimentação anual.'));
           this.isLoading.set(false);
         },
       });

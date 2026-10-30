@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, of, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { IssuerBranchSetupRequest, IssuerInfo, IssuerSetupRequest } from '../data/issuer.model';
 
 @Injectable({
@@ -48,7 +49,6 @@ export class IssuerSetupService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    const message = error.error?.message || error.message || 'Erro ao comunicar com o serviço de emitente';
-    return throwError(() => new Error(message));
+    return throwError(() => new Error(apiErrorMessage(error, 'Erro ao comunicar com o serviço de emitente')));
   }
 }

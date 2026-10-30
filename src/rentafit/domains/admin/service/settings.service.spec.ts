@@ -60,11 +60,20 @@ describe('SettingsService', () => {
     request.flush(null);
   });
 
-  it('propaga mensagem de erro ao falhar a gravação', async () => {
+  it('propaga mensagem de erro do backend ao falhar a gravação', async () => {
     const result = lastValueFrom(service.put('operator.pinTrustMinutes', '10'));
 
     const request = httpMock.expectOne('/api/v1/settings/operator.pinTrustMinutes');
-    request.flush({ message: 'forbidden' }, { status: 500, statusText: 'Server Error' });
+    request.flush({ message: 'Apenas administradores podem alterar esta configuração.' }, { status: 403, statusText: 'Forbidden' });
+
+    await expect(result).rejects.toThrow('Apenas administradores podem alterar esta configuração.');
+  });
+
+  it('usa mensagem amigável de 500 quando backend retorna erro interno mascarado', async () => {
+    const result = lastValueFrom(service.put('operator.pinTrustMinutes', '10'));
+
+    const request = httpMock.expectOne('/api/v1/settings/operator.pinTrustMinutes');
+    request.flush({ message: 'An unexpected error occurred' }, { status: 500, statusText: 'Server Error' });
 
     await expect(result).rejects.toThrow('Erro interno no servidor. Tente novamente mais tarde.');
   });

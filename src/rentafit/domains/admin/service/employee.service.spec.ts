@@ -34,11 +34,20 @@ describe('EmployeeService', () => {
     request.flush(attendants);
   });
 
-  it('propaga mensagem de erro ao falhar a listagem', async () => {
+  it('propaga mensagem de erro do backend ao falhar a listagem', async () => {
     const result = lastValueFrom(service.listActiveAttendants());
     const request = httpMock.expectOne('/api/v1/employees/attendants');
 
     request.flush({ message: 'Falha na lista' }, { status: 500, statusText: 'Server Error' });
+
+    await expect(result).rejects.toThrow('Falha na lista');
+  });
+
+  it('usa mensagem amigável de 500 quando backend não envia message útil', async () => {
+    const result = lastValueFrom(service.listActiveAttendants());
+    const request = httpMock.expectOne('/api/v1/employees/attendants');
+
+    request.flush({ message: 'An unexpected error occurred' }, { status: 500, statusText: 'Server Error' });
 
     await expect(result).rejects.toThrow('Erro interno no servidor. Tente novamente mais tarde.');
   });

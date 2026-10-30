@@ -3,6 +3,7 @@ import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Observable, throwError } from 'rxjs';
 import { catchError } from 'rxjs/operators';
 import { APP_CONFIG } from '../../../shared/data/app-config.token';
+import { apiErrorMessage } from '../../../shared/utils/api-error';
 import { ICertificateDetails } from '../data/certificate.model';
 
 @Injectable({ providedIn: 'root' })
@@ -27,8 +28,6 @@ export class CertificateService {
   }
 
   private handleError(error: HttpErrorResponse): Observable<never> {
-    const body = error.error as ICertificateDetails | undefined;
-    const message = body?.erro ?? error.message;
-    return throwError(() => new Error(message));
+    return throwError(() => new Error(apiErrorMessage(error, 'Erro ao processar o certificado digital.')));
   }
 }
