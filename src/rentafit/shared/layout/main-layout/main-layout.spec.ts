@@ -103,6 +103,9 @@ describe('MainLayout', () => {
               </nav>
             </aside>
             <main class="main-content">
+              <nav class="tab-bar">
+                <div #tabViewport class="tab-viewport"></div>
+              </nav>
               <router-outlet></router-outlet>
             </main>
           </div>
@@ -220,5 +223,27 @@ describe('MainLayout', () => {
     expect(component['isSidebarVisible']()).toBe(false);
     expect(localStorage.getItem('rentafit.ui.sidebarVisible.v1')).toBe('false');
     expect(authService.updatePreferences).toHaveBeenCalledWith({ sidebarVisible: false });
+  });
+
+  it('orchestrates tab viewport overflow and scroll navigation controls', () => {
+    fixture.detectChanges();
+    const viewport = fixture.nativeElement.querySelector('.tab-viewport') as HTMLElement;
+    Object.defineProperty(viewport, 'clientWidth', { value: 400, configurable: true });
+    Object.defineProperty(viewport, 'scrollWidth', { value: 900, configurable: true });
+    viewport.scrollLeft = 0;
+
+    component['updateTabScrollState']();
+    expect(component['hasTabOverflow']()).toBe(true);
+    expect(component['canScrollTabsLeft']()).toBe(false);
+    expect(component['canScrollTabsRight']()).toBe(true);
+
+    component['scrollTabs'](1);
+    expect(viewport.scrollLeft).toBe(200);
+    expect(component['canScrollTabsLeft']()).toBe(true);
+    expect(component['canScrollTabsRight']()).toBe(true);
+
+    component['scrollTabs'](-1);
+    expect(viewport.scrollLeft).toBe(0);
+    expect(component['canScrollTabsLeft']()).toBe(false);
   });
 });

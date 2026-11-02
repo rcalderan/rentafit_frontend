@@ -513,12 +513,6 @@ button {
     transform: none;
 }
 
-[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .sector-context {
-    order: 0;
-    flex-basis: auto;
-    max-width: 140px;
-}
-
 [data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-list {
     top: 48px;
     left: auto;

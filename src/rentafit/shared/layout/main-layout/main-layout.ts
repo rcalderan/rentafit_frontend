@@ -1,4 +1,13 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
+import {
+  AfterViewInit,
+  ChangeDetectionStrategy,
+  Component,
+  DestroyRef,
+  ElementRef,
+  inject,
+  signal,
+  viewChild,
+} from '@angular/core';
 import {
   RouterLink,
   RouterLinkActive,
@@ -38,7 +47,7 @@ import { TerminalSectorService } from '../../../domains/sector/service/terminal-
   templateUrl: './main-layout.html',
   styleUrl: './main-layout.css',
 })
-export class MainLayout {
+export class MainLayout implements AfterViewInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly activatedRoute = inject(ActivatedRoute);
@@ -48,6 +57,11 @@ export class MainLayout {
   protected readonly uiVariant = inject(UiVariantService);
   private readonly uiPreferenceStorage = inject(UiPreferenceStorage);
   protected readonly tabService = inject(TabService);
+
+  protected readonly tabViewport = viewChild<ElementRef<HTMLElement>>('tabViewport');
+  protected readonly hasTabOverflow = signal(false);
+  protected readonly canScrollTabsLeft = signal(false);
+  protected readonly canScrollTabsRight = signal(false);
 
   protected readonly isMobile = this.uiVariant.isMobile;
   protected readonly isSidebarVisible = signal(
@@ -183,16 +197,75 @@ export class MainLayout {
     this.isAdminSubmenuOpen.set(nextState);
   }
 
+  ngAfterViewInit(): void {
+    const el = this.tabViewport()?.nativeElement;
+    if (!el) return;
+    this.observeTabViewport(el);
+    this.updateTabScrollState();
+  }
+
+  private observeTabViewport(el: HTMLElement): void {
+    const resizeObs =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => this.updateTabScrollState())
+        : null;
+    resizeObs?.observe(el);
+    const mutationObs = new MutationObserver(() => this.syncActiveTabScroll());
+    mutationObs.observe(el, { childList: true });
+    this.destroyRef.onDestroy(() => {
+      resizeObs?.disconnect();
+      mutationObs.disconnect();
+    });
+  }
+
+  protected updateTabScrollState(): void {
+    const el = this.tabViewport()?.nativeElement;
+    if (!el) return;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+    const overflow = maxScroll > 1;
+    this.hasTabOverflow.set(overflow);
+    this.canScrollTabsLeft.set(overflow && el.scrollLeft > 1);
+    this.canScrollTabsRight.set(overflow && el.scrollLeft < maxScroll - 1);
+  }
+
+  protected scrollTabs(direction: -1 | 1): void {
+    const el = this.tabViewport()?.nativeElement;
+    if (!el) return;
+    const step = Math.max(160, Math.floor(el.clientWidth * 0.5));
+    const maxScroll = Math.max(0, el.scrollWidth - el.clientWidth);
+    const target = Math.max(0, Math.min(maxScroll, el.scrollLeft + direction * step));
+    el.scrollLeft = target;
+    this.updateTabScrollState();
+  }
+
+  protected onTabWheel(event: WheelEvent): void {
+    const el = this.tabViewport()?.nativeElement;
+    if (!el || !this.hasTabOverflow() || event.deltaY === 0) return;
+    event.preventDefault();
+    el.scrollLeft += event.deltaY;
+    this.updateTabScrollState();
+  }
+
+  private syncActiveTabScroll(): void {
+    const el = this.tabViewport()?.nativeElement;
+    if (!el) return;
+    const activeBtn = el.querySelector<HTMLElement>('.tab.active');
+    activeBtn?.scrollIntoView?.({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+    this.updateTabScrollState();
+  }
+
   /** Open a new tab for the given route and close mobile submenus. */
   protected openTab(path: string, title: string, group: TabGroup): void {
     this.closeAllSubmenus();
     this.tabService.open(path, title, group);
+    queueMicrotask(() => this.syncActiveTabScroll());
   }
 
   /** Activate an existing tab. */
   protected activateTab(tabId: string): void {
     this.dismissMenus();
     this.tabService.activate(tabId);
+    queueMicrotask(() => this.syncActiveTabScroll());
   }
 
   /** Close a tab without triggering navigation side effects. */
@@ -200,6 +273,7 @@ export class MainLayout {
     this.dismissMenus();
     event.stopPropagation();
     this.tabService.close(tabId);
+    queueMicrotask(() => this.syncActiveTabScroll());
   }
 
   protected logout(): void {
