@@ -205,9 +205,9 @@ describe('MainLayout', () => {
     fixture.detectChanges();
     const tabService = TestBed.inject(TabService) as unknown as MockTabService;
 
-    (component as any).openTab('/customer/registration', 'Clientes', 'customer');
+    (component as any).openTab('/customer/registration', 'Cadastro de Cliente', 'customer');
 
-    expect(tabService.open).toHaveBeenCalledWith('/customer/registration', 'Clientes', 'customer');
+    expect(tabService.open).toHaveBeenCalledWith('/customer/registration', 'Cadastro de Cliente', 'customer');
     expect(component['isCustomerSubmenuOpen']()).toBe(false);
   });
 

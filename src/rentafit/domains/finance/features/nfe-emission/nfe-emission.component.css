@@ -1,8 +1,8 @@
 .fiscal-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
+  border: var(--surface-border);
+  border-radius: var(--border-radius);
   padding: 1.25rem;
-  background: #fff;
+  background: var(--card-bg);
 }
 
 .fiscal-header {
@@ -89,9 +89,11 @@
 
 .input {
   width: 100%;
-  padding: 0.55rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: var(--input-bg);
+  color: var(--text-color);
+  border-radius: var(--input-radius);
   font-size: 0.9rem;
   box-sizing: border-box;
 }
@@ -111,9 +113,9 @@
 
 .info-grid,
 .pending-box {
-  background: #f8f9fb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: var(--bg-color);
+  border: var(--surface-border);
+  border-radius: var(--input-radius);
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
 }
@@ -127,7 +129,7 @@
 }
 
 .info-row span {
-  color: #6b7280;
+  color: var(--text-muted);
 }
 
 .mono {
@@ -147,12 +149,14 @@
 }
 
 .btn {
-  padding: 0.55rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
-  background: #fff;
+  padding: 0.6rem 1.2rem;
+  border: 1px solid var(--control-border-color);
+  border-radius: var(--input-radius);
+  background: var(--card-bg);
+  color: var(--text-color);
   cursor: pointer;
   font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .btn:disabled {
@@ -161,14 +165,14 @@
 }
 
 .btn-primary {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: var(--primary-color);
+  border-color: var(--primary-color);
   color: #fff;
 }
 
 .btn-danger {
-  background: #b42318;
-  border-color: #b42318;
+  background: var(--danger-color);
+  border-color: var(--danger-color);
   color: #fff;
 }
 

@@ -1,6 +1,4 @@
 <div class="customer-registration-container" [formGroup]="form" [class.read-only]="isReadOnly()">
-    <h1>Cadastro de Cliente</h1>
-
     <!-- Informações Pessoais -->
     <div class="section-card">
         <div class="section-header">
@@ -63,7 +61,7 @@
             </div>
         </div>
         <!-- Endereço -->
-        <div class="section-card" style=" background-color:#afb1c9;">
+        <div class="address-subsection">
             <div formGroupName="address">
                 <span class="section-title">Endereço</span>
                 <div class="form-grid">

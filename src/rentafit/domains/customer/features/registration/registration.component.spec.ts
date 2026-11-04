@@ -766,7 +766,7 @@ describe('RegistrationComponent', () => {
 
     expect(tabServiceMock.updateTitle).toHaveBeenCalledWith(
       expect.stringContaining('/customer/registration'),
-      'Clientes'
+      'Cadastro de Cliente'
     );
   });
 

@@ -1,29 +1,31 @@
 :host {
     display: block;
+    width: 100%;
 }
 
 .stock-container {
-    padding: 1rem;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
+    gap: 1.25rem;
     align-items: center;
+    width: 100%;
 }
 
 /* ── No product placeholder ── */
 .no-product-msg {
-    color: #888;
-    font-size: 0.95rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
     text-align: center;
-    padding: 2rem 0;
+    padding: 0.75rem 0;
 }
 
 /* ── Loading bar ── */
 .loading-bar {
     width: 100%;
-    max-width: 1000px;
+    max-width: 1200px;
     height: 3px;
-    background: linear-gradient(90deg, #3f51b5 40%, transparent 100%);
+    background: linear-gradient(90deg, var(--primary-color) 40%, transparent 100%);
     border-radius: 2px;
     animation: loadingSlide 1s ease-in-out infinite alternate;
 }
@@ -39,15 +41,15 @@
     grid-template-columns: repeat(4, 1fr);
     gap: 1rem;
     width: 100%;
-    max-width: 1000px;
+    max-width: 1200px;
 }
 
 .summary-card {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 1.2rem 1.5rem;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-    border: 1px solid #e0e0e0;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 1.15rem 1.5rem;
+    box-shadow: var(--shadow-md);
+    border: var(--surface-border);
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
@@ -55,7 +57,7 @@
 
 .summary-label {
     font-size: 0.8rem;
-    color: #666;
+    color: var(--text-muted);
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.03em;
@@ -64,50 +66,51 @@
 .summary-value {
     font-size: 1.8rem;
     font-weight: 700;
-    color: #3f51b5;
+    color: var(--primary-color);
 }
 
 /* Status-based card variants */
-.summary-card.status-ok   .summary-value { color: #2e7d32; }
-.summary-card.status-low  .summary-value { color: #f57c00; }
-.summary-card.status-empty .summary-value { color: #c62828; }
-.summary-card.reserved    .summary-value { color: #f57c00; }
-.summary-card.total       .summary-value { color: #3f51b5; }
-.summary-card.minimum     .summary-value { color: #546e7a; }
+.summary-card.status-ok   .summary-value { color: var(--success-color); }
+.summary-card.status-low  .summary-value { color: var(--warning-color); }
+.summary-card.status-empty .summary-value { color: var(--danger-color); }
+.summary-card.reserved    .summary-value { color: var(--warning-color); }
+.summary-card.total       .summary-value { color: var(--primary-color); }
+.summary-card.minimum     .summary-value { color: var(--text-muted); }
 
 /* ── Location info ── */
 .location-info {
     width: 100%;
-    max-width: 1000px;
+    max-width: 1200px;
     font-size: 0.9rem;
-    color: #555;
+    color: var(--text-muted);
     margin: 0;
 }
 
 /* ── Section card ── */
 .section-card {
-    background: #ffffff;
-    border-radius: 8px;
-    padding: 1.5rem 2rem;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    padding: 1.25rem 1.75rem;
     width: 100%;
-    max-width: 1000px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-    border: 1px solid #e0e0e0;
+    max-width: 1200px;
+    box-shadow: var(--shadow-md);
+    border: var(--surface-border);
+    box-sizing: border-box;
 }
 
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.2rem;
-    border-bottom: 1px solid #f0f0f0;
-    padding-bottom: 0.8rem;
+    margin-bottom: 1.1rem;
+    border-bottom: 1px solid var(--input-bg);
+    padding-bottom: 0.75rem;
 }
 
 .section-title {
     font-size: 1.05rem;
     font-weight: 600;
-    color: #444;
+    color: var(--text-color);
     display: block;
 }
 
@@ -115,15 +118,15 @@
 .op-tabs {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.1rem;
 }
 
 .op-tab {
     padding: 0.5rem 1.4rem;
-    border-radius: 6px;
-    border: 1px solid #d1d5db;
-    background: #f9fafb;
-    color: #555;
+    border-radius: var(--input-radius);
+    border: 1px solid var(--control-border-color);
+    background: var(--input-bg);
+    color: var(--text-color);
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
@@ -131,13 +134,13 @@
 }
 
 .op-tab:hover {
-    background: #eef2ff;
-    border-color: #3f51b5;
+    background: var(--control-hover-bg);
+    border-color: var(--primary-color);
 }
 
 .op-tab.active {
-    background: #3f51b5;
-    border-color: #3f51b5;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
     color: #ffffff;
     font-weight: 600;
 }
@@ -167,7 +170,7 @@
 
 label {
     font-size: 0.85rem;
-    color: #666;
+    color: var(--text-muted);
     font-weight: 500;
 }
 
@@ -178,11 +181,11 @@ label {
 }
 
 input {
-    background-color: #f9fafb;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 0.65rem 1rem;
-    color: #333;
+    background-color: var(--input-bg);
+    border: none;
+    border-radius: var(--input-radius);
+    padding: 0.7rem 1rem;
+    color: var(--text-color);
     font-size: 0.95rem;
     width: 100%;
     box-sizing: border-box;
@@ -191,20 +194,18 @@ input {
 }
 
 input:focus {
-    outline: none;
-    border-color: #3f51b5;
-    background: #fff;
-    box-shadow: 0 0 0 3px rgba(63, 81, 181, 0.1);
+    outline: 2px solid var(--primary-color);
+    background: var(--card-bg);
 }
 
 .field-error {
-    color: #dc2626;
+    color: var(--danger-color);
     font-size: 0.75rem;
     font-weight: 500;
 }
 
 .success-msg {
-    color: #2e7d32;
+    color: var(--success-color);
     font-size: 0.9rem;
     font-weight: 500;
     margin: 0;
@@ -219,7 +220,7 @@ input:focus {
 
 .btn {
     padding: 0.75rem 2rem;
-    border-radius: 6px;
+    border-radius: var(--input-radius);
     border: none;
     font-weight: 600;
     cursor: pointer;
@@ -228,17 +229,16 @@ input:focus {
 }
 
 .btn-save {
-    background-color: #3f51b5;
+    background-color: var(--primary-color);
     color: #ffffff;
 }
 
 .btn-save:hover:not(:disabled) {
-    background-color: #303f9f;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    background-color: var(--primary-hover);
 }
 
 .btn-save:disabled {
-    background-color: #c7cbe6;
+    opacity: 0.55;
     cursor: not-allowed;
 }
 

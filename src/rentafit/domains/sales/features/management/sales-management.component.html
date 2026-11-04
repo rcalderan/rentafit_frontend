@@ -1,17 +1,15 @@
 <div class="sales-management">
-  <header class="page-header">
-    <h2>Vendas</h2>
+  <!-- Filtros e Ação -->
+  <div class="filters-bar">
+    <div class="filters">
+      <button class="filter-btn" [class.active]="!filterStatus()" (click)="onFilterChange(null)">Todas</button>
+      <button class="filter-btn" [class.active]="filterStatus() === 'DRAFT'" (click)="onFilterChange('DRAFT')">Rascunho</button>
+      <button class="filter-btn" [class.active]="filterStatus() === 'CONFIRMED'" (click)="onFilterChange('CONFIRMED')">Confirmado</button>
+      <button class="filter-btn" [class.active]="filterStatus() === 'PAID'" (click)="onFilterChange('PAID')">Pago</button>
+      <button class="filter-btn" [class.active]="filterStatus() === 'COMPLETED'" (click)="onFilterChange('COMPLETED')">Concluído</button>
+      <button class="filter-btn" [class.active]="filterStatus() === 'CANCELLED'" (click)="onFilterChange('CANCELLED')">Cancelado</button>
+    </div>
     <button class="btn btn-primary" (click)="newSale()">+ Nova Venda</button>
-  </header>
-
-  <!-- Filtros -->
-  <div class="filters">
-    <button class="filter-btn" [class.active]="!filterStatus()" (click)="onFilterChange(null)">Todas</button>
-    <button class="filter-btn" [class.active]="filterStatus() === 'DRAFT'" (click)="onFilterChange('DRAFT')">Rascunho</button>
-    <button class="filter-btn" [class.active]="filterStatus() === 'CONFIRMED'" (click)="onFilterChange('CONFIRMED')">Confirmado</button>
-    <button class="filter-btn" [class.active]="filterStatus() === 'PAID'" (click)="onFilterChange('PAID')">Pago</button>
-    <button class="filter-btn" [class.active]="filterStatus() === 'COMPLETED'" (click)="onFilterChange('COMPLETED')">Concluído</button>
-    <button class="filter-btn" [class.active]="filterStatus() === 'CANCELLED'" (click)="onFilterChange('CANCELLED')">Cancelado</button>
   </div>
 
   <!-- Loading -->

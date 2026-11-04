@@ -12,10 +12,10 @@
 
 .readonly-value {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d7dee8;
-  border-radius: 6px;
-  background: #f5f7fa;
-  color: #1f2937;
+  border: none;
+  border-radius: var(--input-radius);
+  background: var(--input-bg);
+  color: var(--text-color);
   font-weight: 500;
   min-height: 2.25rem;
   display: flex;

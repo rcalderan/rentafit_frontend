@@ -52,7 +52,7 @@ export const routes: Routes = [
                 path: 'customer/registration',
                 loadComponent: () => import('./domains/customer/features/registration/registration.component').then(m => m.RegistrationComponent),
                 canActivate: [roleGuard],
-                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Clientes', tabGroup: 'customer' }
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Cadastro de Cliente', tabGroup: 'customer' }
             },
             {
                 path: 'customer/legacy',
@@ -64,13 +64,13 @@ export const routes: Routes = [
                 path: 'product/registration',
                 loadComponent: () => import('./domains/product/components/rent-registration/rent-registration.component').then(m => m.Registration),
                 canActivate: [roleGuard],
-                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Cadastro de Produtos', tabGroup: 'product' }
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Cadastro Aluguel', tabGroup: 'product' }
             },
             {
                 path: 'product/retail-registration',
                 loadComponent: () => import('./domains/product/components/retail-registration/retail-registration.component').then(m => m.RetailRegistration),
                 canActivate: [roleGuard],
-                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Produtos para Venda', tabGroup: 'product' }
+                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Cadastro Varejo', tabGroup: 'product' }
             },
             {
                 path: 'product/search',

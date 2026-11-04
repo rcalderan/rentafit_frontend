@@ -3,31 +3,25 @@
 }
 
 .admin-container {
-    padding: 1rem;
+    padding: 0.25rem 0;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.25rem;
     align-items: center;
-}
-
-h1 {
-    color: var(--primary-color);
-    font-size: 2rem;
-    align-self: flex-start;
 }
 
 .admin-grid {
     display: grid;
     grid-template-columns: 1.2fr 0.8fr;
-    gap: 2rem;
+    gap: 1.25rem;
     width: 100%;
-    max-width: 1100px;
+    max-width: 1200px;
 }
 
 .section-card {
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.75rem;
     box-shadow: var(--shadow-md);
 }
 
@@ -403,17 +397,9 @@ h1 {
 }
 
 :host-context([data-ui='legacy']) .admin-container {
-    gap: 1.5rem;
-    padding: 2rem;
+    gap: 1.25rem;
+    padding: 0.25rem 0;
     background: var(--bg-color);
-}
-
-:host-context([data-ui='legacy']) h1 {
-    align-self: center;
-    width: 100%;
-    max-width: 1100px;
-    color: var(--primary-color);
-    text-align: center;
 }
 
 :host-context([data-ui='legacy']) .admin-grid {

@@ -3,32 +3,29 @@
 }
 
 .management-container {
-    padding: 1rem;
+    padding: 0.25rem 0;
     display: flex;
     flex-direction: column;
-    gap: 2rem;
+    gap: 1.25rem;
     align-items: center;
-}
-
-h1 {
-    color: var(--primary-color);
-    font-size: 2rem;
-    align-self: flex-start;
 }
 
 .header-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 2rem;
+    gap: 1.25rem;
     width: 100%;
-    max-width: 1100px;
+    max-width: 1200px;
 }
 
 .section-card {
     background: var(--card-bg);
     border-radius: var(--border-radius);
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.75rem;
     box-shadow: var(--shadow-md);
+    width: 100%;
+    max-width: 1200px;
+    box-sizing: border-box;
 }
 
 .stats-card {

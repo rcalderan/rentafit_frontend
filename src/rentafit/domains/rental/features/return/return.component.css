@@ -12,7 +12,7 @@
 }
 
 .return-error .error-message {
-  color: #d32f2f;
+  color: var(--danger-color);
   font-size: 1.1rem;
 }
 
@@ -22,23 +22,32 @@
 }
 
 .return-success .success-message {
-  color: #2e7d32;
+  color: var(--success-color);
   font-size: 1.2rem;
   font-weight: 500;
 }
 
 .return-container {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 1.5rem;
+  padding: 0.25rem 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
+}
+
+.section-card,
+.returner-section,
+.items-section {
+  background: var(--card-bg);
+  border: var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 1.25rem 1.75rem;
+  box-shadow: var(--shadow-md);
 }
 
 .return-header {
-  border-bottom: 1px solid #e0e0e0;
-  padding-bottom: 1rem;
+  padding: 1rem 1.75rem;
 }
 
 .header-row {
@@ -51,18 +60,18 @@
 
 .return-title {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 600;
-  color: #1a237e;
+  color: var(--primary-color);
 }
 
 .contract-id {
-  background: #1a237e;
+  background: var(--primary-color);
   color: #fff;
   padding: 0.25rem 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--input-radius);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .contract-id.clickable {
@@ -71,35 +80,34 @@
 }
 
 .contract-id.clickable:hover {
-  background: #283593;
+  background: var(--primary-hover);
 }
 
 .header-details {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  margin-top: 0.5rem;
-  font-size: 0.9rem;
-  color: #666;
+  font-size: 0.95rem;
+  color: var(--text-muted);
   flex-wrap: wrap;
 }
 
 .customer-name {
-  font-weight: 500;
-  color: #333;
+  font-weight: 600;
+  color: var(--text-color);
 }
 
 .separator {
-  color: #999;
+  color: var(--text-muted);
 }
 
 .delay-badge {
-  background: #ffebee;
-  color: #c62828;
+  background: color-mix(in srgb, var(--danger-color) 15%, transparent);
+  color: var(--danger-color);
   padding: 0.125rem 0.5rem;
   border-radius: 4px;
   font-size: 0.8rem;
-  font-weight: 500;
+  font-weight: 600;
 }
 
 .returner-section {
@@ -109,44 +117,45 @@
 }
 
 .field-label {
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   font-weight: 500;
-  color: #333;
+  color: var(--text-muted);
 }
 
 .required {
-  color: #d32f2f;
+  color: var(--danger-color);
 }
 
 .returner-input {
-  padding: 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: var(--input-bg);
+  color: var(--text-color);
+  border-radius: var(--input-radius);
+  font-size: 0.95rem;
   width: 100%;
-  max-width: 400px;
+  max-width: 480px;
 }
 
 .returner-input:focus {
-  outline: none;
-  border-color: #1a237e;
+  outline: 2px solid var(--primary-color);
 }
 
 .returner-input:disabled {
-  background: #f5f5f5;
+  opacity: 0.6;
 }
 
 .field-hint {
   margin: 0;
   font-size: 0.8rem;
-  color: #666;
+  color: var(--text-muted);
 }
 
 .section-title {
   margin: 0 0 0.75rem;
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
-  color: #333;
+  color: var(--text-color);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -345,10 +354,11 @@
 }
 
 .payments-section {
-  background: #fafafa;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 1rem;
+  background: var(--card-bg);
+  border: var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 1.25rem 1.75rem;
+  box-shadow: var(--shadow-md);
 }
 
 .payments-list {
@@ -361,12 +371,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.5rem 0;
-  border-bottom: 1px solid #e0e0e0;
-}
-
-.payment-row:last-child {
-  border-bottom: none;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg-color);
+  border-radius: var(--input-radius);
 }
 
 .payment-row.fine-preview {
@@ -378,12 +385,12 @@
 
 .payment-number {
   font-weight: 500;
-  color: #333;
+  color: var(--text-color);
 }
 
 .payment-value {
   font-weight: 600;
-  color: #1a237e;
+  color: var(--primary-color);
 }
 
 .payment-status {
@@ -450,40 +457,40 @@
 .btn-primary,
 .btn-secondary,
 .btn-close {
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 1.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--input-radius);
   font-size: 0.95rem;
   cursor: pointer;
-  font-weight: 500;
-  transition: opacity 0.2s;
+  font-weight: 600;
+  transition: opacity 0.2s, background 0.2s;
 }
 
 .btn-primary {
-  background: #1a237e;
+  background: var(--primary-color);
   color: #fff;
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #283593;
+  background: var(--primary-hover);
 }
 
 .btn-secondary {
-  background: #e0e0e0;
-  color: #333;
+  background: var(--input-bg);
+  color: var(--text-color);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: #bdbdbd;
+  background: var(--control-hover-bg);
 }
 
 .btn-close {
-  background: #2e7d32;
+  background: var(--success-color);
   color: #fff;
 }
 
 .btn-close:hover:not(:disabled) {
-  background: #388e3c;
+  opacity: 0.9;
 }
 
 .btn-primary:disabled,
@@ -536,8 +543,9 @@
 .lookup-section {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  max-width: 420px;
+  gap: 0.65rem;
+  width: 100%;
+  max-width: 1200px;
 }
 
 .lookup-row {
@@ -547,10 +555,12 @@
 
 .lookup-input {
   flex: 1;
-  padding: 0.6rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 0.7rem 1rem;
+  border: none;
+  background: var(--input-bg);
+  color: var(--text-color);
+  border-radius: var(--input-radius);
+  font-size: 0.95rem;
 }
 
 /* ── Desistência ── */

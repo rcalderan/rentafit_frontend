@@ -163,7 +163,7 @@ export class RegistrationComponent implements OnInit, OnDestroy {
 
   private updateTabTitle(name: string | null | undefined): void {
     const displayName = this.buildDisplayName(name);
-    const title = displayName || 'Clientes';
+    const title = displayName || 'Cadastro de Cliente';
     const tabId = this.tabService.getTabId('/customer/registration', this.draftId);
     this.tabService.updateTitle(tabId, title);
   }
