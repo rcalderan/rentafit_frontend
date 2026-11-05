@@ -1,9 +1,6 @@
 @if (lookupMode()) {
   <div class="return-container">
-    <header class="return-header">
-      <h1 class="return-title">Devolução de Contrato</h1>
-    </header>
-    <section class="lookup-section">
+    <section class="lookup-section section-card">
       <label for="contract-lookup" class="field-label">Número do contrato</label>
       <div class="lookup-row">
         <input
@@ -56,19 +53,18 @@
 } @else {
   @if (summary(); as s) {
     <div class="return-container">
-      <header class="return-header">
+      <header class="return-header section-card">
         <div class="header-row">
-          <h1 class="return-title">Devolução de Contrato</h1>
-          <span class="contract-id clickable" (click)="onContractIdClick()" title="Abrir contrato">#{{ s.legacyId }}</span>
-        </div>
-        <div class="header-details">
-          <span class="customer-name">{{ s.customerName }}</span>
-          <span class="separator">•</span>
-          <span class="return-date">Data prevista: {{ formatDate(s.returnDate) }}</span>
-          @if (delayWarning()) {
+          <div class="header-details">
+            <span class="customer-name">{{ s.customerName }}</span>
             <span class="separator">•</span>
-            <span class="delay-badge">{{ delayWarning() }}</span>
-          }
+            <span class="return-date">Data prevista: {{ formatDate(s.returnDate) }}</span>
+            @if (delayWarning()) {
+              <span class="separator">•</span>
+              <span class="delay-badge">{{ delayWarning() }}</span>
+            }
+          </div>
+          <span class="contract-id clickable" (click)="onContractIdClick()" title="Abrir contrato">#{{ s.legacyId }}</span>
         </div>
       </header>
 

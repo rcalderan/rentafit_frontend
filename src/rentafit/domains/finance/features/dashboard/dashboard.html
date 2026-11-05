@@ -14,7 +14,6 @@
   <div class="dashboard-container">
     <header class="finance-topbar">
       <div class="title-block">
-        <h1>Movimentação Financeira</h1>
         @if (authorizedOperator(); as op) {
           <span class="operator-pill" title="Autorizado por Sigla e PIN">
             <strong>{{ op.initials }}</strong> · {{ op.name }}

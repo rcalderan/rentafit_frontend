@@ -1,8 +1,4 @@
 <div class="fiscal-list">
-  <header class="page-header">
-    <h2>NF-e (Vendas)</h2>
-  </header>
-
   <div class="filters">
     <button class="filter-btn" [class.active]="!filterStatus()" (click)="onFilterChange(null)">Todas</button>
     <button class="filter-btn" [class.active]="filterStatus() === 'PENDING_EMISSION'" (click)="onFilterChange('PENDING_EMISSION')">Em processamento</button>

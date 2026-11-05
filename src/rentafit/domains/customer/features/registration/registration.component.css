@@ -3,36 +3,45 @@
 }
 
 .customer-registration-container {
-    background-color: var(--bg-color);
-    padding: 2rem;
-    min-height: 100vh;
+    padding: 0.25rem 0;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 2rem;
-}
-
-h1 {
-    color: var(--primary-color);
-    font-size: 2.2rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
+    gap: 1.25rem;
 }
 
 .section-card {
     background: var(--card-bg);
+    border: var(--surface-border);
     border-radius: var(--border-radius);
-    padding: 1.5rem 2rem;
+    padding: 1.25rem 1.75rem;
     width: 100%;
-    max-width: 800px;
+    max-width: 1200px;
     box-shadow: var(--shadow-md);
+    box-sizing: border-box;
+}
+
+.address-subsection {
+    background: var(--bg-color);
+    border: var(--surface-border);
+    border-radius: var(--input-radius);
+    padding: 1rem 1.25rem;
+    margin: 1rem 0;
+}
+
+.address-subsection .input-group {
+    margin-top: 0.75rem;
+}
+
+.address-subsection .form-grid .input-group {
+    margin-top: 0;
 }
 
 .section-title {
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     font-weight: 600;
     color: var(--text-color);
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.1rem;
     display: block;
 }
 
@@ -40,7 +49,7 @@ h1 {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 1.2rem;
+    margin-bottom: 1.1rem;
 }
 
 .section-header .section-title {
@@ -218,7 +227,7 @@ textarea:focus {
 }
 
 .field-error {
-    color: #f44336;
+    color: var(--danger-color);
     font-size: 0.75rem;
     font-weight: 500;
     margin-top: 0.2rem;
@@ -234,9 +243,9 @@ textarea:focus {
 /* Modo Visualização (Read Only) */
 .customer-registration-container.read-only input,
 .customer-registration-container.read-only textarea {
-    background-color: #f8f9fa;
+    background-color: var(--bg-color);
     border: none;
-    color: #6c757d;
+    color: var(--text-muted);
     cursor: default;
     box-shadow: none;
 }
@@ -248,12 +257,7 @@ textarea:focus {
 
 .customer-registration-container.read-only .section-card {
     opacity: 0.95;
-    background-color: #fdfdfd;
-}
-
-/* Modo Edição (Highlight) */
-.customer-registration-container:not(.read-only) .section-card {
-    border-top: 4px solid var(--primary-color);
+    background-color: var(--card-bg);
 }
 
 .radio-group {
@@ -275,9 +279,9 @@ textarea:focus {
     display: flex;
     justify-content: center;
     gap: 1rem;
-    margin-top: 1rem;
+    margin-top: 0.5rem;
     width: 100%;
-    max-width: 800px;
+    max-width: 1200px;
 }
 
 .btn {
@@ -371,32 +375,23 @@ textarea:focus {
 
 :host-context([data-ui='legacy']) .customer-registration-container {
     background: var(--bg-color);
-    gap: 1.5rem;
-    padding: 2rem;
-}
-
-:host-context([data-ui='legacy']) h1 {
-    width: 100%;
-    max-width: 900px;
-    margin: 0 0 0.5rem;
-    color: var(--primary-color);
-    font-size: 2rem;
-    text-align: center;
+    gap: 1.25rem;
+    padding: 0.25rem 0;
 }
 
 :host-context([data-ui='legacy']) .section-card {
-    max-width: 900px;
-    padding: 1.5rem 2rem;
+    max-width: 1200px;
+    padding: 1.25rem 1.75rem;
     border: var(--surface-border);
-    border-radius: 8px;
+    border-radius: 10px;
     background: var(--card-bg);
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
 }
 
 :host-context([data-ui='legacy']) .section-header {
-    margin-bottom: 1.2rem;
+    margin-bottom: 1rem;
     border-bottom: 1px solid #e2e8f0;
-    padding-bottom: 0.8rem;
+    padding-bottom: 0.75rem;
 }
 
 :host-context([data-ui='legacy']) .form-grid {
@@ -412,12 +407,8 @@ textarea:focus {
     padding: 0.7rem 1rem;
 }
 
-:host-context([data-ui='legacy']) .customer-registration-container:not(.read-only) .section-card {
-    border-top: var(--surface-border);
-}
-
 :host-context([data-ui='legacy']) .actions {
-    max-width: 900px;
+    max-width: 1200px;
     justify-content: flex-end;
 }
 

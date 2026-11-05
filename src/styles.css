@@ -215,7 +215,7 @@ button {
 
 [data-ui='legacy'] rentafit-new-rental .new-rental-container {
     gap: 1.25rem;
-    padding: 2rem;
+    padding: 0.5rem 0;
     background: var(--bg-color);
 }
 
@@ -467,7 +467,7 @@ button {
 }
 
 [data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .content-area {
-    padding: 1.25rem 1.5rem 2rem;
+    padding: 0.75rem 1.25rem 1.25rem;
 }
 
 [data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .legacy-status {
@@ -511,12 +511,6 @@ button {
     background: #f4e7ed;
     color: var(--primary-color);
     transform: none;
-}
-
-[data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .sector-context {
-    order: 0;
-    flex-basis: auto;
-    max-width: 140px;
 }
 
 [data-ui='atelier'] rentafit-main-layout .layout-container:not(.mobile-view) .operator-list {

@@ -24,7 +24,7 @@
                 @if (isCustomerSubmenuOpen()) {
                 <div class="submenu" role="menu">
                     <button type="button" class="submenu-item"
-                            role="menuitem" (click)="openTab('/customer/registration', 'Clientes', 'customer')">
+                            role="menuitem" (click)="openTab('/customer/registration', 'Cadastro de Cliente', 'customer')">
                         <span>Cadastro de Cliente</span>
                     </button>
                 </div>
@@ -153,13 +153,11 @@
                         <span class="operator-badge">{{ operator.initials || '??' }}</span>
                         <span class="operator-caret" aria-hidden="true">{{ operatorsOpen() ? '▴' : '▾' }}</span>
                     </button>
-                    <rentafit-terminal-sector-chip />
                     } @else {
                     <button type="button" class="operator-current empty" (click)="authenticateOperator()"
                             aria-label="Autenticar usuário">
                         <span class="operator-badge">?</span>
                     </button>
-                    <rentafit-terminal-sector-chip />
                     }
                 </div>
 
@@ -212,17 +210,50 @@
         }
 
         <nav class="tab-bar" aria-label="Abas abertas">
-            @for (tab of tabs(); track tab.id) {
-            <button
-                type="button"
-                class="tab"
-                [class.active]="activeTabId() === tab.id"
-                [attr.aria-current]="activeTabId() === tab.id ? 'true' : null"
-                (click)="activateTab(tab.id)"
-                [title]="tab.title">
-                <span class="tab-title">{{ tab.title }}</span>
-                <span class="tab-close" (click)="closeTab($event, tab.id)" aria-label="Fechar aba">×</span>
-            </button>
+            <div
+                #tabViewport
+                class="tab-viewport"
+                (scroll)="updateTabScrollState()"
+                (wheel)="onTabWheel($event)">
+                @for (tab of tabs(); track tab.id) {
+                <button
+                    type="button"
+                    class="tab"
+                    [class.active]="activeTabId() === tab.id"
+                    [attr.aria-current]="activeTabId() === tab.id ? 'true' : null"
+                    (click)="activateTab(tab.id)"
+                    [title]="tab.title">
+                    <span class="tab-title">{{ tab.title }}</span>
+                    <span class="tab-close" (click)="closeTab($event, tab.id)" aria-label="Fechar aba">×</span>
+                </button>
+                }
+            </div>
+
+            @if (hasTabOverflow()) {
+            <div class="tab-nav-controls" role="group" aria-label="Navegação de abas">
+                <button
+                    type="button"
+                    class="tab-nav-btn"
+                    [disabled]="!canScrollTabsLeft()"
+                    (click)="scrollTabs(-1)"
+                    aria-label="Abas anteriores"
+                    title="Abas anteriores">
+                    <span aria-hidden="true">‹</span>
+                </button>
+                <button
+                    type="button"
+                    class="tab-nav-btn"
+                    [disabled]="!canScrollTabsRight()"
+                    (click)="scrollTabs(1)"
+                    aria-label="Próximas abas"
+                    title="Próximas abas">
+                    <span aria-hidden="true">›</span>
+                </button>
+            </div>
+            }
+
+            @if (hasAnyRole([UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE])) {
+            <rentafit-terminal-sector-chip />
             }
         </nav>
 

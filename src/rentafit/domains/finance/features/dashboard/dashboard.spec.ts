@@ -254,7 +254,6 @@ describe('Finance Dashboard', () => {
 
     expect(movementService.lastMonthlyArgs).not.toBeNull();
     const text = fixture.nativeElement.textContent as string;
-    expect(text).toContain('Movimentação Financeira');
     expect(text).toContain('Richard Calderan');
     expect(text).toContain('Maria Silva');
     expect(text).toContain('Multa');

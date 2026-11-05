@@ -1,9 +1,10 @@
 .fiscal-card {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 1.25rem;
-  background: #fff;
-  max-width: 700px;
+  border: var(--surface-border);
+  border-radius: var(--border-radius);
+  padding: 1.25rem 1.75rem;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-md);
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -26,7 +27,7 @@
   background: transparent;
   cursor: pointer;
   font-size: 0.85rem;
-  color: #2563eb;
+  color: var(--primary-color);
   padding: 0;
 }
 

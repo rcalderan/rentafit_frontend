@@ -1,44 +1,56 @@
 :host {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: stretch;
 }
 
 .sector-chip {
   display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  background: var(--input-bg);
-  border: var(--surface-border);
-  border-radius: 999px;
-  padding: 0.3rem 0.8rem;
+  justify-content: center;
+  gap: 0.45rem;
+  height: 100%;
+  background: var(--primary-color);
+  border: 1px solid var(--control-border-color, #d0d7de);
+  border-top: none;
+  border-right: none;
+  border-bottom: none;
+  border-radius: 0 21px 0 0;
+  padding: 0.5rem 1rem;
   font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-color);
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #fff;
+  white-space: nowrap;
   cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .sector-chip:hover {
-  background: var(--control-hover-bg);
+  background: var(--primary-hover);
 }
 
 .sector-icon {
   font-style: normal;
-  color: var(--primary-color);
+  color: inherit;
 }
 
 .sector-chip.missing {
-  border-style: dashed;
+  background: var(--input-bg);
+  border-left-style: dashed;
   color: var(--text-muted);
 }
 
-.sector-chip.missing .sector-icon,
-.sector-caret,
+.sector-caret {
+  color: inherit;
+  font-size: 0.68rem;
+}
+
 .sector-item-code,
 .sector-empty {
   color: var(--text-muted);
 }
 
-.sector-caret,
 .sector-item-code {
   font-size: 0.68rem;
 }
@@ -46,8 +58,8 @@
 .sector-menu {
   position: absolute;
   top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 0;
+  left: auto;
   z-index: 60;
   min-width: 220px;
   background: var(--card-bg);
@@ -98,21 +110,9 @@
 }
 
 :host-context([data-ui='legacy']) .sector-chip {
-  padding: 0 0.4rem;
-  border: none;
-  border-radius: 0;
-  background: transparent;
+  border-radius: 0 21px 0 0 !important;
   font-family: var(--ui-font);
   font-size: 0.78rem;
-}
-:host-context([data-ui='legacy']) .sector-chip:hover {
-  background: #316ac5;
-  color: #ffffff;
-}
-:host-context([data-ui='legacy']) .sector-chip:hover .sector-icon,
-:host-context([data-ui='legacy']) .sector-chip:hover .sector-caret,
-:host-context([data-ui='legacy']) .sector-chip.missing .sector-icon {
-  color: inherit;
 }
 :host-context([data-ui='legacy']) .sector-menu {
   left: auto;

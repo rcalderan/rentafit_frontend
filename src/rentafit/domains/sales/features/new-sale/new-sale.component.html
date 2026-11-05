@@ -4,8 +4,6 @@
     <div class="header-info">
       @if (order()?.legacyId) {
         <h2>{{ order()!.legacyId }}</h2>
-      } @else {
-        <h2>Nova Venda</h2>
       }
       @if (order()?.status) {
         <span class="status-badge" [class]="'status-' + order()!.status.toLowerCase()">
