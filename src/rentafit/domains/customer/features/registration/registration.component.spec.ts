@@ -38,6 +38,7 @@ describe('RegistrationComponent', () => {
         zipCode: '01000-000'
       }
     });
+    component.getPhoneControl(0).setValue('(11) 99999-9999');
   };
 
   const buildSavedCustomer = (overrides: Partial<ICustomer> = {}): ICustomer => ({
@@ -228,6 +229,38 @@ describe('RegistrationComponent', () => {
 
     expect(component.getPhoneStatus(0)).toBe('INVALID');
     expect(component.getPhoneError(0)).toContain('formato');
+  });
+
+  it('BUG-03/09/13: bloqueia telefone em branco, nome só com espaços, HTML no nome e normaliza UF no save', () => {
+    const saved = buildSavedCustomer();
+    customerService.saveCustomer.mockReturnValue(of(saved));
+
+    const fixture = TestBed.createComponent(RegistrationComponent);
+    const component = fixture.componentInstance;
+    fixture.detectChanges();
+
+    buildValidForm(component);
+    component.getPhoneControl(0).setValue('');
+    expect(component.form.invalid).toBe(true);
+
+    component.getPhoneControl(0).setValue('(11) 99999-9999');
+    component.form.patchValue({ name: '   ' });
+    expect(component.form.get('name')?.invalid).toBe(true);
+
+    component.form.patchValue({ name: '<script>alert(1)</script>' });
+    expect(component.form.get('name')?.invalid).toBe(true);
+
+    component.form.patchValue({ name: '  Maria Silva  ', address: { ...component.form.getRawValue().address, state: 'sp' } });
+    expect(component.form.valid).toBe(true);
+    component.save();
+
+    expect(customerService.saveCustomer).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Maria Silva',
+        phones: ['(11) 99999-9999'],
+        address: expect.objectContaining({ state: 'SP' }),
+      })
+    );
   });
 
   //  Busca por código legado 

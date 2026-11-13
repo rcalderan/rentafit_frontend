@@ -18,6 +18,31 @@ const MASKED_BACKEND_MESSAGES = new Set<string>([
   'An unexpected error occurred',
 ]);
 
+const TRANSLATED_BACKEND_MESSAGES: Record<string, string> = {
+  'Customer with this document already exists': 'Já existe um cliente cadastrado com este CPF/CNPJ.',
+  'Name must not exceed 255 characters': 'O nome deve ter entre 3 e 255 caracteres.',
+  'Name must not contain HTML tags': 'O nome contém caracteres inválidos (< ou >).',
+  'Document is required': 'O CPF/CNPJ é obrigatório.',
+  'Email is required': 'O e-mail é obrigatório.',
+  'Email must be valid': 'Informe um e-mail válido.',
+  'ZIP code is required': 'O CEP é obrigatório.',
+  'Street is required': 'O logradouro é obrigatório.',
+  'City is required': 'A cidade é obrigatória.',
+  'State is required': 'A UF é obrigatória.',
+  'State must be 2 uppercase letters': 'A UF deve conter 2 letras maiúsculas (ex.: SP).',
+  'State must be exactly 2 characters': 'A UF deve conter exatamente 2 caracteres.',
+  'Legacy ID already exists': 'Já existe um produto cadastrado com este código.',
+  'Category not found': 'Categoria não encontrada.',
+  'Category is required': 'A categoria é obrigatória.',
+  'Value is required': 'O valor é obrigatório.',
+  'Value must have at most 2 decimal places': 'O valor deve ter no máximo 2 casas decimais.',
+  'Warranty days must not be negative': 'Os dias de garantia não podem ser negativos.',
+  'Warranty days must not exceed 3650': 'Os dias de garantia não podem exceder 3650.',
+  'Condition is required': 'A condição do produto é obrigatória.',
+  'Invalid condition': 'Condição do produto inválida.',
+  'Invalid status': 'Situação do produto inválida.',
+  'Tipo inválido. Esperado: Integer': 'Código inválido. Informe apenas números inteiros.',
+};
 interface ApiFieldError {
   field?: string;
   message?: string;
@@ -108,12 +133,17 @@ function extractFieldErrorList(body: unknown): string[] {
   if (!Array.isArray(errors)) return [];
   return errors
     .map(item => (typeof item === 'string' ? item.trim() : (item?.message ?? '').trim()))
-    .filter(msg => msg.length > 0);
+    .filter(msg => msg.length > 0)
+    .map(msg => TRANSLATED_BACKEND_MESSAGES[msg] ?? msg);
 }
 
 function extractMessageField(message: string | string[] | undefined): string | null {
   if (Array.isArray(message)) {
-    const joined = message.map(m => (typeof m === 'string' ? m.trim() : '')).filter(Boolean).join(' | ');
+    const joined = message
+      .map(m => (typeof m === 'string' ? m.trim() : ''))
+      .filter(Boolean)
+      .map(m => TRANSLATED_BACKEND_MESSAGES[m] ?? m)
+      .join(' | ');
     return joined.length > 0 ? joined : null;
   }
   return usableText(message);
@@ -123,7 +153,7 @@ function usableText(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const trimmed = value.trim();
   if (trimmed.length === 0 || MASKED_BACKEND_MESSAGES.has(trimmed)) return null;
-  return trimmed;
+  return TRANSLATED_BACKEND_MESSAGES[trimmed] ?? trimmed;
 }
 
 function isRentafitEnvelope(payload: ApiErrorPayload): boolean {

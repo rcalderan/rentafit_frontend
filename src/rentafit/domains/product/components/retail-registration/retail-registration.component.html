@@ -118,7 +118,7 @@
     <div class="actions">
         <button class="btn btn-save" type="button" (click)="save()"
             [disabled]="isReadOnly()">Salvar</button>
-        <button class="btn btn-delete" type="button" [disabled]="form.invalid || isReadOnly()">Excluir</button>
+        <button class="btn btn-delete" type="button" disabled title="Exclusão de produto indisponível por esta tela">Excluir</button>
     </div>
 
     @if (errorMessage()) {
