@@ -92,6 +92,15 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     if (!value) return null;
     return this.phonePattern.test(value) ? null : { invalidPhone: true };
   };
+  private readonly notBlankValidator = (control: AbstractControl): ValidationErrors | null => {
+    const raw = control.value;
+    if (raw === null || raw === undefined || raw === '') return null;
+    return raw.toString().trim().length >= 1 ? null : { required: true };
+  };
+  private readonly noHtmlValidator = (control: AbstractControl): ValidationErrors | null => {
+    const raw = (control.value ?? '').toString();
+    return /[<>]/.test(raw) ? { invalidFormat: 'Caracteres < e > não são permitidos' } : null;
+  };
 
   private destroy$ = new Subject<void>();
   private zipCodeSubject$ = new Subject<string>();
@@ -134,20 +143,20 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     this.form = this.fb.group({
       id: [{ value: '', disabled: true }],
       legacyId: [''],
-      name: ['', [Validators.required, Validators.minLength(3)]],
+      name: ['', [Validators.required, this.notBlankValidator, Validators.minLength(3), this.noHtmlValidator]],
       document: ['', [Validators.required, cpfCnpjValidator]],
       isAuthenticated: [{ value: false, disabled: true }],
       address: this.fb.group({
-        street: ['', Validators.required],
-        neighborhood: ['', Validators.required],
-        city: ['', Validators.required],
-        state: ['', [Validators.required, Validators.maxLength(2), Validators.minLength(2)]],
+        street: ['', [Validators.required, this.notBlankValidator]],
+        neighborhood: ['', [Validators.required, this.notBlankValidator]],
+        city: ['', [Validators.required, this.notBlankValidator]],
+        state: ['', [Validators.required, Validators.maxLength(2), Validators.minLength(2), Validators.pattern(/^[A-Za-z]{2}$/)]],
         zipCode: ['', [Validators.required, Validators.pattern(/^\d{5}-?\d{3}$/)]]
       }),
-      phones: this.fb.array([this.buildPhoneControl()]),
+      phones: this.fb.array([this.buildPhoneControl('', true)]),
       // Opcional no balcão; só o cadastro online (auth/register) exige e-mail.
       email: ['', [Validators.email, Validators.maxLength(255)]],
-      number: ['', Validators.required],
+      number: ['', [Validators.required, this.notBlankValidator]],
       complement: [''],
       notes: ['']
     });
@@ -280,20 +289,32 @@ export class RegistrationComponent implements OnInit, OnDestroy {
   removePhone(index: number): void {
     if (this.isReadOnly() || !this.canRemovePhone()) return;
     this.phonesArray.removeAt(index);
+    this.ensureFirstPhoneRequired();
   }
 
-  private buildPhoneControl(value: string = ''): FormControl {
-    return this.fb.control(value, this.phoneValidator);
+  private buildPhoneControl(value: string = '', required: boolean = false): FormControl {
+    const validators = required
+      ? [Validators.required, this.notBlankValidator, this.phoneValidator]
+      : [this.phoneValidator];
+    return this.fb.control(value, validators);
+  }
+
+  private ensureFirstPhoneRequired(): void {
+    if (this.phonesArray.length > 0) {
+      const first = this.getPhoneControl(0);
+      first.setValidators([Validators.required, this.notBlankValidator, this.phoneValidator]);
+      first.updateValueAndValidity({ emitEvent: false });
+    }
   }
 
   private setPhones(phones?: string[] | null): void {
     this.phonesArray.clear();
     const values = (phones ?? []).map(phone => phone?.trim()).filter(Boolean) as string[];
     if (values.length === 0) {
-      this.phonesArray.push(this.buildPhoneControl());
+      this.phonesArray.push(this.buildPhoneControl('', true));
       return;
     }
-    values.slice(0, this.maxPhones).forEach(value => this.phonesArray.push(this.buildPhoneControl(value)));
+    values.slice(0, this.maxPhones).forEach((value, idx) => this.phonesArray.push(this.buildPhoneControl(value, idx === 0)));
   }
 
   findByLegacyId(event: KeyboardEvent, document: string) {
@@ -422,8 +443,24 @@ export class RegistrationComponent implements OnInit, OnDestroy {
     }
 
     const v = this.form.getRawValue();
+    const cleanedPhones = (v.phones ?? []).map((p: string) => p?.trim()).filter(Boolean);
     // Vazio vira null: people.email é UNIQUE e dois clientes com "" colidiriam.
-    const customer: ICustomer = { ...v, email: v.email?.trim() || null };
+    const customer: ICustomer = {
+      ...v,
+      name: v.name?.trim() ?? '',
+      email: v.email?.trim() || null,
+      number: v.number?.trim() ?? '',
+      complement: v.complement?.trim() ?? '',
+      phones: cleanedPhones,
+      address: v.address ? {
+        ...v.address,
+        street: v.address.street?.trim() ?? '',
+        neighborhood: v.address.neighborhood?.trim() ?? '',
+        city: v.address.city?.trim() ?? '',
+        state: v.address.state?.trim().toUpperCase() ?? '',
+        zipCode: v.address.zipCode?.trim() ?? '',
+      } : v.address,
+    };
     this.service.saveCustomer(customer).subscribe(
       {
         next: (customer: ICustomer) => {

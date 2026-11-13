@@ -120,4 +120,16 @@ describe('apiErrorMessage', () => {
     const err = new HttpErrorResponse({ status: 503, url: 'http://internal/api/x' });
     expect(apiErrorMessage(err)).toBe(ErrorMessages.UNKNOWN_ERROR);
   });
+
+  it('BUG-11: traduz mensagens de erro em inglês conhecidas do backend para pt-BR', () => {
+    const err = new HttpErrorResponse({
+      status: 422,
+      error: {
+        status: 422,
+        message: 'Customer with this document already exists',
+        path: '/api/v1/customers',
+      },
+    });
+    expect(apiErrorMessage(err)).toBe('Já existe um cliente cadastrado com este CPF/CNPJ.');
+  });
 });
