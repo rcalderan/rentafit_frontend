@@ -93,7 +93,7 @@ export const routes: Routes = [
                 path: 'rental/management',
                 loadComponent: () => import('./domains/rental/features/management/management').then(m => m.Management),
                 canActivate: [roleGuard],
-                data: { roles: [UserRole.ADMIN, UserRole.MANAGER, UserRole.EMPLOYEE], title: 'Gestão de Locações' }
+                data: { roles: [UserRole.ADMIN], title: 'Gestão de Locações' }
             },
             {
                 path: 'rental/return',

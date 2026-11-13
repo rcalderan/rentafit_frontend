@@ -339,6 +339,7 @@ export class HomeDashboard implements OnInit {
       REVISION: 'Revisão',
       SUPERSEDED: 'Substituído',
       CLOSED: 'Concluído',
+      CANCELLED: 'Cancelado',
     };
     return labels[String(status)] ?? String(status);
   }
@@ -351,6 +352,7 @@ export class HomeDashboard implements OnInit {
       REVISION: 'status-revision',
       SUPERSEDED: 'status-superseded',
       CLOSED: 'status-closed',
+      CANCELLED: 'status-cancelled',
     };
     return `status-badge ${classes[String(status)] ?? ''}`;
   }

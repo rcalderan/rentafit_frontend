@@ -371,4 +371,12 @@ describe('HomeDashboard', () => {
       expect(component.searchError()).not.toContain('Http failure response');
     });
   });
+
+  describe('statusLabel e statusClass', () => {
+    it('traduz CANCELLED para Cancelado com classe status-cancelled (BUG-29)', () => {
+      const component = makeComponent();
+      expect(component.statusLabel('CANCELLED')).toBe('Cancelado');
+      expect(component.statusClass('CANCELLED')).toContain('status-cancelled');
+    });
+  });
 });
